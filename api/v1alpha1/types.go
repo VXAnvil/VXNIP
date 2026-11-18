@@ -1,5 +1,5 @@
-// Package v1alpha1 contains the experimental homelab inventory and allocation API.
-// +groupName=homelab.infrastructure.cluster.x-k8s.io
+// Package v1alpha1 contains the experimental VMetal inventory and allocation API.
+// +groupName=vmetal.infrastructure.cluster.x-k8s.io
 // +kubebuilder:object:generate=true
 package v1alpha1
 
@@ -13,7 +13,7 @@ import (
 )
 
 var GroupVersion = schema.GroupVersion{
-	Group: "homelab.infrastructure.cluster.x-k8s.io", Version: "v1alpha1",
+	Group: "vmetal.infrastructure.cluster.x-k8s.io", Version: "v1alpha1",
 }
 
 var SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
@@ -26,23 +26,23 @@ var InfrastructureGroupVersion = schema.GroupVersion{
 // kinds. Hosts remain in one inventory across both API groups.
 func AddInfrastructureToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(InfrastructureGroupVersion,
-		&HomelabMachine{}, &HomelabMachineList{},
-		&HomelabCluster{}, &HomelabClusterList{},
-		&HomelabMachineTemplate{}, &HomelabMachineTemplateList{},
+		&VMetalMachine{}, &VMetalMachineList{},
+		&VMetalCluster{}, &VMetalClusterList{},
+		&VMetalMachineTemplate{}, &VMetalMachineTemplateList{},
 	)
 	metav1.AddToGroupVersion(scheme, InfrastructureGroupVersion)
 }
 
 func init() {
 	SchemeBuilder.Register(
-		&HomelabHost{}, &HomelabHostList{},
-		&HomelabMachine{}, &HomelabMachineList{},
-		&HomelabCluster{}, &HomelabClusterList{},
-		&HomelabMachineTemplate{}, &HomelabMachineTemplateList{},
+		&VMetalHost{}, &VMetalHostList{},
+		&VMetalMachine{}, &VMetalMachineList{},
+		&VMetalCluster{}, &VMetalClusterList{},
+		&VMetalMachineTemplate{}, &VMetalMachineTemplateList{},
 	)
 }
 
-type HomelabHostSpec struct {
+type VMetalHostSpec struct {
 	// MachineID is the full machine ID hash reported by the SSH probe.
 	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
 	MachineID string `json:"machineID"`
@@ -69,7 +69,7 @@ type HostClaim struct {
 	UID       types.UID `json:"uid"`
 }
 
-type HomelabHostStatus struct {
+type VMetalHostStatus struct {
 	Hardware           *apiextensionsv1.JSON `json:"hardware,omitempty"`
 	ObservedAt         *metav1.Time          `json:"observedAt,omitempty"`
 	ObservedGeneration int64                 `json:"observedGeneration,omitempty"`
@@ -86,21 +86,21 @@ type HomelabHostStatus struct {
 // +kubebuilder:validation:XValidation:rule="self.spec == oldSelf.spec || (has(oldSelf.spec.managedAddress) && oldSelf.spec.managedAddress && has(self.spec.managedAddress) && self.spec.managedAddress && self.spec.machineID == oldSelf.spec.machineID && has(self.spec.allowBootstrap) == has(oldSelf.spec.allowBootstrap) && (!has(self.spec.allowBootstrap) || self.spec.allowBootstrap == oldSelf.spec.allowBootstrap) && (!has(oldSelf.status) || !has(oldSelf.status.claim)))",message="only an unclaimed managed host can update its address"
 // +kubebuilder:printcolumn:name="Verified",type=boolean,JSONPath=`.status.discoveryReady`
 // +kubebuilder:printcolumn:name="Claim",type=string,JSONPath=`.status.claim.name`
-type HomelabHost struct {
+type VMetalHost struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              HomelabHostSpec   `json:"spec"`
-	Status            HomelabHostStatus `json:"status,omitempty"`
+	Spec              VMetalHostSpec   `json:"spec"`
+	Status            VMetalHostStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-type HomelabHostList struct {
+type VMetalHostList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HomelabHost `json:"items"`
+	Items           []VMetalHost `json:"items"`
 }
 
-type HomelabMachineSpec struct {
+type VMetalMachineSpec struct {
 	// BootstrapMode defaults to the existing Cluster API kubeadm path.
 	// +kubebuilder:validation:Enum=Kubeadm;NVKE
 	BootstrapMode string `json:"bootstrapMode,omitempty"`
@@ -110,12 +110,12 @@ type HomelabMachineSpec struct {
 	// +kubebuilder:validation:MaxLength=512
 	ProviderID string `json:"providerID,omitempty"`
 
-	// HostRef is the name of a cluster-scoped HomelabHost.
+	// HostRef is the name of a cluster-scoped VMetalHost.
 	// +kubebuilder:validation:Pattern=`^host-[a-f0-9]{32}$`
 	HostRef string `json:"hostRef"`
 }
 
-type HomelabMachineStatus struct {
+type VMetalMachineStatus struct {
 	// +kubebuilder:validation:Enum=Pending;Reserved;Provisioned
 	Phase string `json:"phase,omitempty"`
 	// +kubebuilder:validation:Enum=HostMissing;HostDeleting;HostUnverified;HostClaimed;HostReserved;BootstrapDisabled;WaitingForBootstrap;BootstrapRunning;BootstrapComplete;NodeIPUnverified
@@ -140,16 +140,16 @@ type MachineAddress struct {
 // +kubebuilder:printcolumn:name="Host",type=string,JSONPath=`.spec.hostRef`
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=`.status.reason`
-type HomelabMachine struct {
+type VMetalMachine struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              HomelabMachineSpec   `json:"spec"`
-	Status            HomelabMachineStatus `json:"status,omitempty"`
+	Spec              VMetalMachineSpec   `json:"spec"`
+	Status            VMetalMachineStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-type HomelabMachineList struct {
+type VMetalMachineList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HomelabMachine `json:"items"`
+	Items           []VMetalMachine `json:"items"`
 }

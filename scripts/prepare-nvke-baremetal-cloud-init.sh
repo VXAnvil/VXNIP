@@ -10,10 +10,10 @@ if grep -Fxq 'status: done' <<<"$status"; then
 fi
 
 marker=/etc/cloud/cloud-init.disabled
-backup=/var/lib/cloud/homelab-nvke-cloud-init.disabled
+backup=/var/lib/cloud/vmetal-nvke-cloud-init.disabled
 seed=/var/lib/cloud/seed/nocloud
-config=/etc/cloud/cloud.cfg.d/zz-homelab-nvke-lab.cfg
-metadata='instance-id: homelab-nvke-baremetal'
+config=/etc/cloud/cloud.cfg.d/zz-vmetal-nvke-lab.cfg
+metadata='instance-id: vmetal-nvke-baremetal'
 if [[ ! -f $marker && ! -f $backup ]]; then
     printf 'Expected the Ubuntu installer cloud-init disable marker. Inspect cloud-init status before continuing.\n' >&2
     exit 1
@@ -23,7 +23,7 @@ if [[ -e $seed ]] && ! grep -Fxq "$metadata" "$seed/meta-data"; then
     exit 1
 fi
 if [[ -f $marker && -e $backup ]]; then
-    printf 'Both the cloud-init marker and its Homelab backup exist.\n' >&2
+    printf 'Both the cloud-init marker and its VMetal backup exist.\n' >&2
     exit 1
 fi
 dir=$(mktemp -d)
@@ -39,7 +39,7 @@ cloud_config_modules: []
 cloud_final_modules: []
 CLOUD
 if [[ -e $config ]] && ! cmp -s "$dir/cloud.cfg" "$config"; then
-    printf 'Refusing to replace the existing Homelab cloud-init configuration.\n' >&2
+    printf 'Refusing to replace the existing VMetal cloud-init configuration.\n' >&2
     exit 1
 fi
 route=$(ip -4 route show default)

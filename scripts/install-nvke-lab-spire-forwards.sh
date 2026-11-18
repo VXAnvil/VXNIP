@@ -8,7 +8,7 @@ fi
 kubeconfig=$1
 bind_address=$2
 kubectl=$(command -v kubectl)
-context=kind-homelab-provider-validation
+context=kind-vmetal-validation
 [[ -r $kubeconfig && $kubeconfig != *[\"%\\]* && $kubeconfig != *$'\n'* ]]
 [[ $( "$kubectl" --kubeconfig "$kubeconfig" config current-context ) == "$context" ]] ||
     { echo "Expected the isolated lab management context: $context" >&2; exit 1; }
@@ -25,11 +25,11 @@ for component in spire oidc; do
         spire) service=spire-server; port=30441 ;;
         oidc) service=spire-spiffe-oidc-discovery-provider; port=30444 ;;
     esac
-    unit="homelab-nvke-lab-$component-forward.service"
+    unit="vmetal-nvke-lab-$component-forward.service"
     units+=("$unit")
     cat >"$temp/$unit" <<UNIT
 [Unit]
-Description=NVKE Homelab lab $component port forward
+Description=NVKE VMetal lab $component port forward
 StartLimitIntervalSec=0
 
 [Service]

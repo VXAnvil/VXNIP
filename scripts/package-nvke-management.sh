@@ -16,7 +16,7 @@ revision=$(git -C "$nvke" rev-parse HEAD)
 staging=$(mktemp -d "$(dirname "$output")/.nvke-bundle.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
 mkdir "$staging/bin" "$staging/nvke"
-for tool in kind kubectl clusterctl helm nvkectl homelab-controller; do
+for tool in kind kubectl clusterctl helm nvkectl vmetal-controller; do
     install -m 0755 "$tools/$tool" "$staging/bin/$tool"
 done
 git -C "$nvke" archive "$revision" deploy controller/deploy controller/hack/ci/deploy-stack.sh \

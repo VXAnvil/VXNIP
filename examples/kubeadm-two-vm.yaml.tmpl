@@ -1,5 +1,5 @@
-apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: HomelabHost
+apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VMetalHost
 metadata:
   name: ${CONTROL_PLANE_HOST}
 spec:
@@ -7,8 +7,8 @@ spec:
   sshTarget: "${CONTROL_PLANE_SSH}"
   allowBootstrap: true
 ---
-apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: HomelabHost
+apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VMetalHost
 metadata:
   name: ${WORKER_HOST}
 spec:
@@ -16,10 +16,10 @@ spec:
   sshTarget: "${WORKER_SSH}"
   allowBootstrap: true
 ---
-apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: HomelabCluster
+apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VMetalCluster
 metadata:
-  name: homelab-lab
+  name: vmetal-lab
   namespace: default
 spec:
   controlPlaneEndpoint:
@@ -29,7 +29,7 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
-  name: homelab-lab
+  name: vmetal-lab
   namespace: default
 spec:
   clusterNetwork:
@@ -39,28 +39,28 @@ spec:
       cidrBlocks: ["10.96.0.0/12"]
     serviceDomain: cluster.local
   infrastructureRef:
-    apiGroup: homelab.infrastructure.cluster.x-k8s.io
-    kind: HomelabCluster
-    name: homelab-lab
+    apiGroup: vmetal.infrastructure.cluster.x-k8s.io
+    kind: VMetalCluster
+    name: vmetal-lab
   controlPlaneRef:
     apiGroup: controlplane.cluster.x-k8s.io
     kind: KubeadmControlPlane
-    name: homelab-lab
+    name: vmetal-lab
 ---
-apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: HomelabMachineTemplate
+apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VMetalMachineTemplate
 metadata:
-  name: homelab-lab-control-plane
+  name: vmetal-lab-control-plane
   namespace: default
 spec:
   template:
     spec:
       hostRef: ${CONTROL_PLANE_HOST}
 ---
-apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: HomelabMachineTemplate
+apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VMetalMachineTemplate
 metadata:
-  name: homelab-lab-worker
+  name: vmetal-lab-worker
   namespace: default
 spec:
   template:
@@ -70,7 +70,7 @@ spec:
 apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: KubeadmControlPlane
 metadata:
-  name: homelab-lab
+  name: vmetal-lab
   namespace: default
 spec:
   version: "${KUBERNETES_VERSION}"
@@ -78,9 +78,9 @@ spec:
   machineTemplate:
     spec:
       infrastructureRef:
-        apiGroup: homelab.infrastructure.cluster.x-k8s.io
-        kind: HomelabMachineTemplate
-        name: homelab-lab-control-plane
+        apiGroup: vmetal.infrastructure.cluster.x-k8s.io
+        kind: VMetalMachineTemplate
+        name: vmetal-lab-control-plane
   kubeadmConfigSpec:
     initConfiguration:
       localAPIEndpoint:
@@ -91,7 +91,7 @@ spec:
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
-  name: homelab-lab-worker
+  name: vmetal-lab-worker
   namespace: default
 spec:
   template:
@@ -103,24 +103,24 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
-  name: homelab-lab-worker
+  name: vmetal-lab-worker
   namespace: default
 spec:
-  clusterName: homelab-lab
+  clusterName: vmetal-lab
   replicas: 1
   selector:
     matchLabels:
-      cluster.x-k8s.io/cluster-name: homelab-lab
+      cluster.x-k8s.io/cluster-name: vmetal-lab
   template:
     spec:
-      clusterName: homelab-lab
+      clusterName: vmetal-lab
       version: "${KUBERNETES_VERSION}"
       bootstrap:
         configRef:
           apiGroup: bootstrap.cluster.x-k8s.io
           kind: KubeadmConfigTemplate
-          name: homelab-lab-worker
+          name: vmetal-lab-worker
       infrastructureRef:
-        apiGroup: homelab.infrastructure.cluster.x-k8s.io
-        kind: HomelabMachineTemplate
-        name: homelab-lab-worker
+        apiGroup: vmetal.infrastructure.cluster.x-k8s.io
+        kind: VMetalMachineTemplate
+        name: vmetal-lab-worker

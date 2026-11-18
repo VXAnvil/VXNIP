@@ -27,14 +27,14 @@ func run() error {
 	if err := api.SchemeBuilder.AddToScheme(scheme); err != nil {
 		return err
 	}
-	legacyMachine := &api.HomelabMachine{}
-	legacyMachine.SetGroupVersionKind(api.GroupVersion.WithKind("HomelabMachine"))
-	directReads := []client.Object{&api.HomelabHost{}, legacyMachine, &corev1.Secret{}}
-	enableNVKE := os.Getenv("HOMELAB_ENABLE_NVKE_INFRA") == "1"
+	standaloneMachine := &api.VMetalMachine{}
+	standaloneMachine.SetGroupVersionKind(api.GroupVersion.WithKind("VMetalMachine"))
+	directReads := []client.Object{&api.VMetalHost{}, standaloneMachine, &corev1.Secret{}}
+	enableNVKE := os.Getenv("VMETAL_ENABLE_NVKE_INFRA") == "1"
 	if enableNVKE {
 		api.AddInfrastructureToScheme(scheme)
-		nvkeMachine := &api.HomelabMachine{}
-		nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("HomelabMachine"))
+		nvkeMachine := &api.VMetalMachine{}
+		nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VMetalMachine"))
 		directReads = append(directReads, nvkeMachine)
 	}
 	config, err := ctrl.GetConfig()
@@ -46,7 +46,7 @@ func run() error {
 		Scheme:                  scheme,
 		Metrics:                 metricsserver.Options{BindAddress: "0"},
 		LeaderElection:          true,
-		LeaderElectionID:        "nvke-homelab-controller",
+		LeaderElectionID:        "vmetal-controller",
 		LeaderElectionNamespace: "kube-system",
 		// A finalizer must never be removed based on an old host claim from
 		// a cache that has yet to observe the reservation write.
@@ -84,7 +84,7 @@ func run() error {
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "homelab-controller:", err)
+		fmt.Fprintln(os.Stderr, "vmetal-controller:", err)
 		os.Exit(1)
 	}
 }

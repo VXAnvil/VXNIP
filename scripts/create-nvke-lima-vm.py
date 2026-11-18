@@ -15,14 +15,14 @@ import sys
 import tempfile
 
 CONFIG = Path("/etc/netplan/50-cloud-init.yaml")
-CLOUD_CONFIG = Path("/etc/cloud/cloud.cfg.d/99-homelab-preserve-netplan.cfg")
-UPLINK = Path("/etc/systemd/network/05-homelab-lima-uplink.link")
-WAIT_ONLINE = Path("/etc/systemd/system/systemd-networkd-wait-online.service.d/60-homelab-lima.conf")
+CLOUD_CONFIG = Path("/etc/cloud/cloud.cfg.d/99-vmetal-preserve-netplan.cfg")
+UPLINK = Path("/etc/systemd/network/05-vmetal-lima-uplink.link")
+WAIT_ONLINE = Path("/etc/systemd/system/systemd-networkd-wait-online.service.d/60-vmetal-lima.conf")
 WAIT_FOR_LIMA_UPLINK = """[Service]
 ExecStart=
 ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --interface=eth0:routable --interface=breth0:routable --any --ipv4
 """
-STATE = Path("/var/lib/homelab-lima-network.json")
+STATE = Path("/var/lib/vmetal-lima-network.json")
 VM_NAME = re.compile(r"[a-z][a-z0-9-]{0,47}")
 
 
@@ -80,7 +80,7 @@ def configure_guest(plan):
         raise ValueError("first-boot network differs from the validated Lima lease")
     if list(CONFIG.parent.glob("*.yaml")) != [CONFIG]:
         raise ValueError("unexpected Netplan configuration for a fresh Lima guest")
-    if Path("/var/lib/homelab-kubeadm/current.json").exists():
+    if Path("/var/lib/vmetal-kubeadm/current.json").exists():
         raise ValueError("the VM already has a Provider allocation")
     if any(path.exists() for path in (CLOUD_CONFIG, UPLINK, WAIT_ONLINE, STATE)):
         raise ValueError("the guest already has a managed network configuration")

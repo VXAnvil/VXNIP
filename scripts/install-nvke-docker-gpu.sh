@@ -11,13 +11,13 @@ repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source "$layout"
 : "${CLUSTER:?}" "${MANAGER_IP:?}" "${LAN_CIDR:?}" "${DOCKER_CIDR:?}" "${CP_IP:?}"
 : "${POD_CIDR:?}" "${SERVICE_CIDR:?}" "${WORKER_IP:?}" "${WORKER_GATEWAY:?}"
-[[ $CLUSTER =~ ^homelab-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$ ]] || fail "Choose a unique homelab-* name."
+[[ $CLUSTER =~ ^vmetal-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$ ]] || fail "Choose a unique vmetal-* name."
 network="$CLUSTER-routed"
 container="$CLUSTER-control-plane"
 volume="$container-var"
 api="https://$CP_IP:6443"
-ns=homelab-gtx-gpu
-marker=homelab.nvke.dev/installer
+ns=vmetal-gtx-gpu
+marker=vmetal.nvke.dev/installer
 privilege() { if [[ $EUID == 0 ]]; then "$@"; else sudo "$@"; fi; }
 tcp() { timeout 5 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$@"; }
 address_interface() {
@@ -122,7 +122,7 @@ manager_inputs() {
     iface=$(address_interface "$MANAGER_IP") || fail "Manager IP is not assigned locally."
     [[ $iface =~ ^[a-zA-Z0-9_.-]+$ ]] || fail "Unexpected interface name."
     [[ $(sysctl -n net.ipv4.ip_forward) == 1 ]] || fail "Enable IPv4 forwarding on the Docker host."
-    mgmt get crd homelabhosts.homelab.infrastructure.cluster.x-k8s.io >/dev/null
+    mgmt get crd vmetalhosts.vmetal.infrastructure.cluster.x-k8s.io >/dev/null
     nvke get clusters >/dev/null
     tcp "$MANAGER_IP" 30441 || fail "SPIRE unavailable at $MANAGER_IP:30441."
 }
@@ -205,21 +205,21 @@ register_host() {
     local hash=$1 addr=$2 user=$3 name existing
     [[ $hash =~ ^[0-9a-f]{64}$ && $user =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "Invalid enrollment identity."
     name="host-${hash:0:32}"
-    existing=$(mgmt get homelabhost "$name" --ignore-not-found -o json)
+    existing=$(mgmt get vmetalhost "$name" --ignore-not-found -o json)
     if [[ -n $existing ]]; then
         jq -e --arg cluster "$CLUSTER" --arg addr "$addr" --arg target "$user@$addr" --arg hash "$hash" '
-            .metadata.labels["homelab.nvke.dev/installer"] == $cluster and
+            .metadata.labels["vmetal.nvke.dev/installer"] == $cluster and
             .spec.machineID == $hash and .spec.nodeIP == $addr and .spec.sshTarget == $target and
             (.status.claim == null or (.status.claim.name | startswith($cluster + "-")))
         ' <<<"$existing" >/dev/null || fail "Host $name already belongs to another installation."
     else
         jq -cn --arg name "$name" --arg cluster "$CLUSTER" --arg addr "$addr" --arg target "$user@$addr" --arg hash "$hash" '
-            {apiVersion:"homelab.infrastructure.cluster.x-k8s.io/v1alpha1",kind:"HomelabHost",
-             metadata:{name:$name,labels:{"homelab.nvke.dev/installer":$cluster}},
+            {apiVersion:"vmetal.infrastructure.cluster.x-k8s.io/v1alpha1",kind:"VMetalHost",
+             metadata:{name:$name,labels:{"vmetal.nvke.dev/installer":$cluster}},
              spec:{machineID:$hash,nodeIP:$addr,sshTarget:$target,allowBootstrap:true}}
         ' | mgmt create -f - >&2
     fi
-    mgmt wait --for=jsonpath='{.status.discoveryReady}'=true "homelabhost/$name" --timeout=90s >&2
+    mgmt wait --for=jsonpath='{.status.discoveryReady}'=true "vmetalhost/$name" --timeout=90s >&2
     printf '%s\n' "$name"
 }
 get_cluster_id() {
@@ -244,7 +244,7 @@ control_plane() {
     if ! docker container inspect "$container" >/dev/null 2>&1; then
         context=$(mktemp -d "$state/build.XXXXXXXX")
         mkdir "$context/scripts"
-        cp "$repo/scripts/homelab-kubeadm" "$context/scripts/"
+        cp "$repo/scripts/vmetal-kubeadm" "$context/scripts/"
         cp "$repo/examples/nvke-docker-control-plane.Dockerfile" "$context/Dockerfile"
         if ! docker build --build-arg "NVKE_NODE_IMAGE=$CP_BASE_IMAGE" -t "$image" "$context"; then
             rm -rf -- "$context"
@@ -271,9 +271,9 @@ control_plane() {
     key=$(docker exec "$container" awk '{print $1, $2}' /etc/ssh/ssh_host_ed25519_key.pub)
     remember_key "$CP_IP" "$key"
     awk 'NR==1 {print "restrict", $1, $2}' "$PROVIDER_PUBLIC_KEY" |
-        docker exec -i "$container" sh -ec 'umask 077; cat >/home/homelab/.ssh/authorized_keys; chown homelab:homelab /home/homelab/.ssh/authorized_keys'
+        docker exec -i "$container" sh -ec 'umask 077; cat >/home/vmetal/.ssh/authorized_keys; chown vmetal:vmetal /home/vmetal/.ssh/authorized_keys'
     hash=$(docker exec -i "$container" python3 - <"$repo/internal/discovery/probe.py" | jq -er '.machine_id_hash')
-    host=$(register_host "$hash" "$CP_IP" homelab)
+    host=$(register_host "$hash" "$CP_IP" vmetal)
     if [[ -z $current ]]; then
         printf '%s\n' "$CLUSTER" >"$state/cluster-request"
         cat >"$state/cluster.yaml" <<YAML
@@ -291,7 +291,7 @@ controlPlaneConfig:
   infra:
     machineTemplate:
       apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-      kind: HomelabMachineTemplate
+      kind: VMetalMachineTemplate
       spec:
         template:
           spec:
@@ -300,7 +300,7 @@ controlPlaneConfig:
 infra:
   cluster:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-    kind: HomelabCluster
+    kind: VMetalCluster
     metadata:
       name: $CLUSTER
     spec:
@@ -333,7 +333,7 @@ check_worker() {
     : "${WORKER_USER:?}" "${WORKER_ARTIFACTS:?}" "${WORKER_STORAGE:?}"
     [[ $WORKER_USER =~ ^[a-z_][a-z0-9_-]*$ && $WORKER_STORAGE =~ ^/[a-zA-Z0-9_./-]+$ ]] || fail "Invalid worker settings."
     [[ $(realpath -m "$WORKER_STORAGE") == "$WORKER_STORAGE" ]] || fail "Use a canonical worker storage path."
-    if [[ -e /etc/kubernetes/kubelet.conf || -e /var/lib/homelab-kubeadm/current.json ]]; then
+    if [[ -e /etc/kubernetes/kubelet.conf || -e /var/lib/vmetal-kubeadm/current.json ]]; then
         [[ -e $state/prepared && -s /etc/kubernetes/kubelet.conf &&
            $(awk '$1=="server:" {print $2}' /etc/kubernetes/kubelet.conf) == "$api" ]] ||
             fail "The worker has an existing allocation. Release it before installing a separate cluster."
@@ -396,7 +396,7 @@ authorize_worker_key() {
 
 install_worker() {
     check_worker
-    exec 8>/run/lock/homelab-nvke-gpu-worker.lock
+    exec 8>/run/lock/vmetal-nvke-gpu-worker.lock
     flock -n 8 || fail "Another installer is preparing this worker."
     lock_state
     ip -4 route replace "$CP_IP/32" via "$WORKER_GATEWAY" dev "$iface" src "$WORKER_IP"
@@ -409,13 +409,13 @@ install_worker() {
         authorize_worker_key
         touch "$state/prepared"
     else
-        crictl --config=/dev/null --runtime-endpoint unix:///run/homelab-nvke-containerd/containerd.sock --timeout 5s info |
+        crictl --config=/dev/null --runtime-endpoint unix:///run/vmetal-nvke-containerd/containerd.sock --timeout 5s info |
             jq -e 'any(.status.conditions[]; .type=="RuntimeReady" and .status==true)' >/dev/null
     fi
     # The CNI interface exists only after join. The scoped rules can be installed before it.
     bash "$repo/scripts/configure-nvke-lab-host-recovery.sh" --install worker \
         "$WORKER_IP" "$CP_IP" "$MANAGER_IP" "$WORKER_GATEWAY" "$POD_CIDR" host-network-api
-    wait_for 20 systemctl is-active --quiet homelab-nvke-lab-worker-recovery.service ||
+    wait_for 20 systemctl is-active --quiet vmetal-nvke-lab-worker-recovery.service ||
         fail "Worker network recovery did not become active. Check its journal."
     local hash key
     hash=$(python3 "$repo/internal/discovery/probe.py" | jq -er '.machine_id_hash')
@@ -445,14 +445,14 @@ finish_cluster() {
     user=$(jq -er .sshUser "$report")
     key=$(jq -er .publicKey "$report")
     [[ $hash =~ ^[0-9a-f]{64}$ && $user =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "Invalid worker report."
-    claim=$(mgmt get homelabhost "host-${hash:0:32}" --ignore-not-found -o json)
+    claim=$(mgmt get vmetalhost "host-${hash:0:32}" --ignore-not-found -o json)
     if [[ -n $claim ]]; then
-        jq -e --arg cluster "$CLUSTER" '.metadata.labels["homelab.nvke.dev/installer"]==$cluster' <<<"$claim" >/dev/null ||
+        jq -e --arg cluster "$CLUSTER" '.metadata.labels["vmetal.nvke.dev/installer"]==$cluster' <<<"$claim" >/dev/null ||
             fail "Worker is already in another inventory."
     fi
     remember_key "$WORKER_IP" "$key"
     "$PROVIDER_SSH" -n -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=5 \
-        "$user@$WORKER_IP" 'sudo -n -l /usr/local/sbin/homelab-kubeadm' >/dev/null
+        "$user@$WORKER_IP" 'sudo -n -l /usr/local/sbin/vmetal-kubeadm' >/dev/null
     host=$(register_host "$hash" "$WORKER_IP" "$user")
     id=$(get_cluster_id)
     [[ $id =~ ^[a-f0-9-]{36}$ ]] || fail "Cannot resolve NVKE cluster ID."
@@ -467,9 +467,9 @@ systemReservedMemory: "2Gi"
 kubeReservedMemory: "512Mi"
 desiredNodeCount: 1
 nodeLabels:
-  homelab.nvke.dev/gateway: local
+  vmetal.nvke.dev/gateway: local
 nodeTaints:
-  - key: homelab.nvke.dev/experiment
+  - key: vmetal.nvke.dev/experiment
     value: "true"
     effect: NoSchedule
 autoModeDisabled: true
@@ -477,7 +477,7 @@ provisioningMonitorDisabled: true
 infra:
   machineTemplate:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-    kind: HomelabMachineTemplate
+    kind: VMetalMachineTemplate
     spec:
       template:
         spec:
@@ -489,11 +489,11 @@ YAML
         [[ $pool == "$host" ]] || fail "Existing node pool refers to a different host."
     fi
     worker_node() {
-        kube get nodes -l homelab.nvke.dev/gateway=local -o json |
+        kube get nodes -l vmetal.nvke.dev/gateway=local -o json |
             jq -er --arg ip "$WORKER_IP" '[.items[] | select(any(.status.addresses[]; .type=="InternalIP" and .address==$ip))] | select(length==1) | .[0].metadata.name'
     }
     node=$(wait_for 60 worker_node) || fail "GTX worker did not register."
-    [[ $(mgmt get homelabhost "$host" -o jsonpath='{.status.claim.name}') == "$node" ]] || fail "Worker claim differs."
+    [[ $(mgmt get vmetalhost "$host" -o jsonpath='{.status.claim.name}') == "$node" ]] || fail "Worker claim differs."
     cp=$(control_node)
     kube wait --for=condition=Ready "node/$cp" "node/$node" --timeout=180s
     printf '%s\n' "$node" >"$state/worker-node"
@@ -508,13 +508,13 @@ deploy_gpu() {
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
-  name: homelab-nvidia
+  name: vmetal-nvidia
 handler: nvidia
 scheduling:
   nodeSelector:
     kubernetes.io/hostname: $node
   tolerations:
-    - {key: homelab.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
+    - {key: vmetal.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -523,17 +523,17 @@ metadata:
   namespace: $ns
 spec:
   selector:
-    matchLabels: {app: homelab-nvidia-device-plugin}
+    matchLabels: {app: vmetal-nvidia-device-plugin}
   template:
     metadata:
-      labels: {app: homelab-nvidia-device-plugin}
+      labels: {app: vmetal-nvidia-device-plugin}
     spec:
-      runtimeClassName: homelab-nvidia
+      runtimeClassName: vmetal-nvidia
       automountServiceAccountToken: false
       nodeSelector:
         kubernetes.io/hostname: $node
       tolerations:
-        - {key: homelab.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
+        - {key: vmetal.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
       containers:
       - name: plugin
         image: nvcr.io/nvidia/k8s-device-plugin:v0.17.1

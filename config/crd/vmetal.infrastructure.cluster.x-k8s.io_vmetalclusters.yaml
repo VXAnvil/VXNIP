@@ -6,14 +6,14 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.19.0
   labels:
     cluster.x-k8s.io/v1beta2: v1alpha1
-  name: homelabclusters.homelab.infrastructure.cluster.x-k8s.io
+  name: vmetalclusters.vmetal.infrastructure.cluster.x-k8s.io
 spec:
-  group: homelab.infrastructure.cluster.x-k8s.io
+  group: vmetal.infrastructure.cluster.x-k8s.io
   names:
-    kind: HomelabCluster
-    listKind: HomelabClusterList
-    plural: homelabclusters
-    singular: homelabcluster
+    kind: VMetalCluster
+    listKind: VMetalClusterList
+    plural: vmetalclusters
+    singular: vmetalcluster
   scope: Namespaced
   versions:
   - name: v1alpha1
