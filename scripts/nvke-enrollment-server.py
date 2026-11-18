@@ -16,7 +16,7 @@ import tempfile
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-RESOURCE = "homelabhosts.homelab.infrastructure.cluster.x-k8s.io"
+RESOURCE = "vmetalhosts.vmetal.infrastructure.cluster.x-k8s.io"
 
 
 def digest(value):
@@ -110,8 +110,8 @@ class Registry:
             ]
             self.kubectl("patch", f"{RESOURCE}/{name}", "--type=json", "-p", json.dumps(patch))
         else:
-            obj = {"apiVersion": "homelab.infrastructure.cluster.x-k8s.io/v1alpha1",
-                   "kind": "HomelabHost", "metadata": {"name": name}, "spec": spec}
+            obj = {"apiVersion": "vmetal.infrastructure.cluster.x-k8s.io/v1alpha1",
+                   "kind": "VMetalHost", "metadata": {"name": name}, "spec": spec}
             self.kubectl("create", "-f", "-", body=json.dumps(obj))
         if invite:
             write_json(record, identity)
@@ -137,10 +137,10 @@ class Registry:
                                "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=5",
                                "-o", f"UserKnownHostsFile={probe_hosts}",
                                "-o", "GlobalKnownHostsFile=/dev/null", "--", f"{user}@{peer}",
-                               "cat /etc/machine-id && sudo -n -l /usr/local/sbin/homelab-kubeadm").splitlines()
+                               "cat /etc/machine-id && sudo -n -l /usr/local/sbin/vmetal-kubeadm").splitlines()
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                 raise Reject(409, "management SSH preflight failed") from None
-            if not observed or digest("nvke-homelab:" + observed[0].strip()) != machine:
+            if not observed or digest("vmetal:" + observed[0].strip()) != machine:
                 raise Reject(409, "management SSH identity does not match")
         if line not in old.splitlines():
             # Append without replacing the trust entries used by other hosts.

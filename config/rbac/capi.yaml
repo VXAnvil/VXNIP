@@ -1,17 +1,17 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: homelab-infrastructure-capi
+  name: vmetal-infrastructure-capi
   labels:
     cluster.x-k8s.io/aggregate-to-manager: "true"
     kubeadm.controlplane.cluster.x-k8s.io/aggregate-to-manager: "true"
 rules:
   - apiGroups:
-      - homelab.infrastructure.cluster.x-k8s.io
+      - vmetal.infrastructure.cluster.x-k8s.io
     resources:
-      - homelabclusters
-      - homelabmachines
-      - homelabmachinetemplates
+      - vmetalclusters
+      - vmetalmachines
+      - vmetalmachinetemplates
     verbs:
       - create
       - delete

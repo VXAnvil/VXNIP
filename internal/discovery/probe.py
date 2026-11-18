@@ -88,7 +88,7 @@ def main():
     os_release = dict(line.split("=", 1) for line in read("/etc/os-release").splitlines()
                       if line and not line.startswith("#") and "=" in line)
     print(json.dumps({
-        "machine_id_hash": hashlib.sha256(("nvke-homelab:" + identity).encode()).hexdigest(),
+        "machine_id_hash": hashlib.sha256(("vmetal:" + identity).encode()).hexdigest(),
         "hostname": platform.node(),
         "os": os_release["PRETTY_NAME"].strip('"'),
         "kernel": platform.release(),

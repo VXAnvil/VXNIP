@@ -52,11 +52,11 @@ runcmd:
 func TestNVKEPlan(t *testing.T) {
 	for _, unit := range []string{"nke-agent", "nvke-agent"} {
 		payload := strings.ReplaceAll(agentPayload, "nke-agent", unit)
-		plan, err := NVKEPlan([]byte(payload), "homelab://worker", "10.0.0.53")
+		plan, err := NVKEPlan([]byte(payload), "vmetal://worker", "10.0.0.53")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if plan.Unit != unit+".service" || plan.ProviderID != "homelab://worker" ||
+		if plan.Unit != unit+".service" || plan.ProviderID != "vmetal://worker" ||
 			plan.NodeIP != "10.0.0.53" || plan.Files[0].Mode != "0600" || plan.Files[2].Mode != "0640" {
 			t.Fatal("NVKE plan did not preserve identity or restrict credential permissions")
 		}
@@ -69,7 +69,7 @@ func TestNVKEPlan(t *testing.T) {
 		strings.Replace(agentPayload, "plugin_data {}", "plugin_cmd = \"/bin/sh\"", 1),
 		agentPayload + "  - touch /tmp/unexpected\n",
 	} {
-		if _, err := NVKEPlan([]byte(payload), "homelab://worker", "10.0.0.53"); err == nil {
+		if _, err := NVKEPlan([]byte(payload), "vmetal://worker", "10.0.0.53"); err == nil {
 			t.Fatal("unsupported NVKE bootstrap data was accepted")
 		}
 	}

@@ -15,11 +15,11 @@ type APIEndpoint struct {
 	Port int32 `json:"port"`
 }
 
-type HomelabClusterSpec struct {
+type VMetalClusterSpec struct {
 	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint"`
 }
 
-type HomelabClusterStatus struct {
+type VMetalClusterStatus struct {
 	Initialization *InfrastructureInitialization `json:"initialization,omitempty"`
 }
 
@@ -27,40 +27,40 @@ type HomelabClusterStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 // +kubebuilder:validation:XValidation:rule="self.spec == oldSelf.spec",message="the control plane endpoint is immutable"
-type HomelabCluster struct {
+type VMetalCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              HomelabClusterSpec   `json:"spec"`
-	Status            HomelabClusterStatus `json:"status,omitempty"`
+	Spec              VMetalClusterSpec   `json:"spec"`
+	Status            VMetalClusterStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-type HomelabClusterList struct {
+type VMetalClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HomelabCluster `json:"items"`
+	Items           []VMetalCluster `json:"items"`
 }
 
-type HomelabMachineTemplateSpec struct {
-	Template HomelabMachineTemplateResource `json:"template"`
+type VMetalMachineTemplateSpec struct {
+	Template VMetalMachineTemplateResource `json:"template"`
 }
 
-type HomelabMachineTemplateResource struct {
-	Spec HomelabMachineSpec `json:"spec"`
+type VMetalMachineTemplateResource struct {
+	Spec VMetalMachineSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 // +kubebuilder:validation:XValidation:rule="self.spec == oldSelf.spec",message="machine template is immutable"
-type HomelabMachineTemplate struct {
+type VMetalMachineTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              HomelabMachineTemplateSpec `json:"spec"`
+	Spec              VMetalMachineTemplateSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
-type HomelabMachineTemplateList struct {
+type VMetalMachineTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []HomelabMachineTemplate `json:"items"`
+	Items           []VMetalMachineTemplate `json:"items"`
 }

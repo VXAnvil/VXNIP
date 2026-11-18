@@ -33,7 +33,7 @@ else
 fi
 
 (cd "$bundle" && sha256sum --quiet -c SHA256SUMS)
-for tool in kind kubectl clusterctl helm nvkectl homelab-controller; do
+for tool in kind kubectl clusterctl helm nvkectl vmetal-controller; do
     [[ -x $bundle/bin/$tool ]]
 done
 [[ $(cat "$bundle/nvke/revision") == 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 ]]
@@ -98,7 +98,7 @@ clusterctl init --kubeconfig "$KUBECONFIG" --core cluster-api:v1.13.6 \
 if [[ ! -e $state/db-password ]]; then
     openssl rand -hex 24 >"$state/db-password"
 fi
-export DGXC_TENANT_USER=homelab
+export DGXC_TENANT_USER=vmetal
 DGXC_TENANT_PASSWORD=$(cat "$state/db-password")
 export DGXC_TENANT_PASSWORD
 export CNPG_SUPERUSER_PASSWORD="$DGXC_TENANT_PASSWORD"
@@ -137,7 +137,7 @@ fi
 touch "$state/known-hosts"
 install -m 0644 "$state/ssh-key.pub" "$state/worker-bundle/provider.pub"
 install -m 0644 "$state/ca.crt" "$state/worker-bundle/ca.crt"
-for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh homelab-kubeadm; do
+for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh vmetal-kubeadm; do
     install -m 0755 "$repo/scripts/$file" "$state/worker-bundle/$file"
 done
 install -m 0644 "$repo/scripts/nvke-enrollment-server.py" "$state/nvke-enrollment-server.py"
@@ -149,24 +149,24 @@ exec /usr/bin/ssh -F /dev/null -i "$state/ssh-key" -o IdentitiesOnly=yes -o User
 EOF
 chmod 0755 "$state/bin/ssh"
 
-cat >"/etc/systemd/system/homelab-nvke-$site-provider.service" <<UNIT
+cat >"/etc/systemd/system/vmetal-nvke-$site-provider.service" <<UNIT
 [Unit]
-Description=Homelab Provider for $site
+Description=VMetal Provider for $site
 After=docker.service
 Requires=docker.service
 [Service]
 Environment="PATH=$state/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="KUBECONFIG=$KUBECONFIG"
-Environment=HOMELAB_ENABLE_NVKE_INFRA=1
-ExecStart=$bundle/bin/homelab-controller
+Environment=VMETAL_ENABLE_NVKE_INFRA=1
+ExecStart=$bundle/bin/vmetal-controller
 Restart=always
 RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNIT
-cat >"/etc/systemd/system/homelab-nvke-$site-enrollment.service" <<UNIT
+cat >"/etc/systemd/system/vmetal-nvke-$site-enrollment.service" <<UNIT
 [Unit]
-Description=Homelab enrollment for $site
+Description=VMetal enrollment for $site
 After=network-online.target docker.service
 Wants=network-online.target
 [Service]
@@ -177,7 +177,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNIT
-cat >"/etc/systemd/system/homelab-nvke-$site-api.service" <<UNIT
+cat >"/etc/systemd/system/vmetal-nvke-$site-api.service" <<UNIT
 [Unit]
 Description=Local NVKE API for $site
 After=docker.service
@@ -191,7 +191,7 @@ WantedBy=multi-user.target
 UNIT
 docker update --restart=unless-stopped "$site-control-plane" >/dev/null
 systemctl daemon-reload
-systemctl enable --now "homelab-nvke-$site-provider" "homelab-nvke-$site-enrollment" "homelab-nvke-$site-api"
+systemctl enable --now "vmetal-nvke-$site-provider" "vmetal-nvke-$site-enrollment" "vmetal-nvke-$site-api"
 wait_port() {
     local ip=$1 port=$2
     for attempt in $(seq 1 12); do

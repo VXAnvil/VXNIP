@@ -23,8 +23,8 @@ jq -e '(.spec.updateStrategy.type == "OnDelete" or .spec.updateStrategy.type == 
         any(.env[]; .name=="OVN_GATEWAY_MODE" and .value=="shared"))' "$dir/original.json" >/dev/null ||
     { echo "Expected the OVN 2.4.2 shared-gateway DaemonSet." >&2; exit 1; }
 
-jq --arg key 'homelab.nvke.dev/gateway' '
-    {apiVersion, kind, metadata:{name:"ovnkube-node-homelab-baremetal", namespace:.metadata.namespace}, spec}
+jq --arg key 'vmetal.nvke.dev/gateway' '
+    {apiVersion, kind, metadata:{name:"ovnkube-node-vmetal-baremetal", namespace:.metadata.namespace}, spec}
     | .spec.selector.matchLabels.app = .metadata.name
     | .spec.template.metadata.labels.app = .metadata.name
     | .spec.template.spec.nodeSelector[$key] = "local"
@@ -45,12 +45,12 @@ patch=$(jq -c '
         {op:"replace", path:"/spec/updateStrategy", value:{type:"OnDelete"}}
     ] end) as $strategy
     | .spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions as $expressions
-    | (if any($expressions[]; .key == "homelab.nvke.dev/gateway") then
-        if any($expressions[]; .key=="homelab.nvke.dev/gateway" and .operator=="NotIn" and .values==["local"])
-        then [] else error("Unexpected existing Homelab gateway selector") end
+    | (if any($expressions[]; .key == "vmetal.nvke.dev/gateway") then
+        if any($expressions[]; .key=="vmetal.nvke.dev/gateway" and .operator=="NotIn" and .values==["local"])
+        then [] else error("Unexpected existing VMetal gateway selector") end
       else [
         {op:"test", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions", value:$expressions},
-        {op:"add", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/-", value:{key:"homelab.nvke.dev/gateway",operator:"NotIn",values:["local"]}}
+        {op:"add", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/-", value:{key:"vmetal.nvke.dev/gateway",operator:"NotIn",values:["local"]}}
       ] end) as $affinity
     | $strategy + $affinity
 ' "$dir/original.json")
@@ -64,4 +64,4 @@ if [[ $patch != '[]' ]]; then
     kubectl "${kubectl_args[@]}" patch ds ovnkube-node --type=json -p "$patch"
 fi
 kubectl "${kubectl_args[@]}" apply -f "$dir/baremetal.json"
-kubectl "${kubectl_args[@]}" get ds ovnkube-node ovnkube-node-homelab-baremetal
+kubectl "${kubectl_args[@]}" get ds ovnkube-node ovnkube-node-vmetal-baremetal

@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	machineFinalizer = "homelab.infrastructure.cluster.x-k8s.io/claim"
+	machineFinalizer = "vmetal.infrastructure.cluster.x-k8s.io/claim"
 	allocationPoll   = 10 * time.Second
 )
 
@@ -28,8 +28,8 @@ type MachineReconciler struct {
 }
 
 func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var machine api.HomelabMachine
-	gvk := infraGroup(r.InfrastructureGroup).WithKind("HomelabMachine")
+	var machine api.VMetalMachine
+	gvk := infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine")
 	machine.SetGroupVersionKind(gvk)
 	if err := r.Get(ctx, req.NamespacedName, &machine); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -47,7 +47,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	var host api.HomelabHost
+	var host api.VMetalHost
 	err := r.Get(ctx, client.ObjectKey{Name: machine.Spec.HostRef}, &host)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return ctrl.Result{}, err
@@ -108,7 +108,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return r.reconcileBootstrap(ctx, &machine, &host)
 }
 
-func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.HomelabMachine, phase, reason string) (ctrl.Result, error) {
+func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VMetalMachine, phase, reason string) (ctrl.Result, error) {
 	// Poll for changes to the requested host. This also repairs status from
 	// the authoritative claim after a restart between the two writes.
 	result := ctrl.Result{RequeueAfter: allocationPoll}
@@ -119,10 +119,10 @@ func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.HomelabM
 	return result, r.updateMachine(ctx, machine, true)
 }
 
-func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.HomelabMachine, status bool) error {
+func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VMetalMachine, status bool) error {
 	// API decoding can discard TypeMeta for typed objects. Preserve it across
 	// writes because this Go type is registered under two API groups.
-	gvk := infraGroup(r.InfrastructureGroup).WithKind("HomelabMachine")
+	gvk := infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine")
 	machine.SetGroupVersionKind(gvk)
 	defer machine.SetGroupVersionKind(gvk)
 	if status {
@@ -132,11 +132,11 @@ func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.Home
 }
 
 func (r *MachineReconciler) SetupWithManager(manager ctrl.Manager) error {
-	machine := &api.HomelabMachine{}
-	machine.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("HomelabMachine"))
+	machine := &api.VMetalMachine{}
+	machine.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine"))
 	builder := ctrl.NewControllerManagedBy(manager).For(machine)
 	if r.InfrastructureGroup == api.InfrastructureGroupVersion {
-		builder.Named("homelabmachine-nvke")
+		builder.Named("vmetalmachine-nvke")
 	}
 	return builder.
 		WithOptions(controller.Options{MaxConcurrentReconciles: 2}).Complete(r)

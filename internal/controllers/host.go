@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	hostFinalizer = "homelab.infrastructure.cluster.x-k8s.io/host"
+	hostFinalizer = "vmetal.infrastructure.cluster.x-k8s.io/host"
 	probeInterval = time.Minute
 )
 
@@ -28,7 +28,7 @@ type HostReconciler struct {
 }
 
 func (r *HostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var host api.HomelabHost
+	var host api.VMetalHost
 	if err := r.Get(ctx, req.NamespacedName, &host); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -77,6 +77,6 @@ func (r *HostReconciler) SetupWithManager(manager ctrl.Manager) error {
 			return e.ObjectOld.GetDeletionTimestamp().IsZero() != e.ObjectNew.GetDeletionTimestamp().IsZero()
 		},
 	})
-	return ctrl.NewControllerManagedBy(manager).For(&api.HomelabHost{}).
+	return ctrl.NewControllerManagedBy(manager).For(&api.VMetalHost{}).
 		WithEventFilter(changes).Complete(r)
 }

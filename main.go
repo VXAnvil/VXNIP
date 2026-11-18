@@ -15,7 +15,7 @@ import (
 	"github.com/xdu31/cluster-api-provider-vmetal/internal/discovery"
 )
 
-const usage = `Usage: homelab-provider [-state PATH] COMMAND [ARGS]
+const usage = `Usage: vmetal [-state PATH] COMMAND [ARGS]
 
   register NAME [USER@]HOST   Discover and register a Linux machine
   list                        Show all registered machines
@@ -28,7 +28,7 @@ Commands return JSON. SSH aliases from your OpenSSH config are supported.
 `
 
 func run(ctx context.Context, args []string, out io.Writer, backend discovery.Discoverer) error {
-	flags := flag.NewFlagSet("homelab-provider", flag.ContinueOnError)
+	flags := flag.NewFlagSet("vmetal", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	path := flags.String("state", "", "inventory path")
 	if err := flags.Parse(args); err != nil {
@@ -58,7 +58,7 @@ func run(ctx context.Context, args []string, out io.Writer, backend discovery.Di
 		if err != nil {
 			return err
 		}
-		*path = filepath.Join(dir, "nvke-homelab-provider", "inventory.json")
+		*path = filepath.Join(dir, "vmetal", "inventory.json")
 	}
 	state := store{path: filepath.Clean(*path)}
 	result, err := execute(ctx, state, backend, command, args)
@@ -117,8 +117,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := run(ctx, os.Args[1:], os.Stdout, discovery.SSH{}); err != nil {
-		fmt.Fprintln(os.Stderr, "homelab-provider:", err)
-		fmt.Fprintln(os.Stderr, "See homelab-provider -h for usage.")
+		fmt.Fprintln(os.Stderr, "vmetal:", err)
+		fmt.Fprintln(os.Stderr, "See vmetal -h for usage.")
 		os.Exit(1)
 	}
 }

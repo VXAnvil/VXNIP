@@ -43,7 +43,7 @@ func TestManagerResumesAndReleasesClaims(t *testing.T) {
 	api.AddInfrastructureToScheme(scheme)
 	c, err := client.New(config, client.Options{Scheme: scheme})
 	check(t, err)
-	for _, namespace := range []string{"kube-system", "homelab-test"} {
+	for _, namespace := range []string{"kube-system", "vmetal-test"} {
 		err := c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
 		if !apierrors.IsAlreadyExists(err) {
 			check(t, err)
@@ -75,25 +75,25 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 	binary, err := os.Executable()
 	check(t, err)
 
-	host := &api.HomelabHost{
+	host := &api.VMetalHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32]},
-		Spec:       api.HomelabHostSpec{MachineID: id, SSHTarget: "ubuntu@worker"},
+		Spec:       api.VMetalHostSpec{MachineID: id, SSHTarget: "ubuntu@worker"},
 	}
 	check(t, c.Create(ctx, host))
-	newMachine := func(name string) *api.HomelabMachine {
-		return &api.HomelabMachine{
-			TypeMeta:   metav1.TypeMeta{APIVersion: api.GroupVersion.String(), Kind: "HomelabMachine"},
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "homelab-test"},
-			Spec:       api.HomelabMachineSpec{HostRef: host.Name},
+	newMachine := func(name string) *api.VMetalMachine {
+		return &api.VMetalMachine{
+			TypeMeta:   metav1.TypeMeta{APIVersion: api.GroupVersion.String(), Kind: "VMetalMachine"},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "vmetal-test"},
+			Spec:       api.VMetalMachineSpec{HostRef: host.Name},
 		}
 	}
 	machine := newMachine("worker")
 	check(t, c.Create(ctx, machine))
-	machine.SetGroupVersionKind(api.GroupVersion.WithKind("HomelabMachine"))
+	machine.SetGroupVersionKind(api.GroupVersion.WithKind("VMetalMachine"))
 	start := func() func() {
 		t.Helper()
 		process := exec.CommandContext(ctx, binary, "-test.run=^TestControllerProcess$")
-		process.Env = append(os.Environ(), "HOMELAB_TEST_PROCESS=1", "KUBECONFIG="+kubeconfig, "HOMELAB_ENABLE_NVKE_INFRA=1")
+		process.Env = append(os.Environ(), "VMETAL_TEST_PROCESS=1", "KUBECONFIG="+kubeconfig, "VMETAL_ENABLE_NVKE_INFRA=1")
 		process.Stdout, process.Stderr = os.Stdout, os.Stderr
 		check(t, process.Start())
 		done := make(chan struct{})
@@ -118,7 +118,7 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 		t.Cleanup(stopAndWait)
 		return stopAndWait
 	}
-	waitForReservation := func(machine *api.HomelabMachine) {
+	waitForReservation := func(machine *api.VMetalMachine) {
 		t.Helper()
 		gvk := machine.GroupVersionKind()
 		check(t, wait.PollUntilContextTimeout(ctx, 200*time.Millisecond, 40*time.Second, true,
@@ -141,13 +141,13 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 	stop()
 
 	// A restart must recover the machine status from the persisted host claim.
-	machine.Status = api.HomelabMachineStatus{}
+	machine.Status = api.VMetalMachineStatus{}
 	check(t, c.Status().Update(ctx, machine))
 	start()
 	waitForReservation(machine)
 
 	replacement := newMachine("replacement")
-	replacementGVK := api.InfrastructureGroupVersion.WithKind("HomelabMachine")
+	replacementGVK := api.InfrastructureGroupVersion.WithKind("VMetalMachine")
 	replacement.SetGroupVersionKind(replacementGVK)
 	check(t, c.Create(ctx, replacement))
 	check(t, wait.PollUntilContextTimeout(ctx, 200*time.Millisecond, 15*time.Second, true,
@@ -164,7 +164,7 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 }
 
 func TestControllerProcess(t *testing.T) {
-	if os.Getenv("HOMELAB_TEST_PROCESS") != "1" {
+	if os.Getenv("VMETAL_TEST_PROCESS") != "1" {
 		t.Skip("only run as the controller subprocess")
 	}
 	check(t, run())

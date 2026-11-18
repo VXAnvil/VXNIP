@@ -28,22 +28,22 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 		"apiVersion": capiVersion, "kind": "Cluster",
 		"metadata": map[string]any{"name": "lab", "namespace": "nvke-system"},
 	}}
-	nvkeMachine := &api.HomelabMachine{}
-	nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("HomelabMachine"))
+	nvkeMachine := &api.VMetalMachine{}
+	nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VMetalMachine"))
 	c := fake.NewClientBuilder().WithScheme(scheme).
-		WithStatusSubresource(&api.HomelabHost{}, nvkeMachine).WithObjects(cluster).Build()
+		WithStatusSubresource(&api.VMetalHost{}, nvkeMachine).WithObjects(cluster).Build()
 	for index, tc := range []struct{ name, ip string }{
 		{"control-plane", "10.0.0.53"}, {"worker", "10.0.0.54"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			id := strings.Repeat(string(rune('a'+index)), 64)
 			now := metav1.Now()
-			host := &api.HomelabHost{
+			host := &api.VMetalHost{
 				ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32], Finalizers: []string{hostFinalizer}},
-				Spec: api.HomelabHostSpec{
+				Spec: api.VMetalHostSpec{
 					MachineID: id, NodeIP: tc.ip, SSHTarget: "ubuntu@" + tc.ip, AllowBootstrap: true,
 				},
-				Status: api.HomelabHostStatus{
+				Status: api.VMetalHostStatus{
 					DiscoveryReady: true, ObservedAt: &now,
 					Hardware: &apiextensionsv1.JSON{Raw: []byte(`{"interfaces":[{"addresses":["` + tc.ip + `/24"]}]}`)},
 				},
@@ -56,24 +56,24 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 					"clusterName": "lab",
 					"infrastructureRef": map[string]any{
 						"apiGroup": api.InfrastructureGroupVersion.Group,
-						"kind":     "HomelabMachine", "name": tc.name,
+						"kind":     "VMetalMachine", "name": tc.name,
 					},
 				},
 			}}
 			must(t, c.Create(ctx, parent))
-			machine := &api.HomelabMachine{
-				TypeMeta: metav1.TypeMeta{APIVersion: api.InfrastructureGroupVersion.String(), Kind: "HomelabMachine"},
+			machine := &api.VMetalMachine{
+				TypeMeta: metav1.TypeMeta{APIVersion: api.InfrastructureGroupVersion.String(), Kind: "VMetalMachine"},
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "nvke-system", Name: tc.name, UID: types.UID("infra-" + tc.name),
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: capiVersion, Kind: "Machine", Name: tc.name, UID: parent.GetUID(),
 					}},
 				},
-				Spec: api.HomelabMachineSpec{HostRef: host.Name, BootstrapMode: "NVKE"},
+				Spec: api.VMetalMachineSpec{HostRef: host.Name, BootstrapMode: "NVKE"},
 			}
 			must(t, c.Create(ctx, machine))
 			var operations []string
-			providerID := "homelab://" + string(machine.UID)
+			providerID := "vmetal://" + string(machine.UID)
 			r := MachineReconciler{Client: c, InfrastructureGroup: api.InfrastructureGroupVersion,
 				Bootstrap: kubeadmFunc(func(_ context.Context, target string, req bootstrap.Request) error {
 					operations = append(operations, req.Action)
@@ -88,7 +88,7 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 				}),
 			}
 			machineKey := client.ObjectKeyFromObject(machine)
-			machineGVK := api.InfrastructureGroupVersion.WithKind("HomelabMachine")
+			machineGVK := api.InfrastructureGroupVersion.WithKind("VMetalMachine")
 			getMachine := func() {
 				t.Helper()
 				machine.SetGroupVersionKind(machineGVK)

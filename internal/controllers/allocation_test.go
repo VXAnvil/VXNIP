@@ -45,13 +45,13 @@ type interruptedStatus struct {
 
 func (s interruptedStatus) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 	switch obj := obj.(type) {
-	case *api.HomelabHost:
+	case *api.VMetalHost:
 		if obj.Status.Claim != nil {
 			if err := s.beforeClaim(ctx); err != nil {
 				return err
 			}
 		}
-	case *api.HomelabMachine:
+	case *api.VMetalMachine:
 		if obj.Status.Phase == "Reserved" {
 			return errInterrupted
 		}
@@ -80,9 +80,9 @@ func TestAllocationWithAPIServer(t *testing.T) {
 	must(t, err)
 
 	id := strings.Repeat("a", 64)
-	host := &api.HomelabHost{
+	host := &api.VMetalHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32]},
-		Spec:       api.HomelabHostSpec{MachineID: id, SSHTarget: "ubuntu@worker", ManagedAddress: true},
+		Spec:       api.VMetalHostSpec{MachineID: id, SSHTarget: "ubuntu@worker", ManagedAddress: true},
 	}
 	alias := host.DeepCopy()
 	alias.Name = "host-" + strings.Repeat("b", 32)
@@ -98,12 +98,12 @@ func TestAllocationWithAPIServer(t *testing.T) {
 	_, err = hostController.Reconcile(ctx, hostReq)
 	must(t, err)
 
-	machines := make([]*api.HomelabMachine, 0, 2)
+	machines := make([]*api.VMetalMachine, 0, 2)
 	for _, namespace := range []string{"pool-a", "pool-b"} {
 		must(t, c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}))
-		machine := &api.HomelabMachine{
+		machine := &api.VMetalMachine{
 			ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: namespace},
-			Spec:       api.HomelabMachineSpec{HostRef: host.Name},
+			Spec:       api.VMetalMachineSpec{HostRef: host.Name},
 		}
 		must(t, c.Create(ctx, machine))
 		machines = append(machines, machine)

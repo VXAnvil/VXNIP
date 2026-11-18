@@ -41,25 +41,25 @@ func TestCABPKBootstrapAndCleanup(t *testing.T) {
 			"clusterName": "lab",
 			"infrastructureRef": map[string]any{
 				"apiGroup": api.GroupVersion.Group,
-				"kind":     "HomelabMachine", "name": "worker",
+				"kind":     "VMetalMachine", "name": "worker",
 			},
 		},
 	}}
-	host := &api.HomelabHost{
+	host := &api.VMetalHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + strings.Repeat("a", 32), Finalizers: []string{hostFinalizer}},
-		Spec:       api.HomelabHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker", AllowBootstrap: true},
-		Status: api.HomelabHostStatus{
+		Spec:       api.VMetalHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker", AllowBootstrap: true},
+		Status: api.VMetalHostStatus{
 			DiscoveryReady: true, ObservedAt: &metav1.Time{Time: metav1.Now().Time},
 		},
 	}
-	machine := &api.HomelabMachine{
+	machine := &api.VMetalMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "worker", Namespace: "default", UID: types.UID("infra-worker"),
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: capiVersion, Kind: "Machine", Name: "worker", UID: capiMachine.GetUID(),
 			}},
 		},
-		Spec: api.HomelabMachineSpec{HostRef: host.Name},
+		Spec: api.VMetalMachineSpec{HostRef: host.Name},
 	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -94,9 +94,9 @@ runcmd:
 		}
 		switch op.Action {
 		case "apply":
-			var stored api.HomelabMachine
+			var stored api.VMetalMachine
 			must(t, c.Get(ctx, req.NamespacedName, &stored))
-			if !stored.Status.BootstrapStarted || !strings.Contains(op.Plan.Config, "homelab://infra-worker") {
+			if !stored.Status.BootstrapStarted || !strings.Contains(op.Plan.Config, "vmetal://infra-worker") {
 				t.Fatal("bootstrap started without persisting the intent or setting the kubelet identity")
 			}
 		case "reset":
@@ -120,7 +120,7 @@ runcmd:
 	_, err = controller.Reconcile(ctx, req)
 	must(t, err)
 	must(t, c.Get(ctx, req.NamespacedName, machine))
-	if machine.Spec.ProviderID != "homelab://infra-worker" ||
+	if machine.Spec.ProviderID != "vmetal://infra-worker" ||
 		machine.Status.Initialization == nil || !machine.Status.Initialization.Provisioned {
 		t.Fatalf("bootstrap completion was not published: %+v %+v", machine.Spec, machine.Status)
 	}

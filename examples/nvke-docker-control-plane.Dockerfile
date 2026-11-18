@@ -9,21 +9,21 @@ RUN rm -f /usr/local/bin/cloud-init /etc/default/nke-agent /etc/default/nvke-age
     install -d -m 0750 -o spire -g spire /var/lib/spire-agent && \
     install -d /var/lib/cloud/seed/nocloud /etc/cloud/cloud.cfg.d \
       /etc/systemd/system/ssh.service.d /etc/systemd/system/nvke-agent.service.d && \
-    printf '%s\n' 'instance-id: homelab-nvke-docker' > /var/lib/cloud/seed/nocloud/meta-data && \
+    printf '%s\n' 'instance-id: vmetal-nvke-docker' > /var/lib/cloud/seed/nocloud/meta-data && \
     printf '%s\n' '#cloud-config' 'manage_etc_hosts: false' > /var/lib/cloud/seed/nocloud/user-data && \
     printf '%s\n' 'datasource_list: [NoCloud]' 'network: {config: disabled}' 'preserve_hostname: true' \
       'ssh_deletekeys: false' 'cloud_init_modules: []' 'cloud_config_modules: []' 'cloud_final_modules: []' \
-      > /etc/cloud/cloud.cfg.d/99-homelab.conf && \
+      > /etc/cloud/cloud.cfg.d/99-vmetal.conf && \
     systemctl disable nvke-agent.service spire-agent.service && \
     ln -sfn nvke-agent.service /etc/systemd/system/nke-agent.service && \
     printf '%s\n' '[Service]' 'ExecStart=' 'ExecStart=/usr/local/bin/nvke-agent $AGENT_ARGS --disable-mlx5-rescan' \
       > /etc/systemd/system/nvke-agent.service.d/95-container-no-mlx5.conf && \
-    useradd -m -s /bin/bash homelab && passwd -d homelab && \
-    install -d -m 0700 -o homelab -g homelab /home/homelab/.ssh && \
-    printf '%s\n' 'homelab ALL=(root) NOPASSWD: /usr/local/sbin/homelab-kubeadm ""' > /etc/sudoers.d/homelab && \
-    chmod 0440 /etc/sudoers.d/homelab && visudo -cf /etc/sudoers.d/homelab && \
+    useradd -m -s /bin/bash vmetal && passwd -d vmetal && \
+    install -d -m 0700 -o vmetal -g vmetal /home/vmetal/.ssh && \
+    printf '%s\n' 'vmetal ALL=(root) NOPASSWD: /usr/local/sbin/vmetal-kubeadm ""' > /etc/sudoers.d/vmetal && \
+    chmod 0440 /etc/sudoers.d/vmetal && visudo -cf /etc/sudoers.d/vmetal && \
     printf '%s\n' 'AuthenticationMethods publickey' 'PasswordAuthentication no' 'KbdInteractiveAuthentication no' \
-      'PermitRootLogin no' > /etc/ssh/sshd_config.d/01-homelab.conf && \
+      'PermitRootLogin no' > /etc/ssh/sshd_config.d/01-vmetal.conf && \
     printf '%s\n' '[Service]' 'ExecStartPre=' 'ExecStartPre=/usr/bin/ssh-keygen -A' 'ExecStartPre=/usr/sbin/sshd -t' \
       > /etc/systemd/system/ssh.service.d/10-host-keys.conf && systemctl enable ssh.service
-COPY --chmod=0755 scripts/homelab-kubeadm /usr/local/sbin/homelab-kubeadm
+COPY --chmod=0755 scripts/vmetal-kubeadm /usr/local/sbin/vmetal-kubeadm
