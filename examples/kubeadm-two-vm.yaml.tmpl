@@ -1,0 +1,126 @@
+apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HomelabHost
+metadata:
+  name: ${CONTROL_PLANE_HOST}
+spec:
+  machineID: "${CONTROL_PLANE_ID}"
+  sshTarget: "${CONTROL_PLANE_SSH}"
+  allowBootstrap: true
+---
+apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HomelabHost
+metadata:
+  name: ${WORKER_HOST}
+spec:
+  machineID: "${WORKER_ID}"
+  sshTarget: "${WORKER_SSH}"
+  allowBootstrap: true
+---
+apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HomelabCluster
+metadata:
+  name: homelab-lab
+  namespace: default
+spec:
+  controlPlaneEndpoint:
+    host: "${CONTROL_PLANE_IP}"
+    port: 6443
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
+metadata:
+  name: homelab-lab
+  namespace: default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["10.244.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
+    serviceDomain: cluster.local
+  infrastructureRef:
+    apiGroup: homelab.infrastructure.cluster.x-k8s.io
+    kind: HomelabCluster
+    name: homelab-lab
+  controlPlaneRef:
+    apiGroup: controlplane.cluster.x-k8s.io
+    kind: KubeadmControlPlane
+    name: homelab-lab
+---
+apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HomelabMachineTemplate
+metadata:
+  name: homelab-lab-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      hostRef: ${CONTROL_PLANE_HOST}
+---
+apiVersion: homelab.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: HomelabMachineTemplate
+metadata:
+  name: homelab-lab-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      hostRef: ${WORKER_HOST}
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: KubeadmControlPlane
+metadata:
+  name: homelab-lab
+  namespace: default
+spec:
+  version: "${KUBERNETES_VERSION}"
+  replicas: 1
+  machineTemplate:
+    spec:
+      infrastructureRef:
+        apiGroup: homelab.infrastructure.cluster.x-k8s.io
+        kind: HomelabMachineTemplate
+        name: homelab-lab-control-plane
+  kubeadmConfigSpec:
+    initConfiguration:
+      localAPIEndpoint:
+        advertiseAddress: "${CONTROL_PLANE_IP}"
+      nodeRegistration:
+        criSocket: unix:///run/containerd/containerd.sock
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+kind: KubeadmConfigTemplate
+metadata:
+  name: homelab-lab-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          criSocket: unix:///run/containerd/containerd.sock
+---
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: MachineDeployment
+metadata:
+  name: homelab-lab-worker
+  namespace: default
+spec:
+  clusterName: homelab-lab
+  replicas: 1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: homelab-lab
+  template:
+    spec:
+      clusterName: homelab-lab
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        configRef:
+          apiGroup: bootstrap.cluster.x-k8s.io
+          kind: KubeadmConfigTemplate
+          name: homelab-lab-worker
+      infrastructureRef:
+        apiGroup: homelab.infrastructure.cluster.x-k8s.io
+        kind: HomelabMachineTemplate
+        name: homelab-lab-worker
