@@ -8,6 +8,9 @@ fi
 nvke=$(realpath "$1")
 tools=$(realpath "$2")
 images=("$3" "$4" "$5")
+if [[ -n ${VMETAL_CONTROL_PLANE_IMAGE:-} ]]; then
+    images+=("$VMETAL_CONTROL_PLANE_IMAGE")
+fi
 output=$(realpath -m "$6")
 revision=$(git -C "$nvke" rev-parse HEAD)
 [[ $revision == 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 ]] ||
@@ -15,7 +18,20 @@ revision=$(git -C "$nvke" rev-parse HEAD)
 [[ ! -e $output ]] || { echo "Bundle output already exists." >&2; exit 1; }
 staging=$(mktemp -d "$(dirname "$output")/.nvke-bundle.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
-mkdir "$staging/bin" "$staging/nvke"
+mkdir "$staging/bin" "$staging/nvke" "$staging/provider"
+repo=$(cd "$(dirname "$0")/.." && pwd)
+cp -a "$repo/config" "$repo/scripts" "$repo/examples" "$staging/provider/"
+mkdir "$staging/provider/internal"
+cp -a "$repo/internal/discovery" "$staging/provider/internal/"
+# AppleDouble metadata can be present in source transferred from macOS.
+find "$staging/provider" -type f -name '._*' -delete
+find "$staging/provider" -type d -name __pycache__ -prune -exec rm -rf {} +
+if [[ -n ${VMETAL_CONTROL_PLANE_IMAGE:-} ]]; then
+    expected=$(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1)
+    [[ $(docker image inspect "$VMETAL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == "$expected" ]]
+    [[ $(docker image inspect "$VMETAL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]]
+    printf '%s\n' "$VMETAL_CONTROL_PLANE_IMAGE" >"$staging/control-plane-image"
+fi
 for tool in kind kubectl clusterctl helm nvkectl vmetal-controller; do
     install -m 0755 "$tools/$tool" "$staging/bin/$tool"
 done
@@ -24,11 +40,15 @@ git -C "$nvke" archive "$revision" deploy controller/deploy controller/hack/ci/d
     tar -x -C "$staging/nvke"
 printf '%s\n' "$revision" >"$staging/nvke/revision"
 printf '%s\n' "${images[@]}" >"$staging/images"
+for image in "${images[@]}"; do
+    docker image inspect "$image" --format '{{.Id}}'
+done >"$staging/image-ids"
 docker save --output "$staging/images.tar" "${images[@]}"
 (
     cd "$staging"
-    find bin nvke -type f -print0 | sort -z | xargs -0 sha256sum >SHA256SUMS
-    sha256sum images images.tar >>SHA256SUMS
+    find bin nvke provider -type f -print0 | sort -z | xargs -0 sha256sum >SHA256SUMS
+    sha256sum images image-ids images.tar >>SHA256SUMS
+    if [[ -f control-plane-image ]]; then sha256sum control-plane-image >>SHA256SUMS; fi
 )
 mv -T -- "$staging" "$output"
 printf 'Management bundle: %s\n' "$output"

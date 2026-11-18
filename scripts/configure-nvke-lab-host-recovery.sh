@@ -37,7 +37,7 @@ for arg in sys.argv[1:]:
     if arg == "auto" and arg == sys.argv[1]:
         continue
     ip = ipaddress.IPv4Address(arg)
-    if not ip.is_private or ip.is_unspecified or ip.is_loopback or ip.is_multicast:
+    if (not ip.is_private and ip not in ipaddress.IPv4Network("100.64.0.0/10")) or ip.is_unspecified or ip.is_loopback or ip.is_multicast:
         sys.exit(f"Expected a private host IPv4 address: {arg}")
 ' "$node_ip" "$api_ip" "$spire_ip" ${peer:+"$peer"}
 

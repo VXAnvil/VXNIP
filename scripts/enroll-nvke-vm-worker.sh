@@ -17,6 +17,7 @@ config = Path(sys.argv[1])
 settings = json.loads((config / "settings.json").read_text())
 ticket = config / "invitation"
 host_key = Path("/etc/ssh/ssh_host_ed25519_key.pub").read_text().split()
+# Protocol v1 identity namespace is fixed across branding changes.
 identity = Path("/etc/machine-id").read_text().strip()
 payload = json.dumps({
     "machineID": hashlib.sha256(("vmetal:" + identity).encode()).hexdigest(),

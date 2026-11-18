@@ -93,6 +93,11 @@ spec:
                 required:
                 - provisioned
                 type: object
+              message:
+                description: Message reports the operation and a credential-free troubleshooting
+                  hint.
+                maxLength: 512
+                type: string
               phase:
                 enum:
                 - Pending
@@ -111,6 +116,8 @@ spec:
                 - BootstrapRunning
                 - BootstrapComplete
                 - NodeIPUnverified
+                - BootstrapFailed
+                - ResetFailed
                 type: string
             type: object
         required:

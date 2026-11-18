@@ -114,12 +114,14 @@ lock_state() {
 }
 
 manager_inputs() {
-    : "${KUBECONFIG:?Management kubeconfig required}" "${NVKE_SITE:?}" "${CP_BASE_IMAGE:?}"
+    : "${KUBECONFIG:?Management kubeconfig required}" "${NVKE_SITE:?}"
+    [[ -n ${CP_IMAGE:-${CP_BASE_IMAGE:-}} ]] || fail "Set CP_IMAGE or CP_BASE_IMAGE."
     : "${PROVIDER_PUBLIC_KEY:?}" "${PROVIDER_KNOWN_HOSTS:?}" "${PROVIDER_SSH:?}"
     [[ -r $PROVIDER_PUBLIC_KEY && -f $PROVIDER_KNOWN_HOSTS && -x $PROVIDER_SSH ]] || fail "Check Provider SSH paths."
     ssh-keygen -l -f "$PROVIDER_PUBLIC_KEY" >/dev/null
     [[ $(awk 'NR==1 {print $1}' "$PROVIDER_PUBLIC_KEY") == ssh-ed25519 ]] || fail "Use a Provider Ed25519 key."
-    iface=$(address_interface "$MANAGER_IP") || fail "Manager IP is not assigned locally."
+    address_interface "$MANAGER_IP" >/dev/null || fail "Manager IP is not assigned locally."
+    iface=$(ip -j -4 route get 1.1.1.1 | jq -er '.[0].dev')
     [[ $iface =~ ^[a-zA-Z0-9_.-]+$ ]] || fail "Unexpected interface name."
     [[ $(sysctl -n net.ipv4.ip_forward) == 1 ]] || fail "Enable IPv4 forwarding on the Docker host."
     mgmt get crd vmetalhosts.vmetal.infrastructure.cluster.x-k8s.io >/dev/null
@@ -146,7 +148,12 @@ owned_docker() {
 check_manager() {
     manager_inputs
     local bridge= id= reserve=3072
-    docker image inspect "$CP_BASE_IMAGE" >/dev/null || fail "Build or load the pinned NVKE node image first."
+    docker image inspect "${CP_IMAGE:-$CP_BASE_IMAGE}" >/dev/null || fail "Build or load the pinned NVKE node image first."
+    if [[ -n ${CP_IMAGE:-} ]]; then
+        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kernel"}}') == $(uname -r) ]] || fail "CP_IMAGE kernel config differs from this Docker host. Rebuild with its /boot/config."
+        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]] || fail "CP_IMAGE must be a verified VMetal Kubernetes 1.36.3 image."
+        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == $(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1) ]] || fail "CP_IMAGE helper differs from this release."
+    fi
     if docker network inspect "$network" >/dev/null 2>&1; then
         owned_docker "$network" network || fail "Existing Docker network is not owned by this installation."
         id=$(docker network inspect "$network" --format '{{.Id}}')
@@ -162,33 +169,6 @@ check_manager() {
     check_network manager "$bridge"
     disk / 15 0
     disk "$(docker info --format '{{.DockerRootDir}}')" 15 "$reserve"
-}
-
-install_egress() {
-    local unit="/etc/systemd/system/$CLUSTER-egress.service" draft="$state/egress.service"
-    cat >"$draft" <<UNIT
-[Unit]
-Description=HTTPS registry egress for $CLUSTER
-Wants=network-online.target
-Requires=docker.service
-After=network-online.target docker.service
-PartOf=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/sh -ec 'set -- POSTROUTING -s $CP_IP/32 ! -d $LAN_CIDR -o $iface -p tcp --dport 443 -m comment --comment $CLUSTER-egress -j MASQUERADE; /usr/sbin/iptables -w 5 -t nat -C "\$\$@" || /usr/sbin/iptables -w 5 -t nat -A "\$\$@"'
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-    if [[ -e $unit ]]; then
-        cmp -s "$draft" "$unit" || fail "Existing service differs: $unit"
-    else
-        privilege install -m 0644 "$draft" "$unit"
-    fi
-    privilege systemctl daemon-reload
-    privilege systemctl enable --now "$CLUSTER-egress.service"
 }
 
 remember_key() {
@@ -230,7 +210,7 @@ control_plane() {
     lock_state
     check_manager
     remember_manager
-    local current context hash key host image="$container:local"
+    local current context hash key host image="${CP_IMAGE:-$container:local}"
     current=$(get_cluster_id)
     if [[ -n $current ]]; then
         [[ -e $state/cluster-request && $(cat "$state/cluster-request") == "$CLUSTER" ]] ||
@@ -240,8 +220,9 @@ control_plane() {
         docker network create --label "$marker=$CLUSTER" --subnet "$DOCKER_CIDR" \
             -o com.docker.network.bridge.gateway_mode_ipv4=routed "$network"
     fi
-    install_egress
+    privilege bash "$repo/scripts/configure-vmetal-manager-network.sh" --install "$layout"
     if ! docker container inspect "$container" >/dev/null 2>&1; then
+        if [[ -z ${CP_IMAGE:-} ]]; then
         context=$(mktemp -d "$state/build.XXXXXXXX")
         mkdir "$context/scripts"
         cp "$repo/scripts/vmetal-kubeadm" "$context/scripts/"
@@ -251,6 +232,7 @@ control_plane() {
             fail "Docker control plane image build failed."
         fi
         rm -rf -- "$context"
+        fi
         if docker volume inspect "$volume" >/dev/null 2>&1; then
             owned_docker "$volume" volume || fail "Existing Docker volume is not owned by this installation."
         else
@@ -262,6 +244,19 @@ control_plane() {
             --mount "type=volume,source=$volume,target=/var" \
             --mount type=bind,source=/lib/modules,target=/lib/modules,readonly \
             --tmpfs /run --tmpfs /tmp -p '0.0.0.0::6443/tcp' -p '0.0.0.0::15005/tcp' -p '0.0.0.0::6081/udp' "$image"
+    fi
+    if [[ -n ${CP_IMAGE:-} ]]; then
+        wait_for 30 docker exec "$container" ctr --namespace k8s.io version >/dev/null ||
+            fail "Control-plane containerd did not start."
+        docker exec "$container" bash -ec '
+            set -o pipefail
+            if [[ ! -f /var/lib/vmetal-images-imported ]]; then
+                for archive in /usr/lib/nvke/k8s-matrix/v1.36.3/*/*.tgz /usr/lib/nvke/cni-ovn/2.4.2/*.tgz; do
+                    test -f "$archive"
+                    gzip -dc "$archive" | ctr --namespace k8s.io images import --all-platforms -
+                done
+                touch /var/lib/vmetal-images-imported
+            fi'
     fi
     wait_for 20 docker exec "$container" systemctl is-active --quiet ssh.service || fail "Control-plane SSH did not start."
     cloud_ready() { docker exec "$container" /usr/bin/cloud-init status | grep -Fx 'status: done'; }
@@ -318,7 +313,8 @@ YAML
         fail "NVKE published an unexpected workload API endpoint."
     wait_for 30 kube get --raw=/readyz
     kube wait --for=condition=Ready node -l node-role.kubernetes.io/control-plane --timeout=130s
-    bash "$repo/scripts/configure-nvke-baremetal-ovn.sh" --apply "$state/workload.kubeconfig" "$api"
+    OVN_MTU=${OVN_MTU:-$(python3 "$repo/scripts/vmetal-network.py" --peer "$WORKER_IP" --mtu-only)} \
+      bash "$repo/scripts/configure-nvke-baremetal-ovn.sh" --apply "$state/workload.kubeconfig" "$api"
     install -d -m 0700 "$state/worker"
     install -m 0644 "$PROVIDER_PUBLIC_KEY" "$state/worker/provider.pub"
     kube config view --raw --flatten --minify -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' |
@@ -357,6 +353,8 @@ check_worker() {
     else
         printf 'Workload API TLS will be checked after adding the /32 route through %s.\n' "$WORKER_GATEWAY"
     fi
+    python3 "$repo/scripts/vmetal-network.py" --peer "$CP_IP" --spire "$MANAGER_IP" \
+      --cidrs "$LAN_CIDR" "$DOCKER_CIDR" "$POD_CIDR" "$SERVICE_CIDR"
     [[ -x /usr/bin/nvidia-container-runtime ]] || fail "Install NVIDIA Container Toolkit."
     nvidia-smi --query-gpu=name,memory.free --format=csv,noheader
     if [[ ! -e $state/prepared ]]; then

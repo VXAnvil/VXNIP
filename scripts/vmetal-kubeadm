@@ -353,6 +353,7 @@ def main():
     if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", uid):
         raise HelperError("invalid allocation UID")
     identity = Path("/etc/machine-id").read_text().strip()
+    # Protocol v1 identity namespace, fixed across future branding changes.
     observed = hashlib.sha256(("vmetal:" + identity).encode()).hexdigest()
     if request["machineID"] != observed:
         raise HelperError("machine identity changed")
