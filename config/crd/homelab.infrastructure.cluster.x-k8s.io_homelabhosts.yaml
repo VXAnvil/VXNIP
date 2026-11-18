@@ -1,0 +1,126 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: homelabhosts.homelab.infrastructure.cluster.x-k8s.io
+spec:
+  group: homelab.infrastructure.cluster.x-k8s.io
+  names:
+    kind: HomelabHost
+    listKind: HomelabHostList
+    plural: homelabhosts
+    singular: homelabhost
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.discoveryReady
+      name: Verified
+      type: boolean
+    - jsonPath: .status.claim.name
+      name: Claim
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              allowBootstrap:
+                description: AllowBootstrap opts a dedicated lab machine into kubeadm
+                  bootstrap and reset.
+                type: boolean
+              machineID:
+                description: MachineID is the full machine ID hash reported by the
+                  SSH probe.
+                pattern: ^[a-f0-9]{64}$
+                type: string
+              managedAddress:
+                description: ManagedAddress allows enrollment to refresh the address
+                  of an idle host.
+                type: boolean
+              nodeIP:
+                description: NodeIP is the verified, routable IPv4 address used by
+                  NVKE.
+                format: ipv4
+                type: string
+              sshTarget:
+                description: SSHTarget is a trusted OpenSSH destination.
+                maxLength: 255
+                pattern: ^([a-zA-Z0-9_][a-zA-Z0-9_.-]*@)?[a-zA-Z0-9_][a-zA-Z0-9_.:-]*$
+                type: string
+            required:
+            - machineID
+            - sshTarget
+            type: object
+          status:
+            properties:
+              claim:
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                  uid:
+                    description: |-
+                      UID is a type that holds unique ID values, including UUIDs.  Because we
+                      don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+                      intent and helps make sure that UIDs and names do not get conflated.
+                    type: string
+                required:
+                - name
+                - namespace
+                - uid
+                type: object
+              discoveryReady:
+                type: boolean
+              discoveryReason:
+                enum:
+                - ProbeFailed
+                - IdentityMismatch
+                - Verified
+                type: string
+              hardware:
+                x-kubernetes-preserve-unknown-fields: true
+              observedAt:
+                format: date-time
+                type: string
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+        x-kubernetes-validations:
+        - message: name must be host- followed by the first 32 characters of spec.machineID
+          rule: self.metadata.name == 'host-' + self.spec.machineID.substring(0, 32)
+        - message: only an unclaimed managed host can update its address
+          rule: self.spec == oldSelf.spec || (has(oldSelf.spec.managedAddress) &&
+            oldSelf.spec.managedAddress && has(self.spec.managedAddress) && self.spec.managedAddress
+            && self.spec.machineID == oldSelf.spec.machineID && has(self.spec.allowBootstrap)
+            == has(oldSelf.spec.allowBootstrap) && (!has(self.spec.allowBootstrap)
+            || self.spec.allowBootstrap == oldSelf.spec.allowBootstrap) && (!has(oldSelf.status)
+            || !has(oldSelf.status.claim)))
+    served: true
+    storage: true
+    subresources:
+      status: {}

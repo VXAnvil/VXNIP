@@ -1,0 +1,47 @@
+# Set the Kubernetes version to the version prepared on both Linux hosts.
+name: homelab-nvke-lab
+controlPlaneKubernetesVersion: "${KUBERNETES_VERSION}"
+cniPlugin: ovn-kubernetes
+etcdEncrypted: false
+controlPlaneConfig:
+  desiredCount: 1
+  systemReservedMemory: "1Gi"
+  infra:
+    machineTemplate:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      kind: HomelabMachineTemplate
+      spec:
+        template:
+          spec:
+            hostRef: "${CONTROL_PLANE_HOST}"
+            bootstrapMode: NVKE
+nodePools:
+  - name: worker
+    nodeNamePrefix: w
+    desiredNodeCount: 1
+    controlPlane: false
+    systemReservedMemory: "1Gi"
+    nodeLabels:
+      tier: compute
+    autoProvisionDisabled: false
+    autoModeDisabled: false
+    recycleBudget: 0
+    infra:
+      machineTemplate:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: HomelabMachineTemplate
+        spec:
+          template:
+            spec:
+              hostRef: "${WORKER_HOST}"
+              bootstrapMode: NVKE
+infra:
+  cluster:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: HomelabCluster
+    metadata:
+      name: homelab-nvke-lab
+    spec:
+      controlPlaneEndpoint:
+        host: "${CONTROL_PLANE_IP}"
+        port: 6443
