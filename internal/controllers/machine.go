@@ -112,10 +112,11 @@ func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VMetalMa
 	// Poll for changes to the requested host. This also repairs status from
 	// the authoritative claim after a restart between the two writes.
 	result := ctrl.Result{RequeueAfter: allocationPoll}
-	if machine.Status.Phase == phase && machine.Status.Reason == reason {
+	if machine.Status.Phase == phase && machine.Status.Reason == reason && machine.Status.Message == "" {
 		return result, nil
 	}
 	machine.Status.Phase, machine.Status.Reason = phase, reason
+	machine.Status.Message = ""
 	return result, r.updateMachine(ctx, machine, true)
 }
 

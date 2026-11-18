@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,10 +54,11 @@ func (r *HostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	case err != nil:
 		ctrl.LoggerFrom(ctx).Error(err, "SSH discovery failed")
 		host.Status.DiscoveryReady = false
-		host.Status.DiscoveryReason = "ProbeFailed"
+		host.Status.DiscoveryReason, host.Status.DiscoveryMessage = discovery.FailureDetails(err)
 	case hardware.ID != host.Spec.MachineID:
 		host.Status.DiscoveryReady = false
 		host.Status.DiscoveryReason = "IdentityMismatch"
+		host.Status.DiscoveryMessage = "The probed machine ID differs from spec.machineID. Verify the SSH target and host registration."
 	default:
 		data, err := json.Marshal(hardware)
 		if err != nil {
@@ -66,7 +69,16 @@ func (r *HostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		host.Status.ObservedAt = &now
 		host.Status.DiscoveryReady = true
 		host.Status.DiscoveryReason = "Verified"
+		host.Status.DiscoveryMessage = "SSH identity and hardware inventory verified."
 	}
+	conditionStatus := metav1.ConditionFalse
+	if host.Status.DiscoveryReady {
+		conditionStatus = metav1.ConditionTrue
+	}
+	meta.SetStatusCondition(&host.Status.Conditions, metav1.Condition{
+		Type: "DiscoveryReady", Status: conditionStatus, Reason: host.Status.DiscoveryReason,
+		Message: host.Status.DiscoveryMessage, ObservedGeneration: host.Generation,
+	})
 	return ctrl.Result{RequeueAfter: probeInterval}, r.Status().Update(ctx, &host)
 }
 

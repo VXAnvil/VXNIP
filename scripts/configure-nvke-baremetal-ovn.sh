@@ -13,6 +13,7 @@ actual_api=$(kubectl "${kubectl_args[@]}" config view --minify -o jsonpath='{.cl
 [[ $actual_api == "$expected_api" ]] || { echo "Workload API mismatch: $actual_api" >&2; exit 1; }
 kubectl_args+=(-n ovn-kubernetes)
 
+
 dir=$(mktemp -d)
 trap 'rm -rf -- "$dir"' EXIT
 kubectl "${kubectl_args[@]}" get ds ovnkube-node -o json >"$dir/original.json"
@@ -58,6 +59,23 @@ if [[ $patch != '[]' ]]; then
     kubectl "${kubectl_args[@]}" patch ds ovnkube-node --type=json -p "$patch" --dry-run=server
 fi
 kubectl "${kubectl_args[@]}" apply --dry-run=server -f "$dir/baremetal.json"
+if [[ -n ${OVN_MTU:-} ]]; then
+    [[ $OVN_MTU =~ ^[0-9]+$ && $OVN_MTU -ge 576 && $OVN_MTU -le 9000 ]] || { echo "Invalid OVN_MTU." >&2; exit 1; }
+    current_mtu=$(kubectl "${kubectl_args[@]}" get cm ovn-config -o jsonpath='{.data.mtu}')
+    [[ $current_mtu =~ ^[0-9]+$ ]]
+    # Preserve an existing lower MTU when applying this to an established tenant.
+    if (( OVN_MTU < current_mtu )); then
+        kubectl "${kubectl_args[@]}" patch cm ovn-config --type=merge \
+          -p "{\"data\":{\"mtu\":\"$OVN_MTU\"}}" --dry-run=server
+        if [[ $mode == --apply ]]; then
+            kubectl "${kubectl_args[@]}" patch cm ovn-config --type=merge \
+              -p "{\"data\":{\"mtu\":\"$OVN_MTU\"}}"
+            kubectl "${kubectl_args[@]}" rollout restart deployment/ovnkube-control-plane
+            kubectl "${kubectl_args[@]}" delete pod -l 'app in (ovnkube-node,ovnkube-node-vmetal-baremetal)' --wait=false
+        fi
+    fi
+fi
+
 [[ $mode == --apply ]] || exit 0
 
 if [[ $patch != '[]' ]]; then

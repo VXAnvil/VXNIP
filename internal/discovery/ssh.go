@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -78,4 +79,29 @@ func (SSH) Discover(ctx context.Context, target string) (Hardware, error) {
 		return result, fmt.Errorf("incomplete hardware inventory from %s", target)
 	}
 	return result, nil
+}
+
+// FailureDetails classifies probe failures without publishing remote stderr,
+// which can contain operator-specific data.
+func FailureDetails(err error) (string, string) {
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "host key verification failed"),
+		strings.Contains(message, "remote host identification has changed"):
+		return "SSHHostKeyMismatch", "Verify the host fingerprint and update the Provider known_hosts entry through a trusted channel."
+	case strings.Contains(message, "permission denied ("),
+		strings.Contains(message, "no supported authentication methods"):
+		return "SSHAuthenticationFailed", "Authorize the Provider public key for the registered SSH user and verify the configured identity file."
+	case strings.Contains(message, "deadline exceeded"), strings.Contains(message, "timed out"):
+		return "SSHTimeout", "Check the SSH route, firewall and node availability."
+	case strings.Contains(message, "no route to host"), strings.Contains(message, "connection refused"),
+		strings.Contains(message, "could not resolve hostname"), strings.Contains(message, "network is unreachable"):
+		return "SSHUnreachable", "Check the registered address, DNS, routing and SSH listener."
+	case strings.Contains(message, "permission denied"), strings.Contains(message, "not found"):
+		return "RemotePrerequisiteFailed", "Check Python 3 and execute permissions for the SSH user, including /usr/bin."
+	case strings.Contains(message, "decode hardware"), strings.Contains(message, "incomplete hardware"):
+		return "InventoryInvalid", "The SSH probe returned an invalid inventory. Check Python 3 and shell startup output."
+	default:
+		return "ProbeFailed", "SSH discovery failed. Check the Provider journal and verify the registered SSH target."
+	}
 }

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -220,5 +221,14 @@ func (r *MachineReconciler) runBootstrap(ctx context.Context, machine *api.VMeta
 		return fmt.Errorf("bootstrap runner is unavailable")
 	}
 	request.MachineID, request.OwnerUID = host.Spec.MachineID, string(machine.UID)
-	return r.Bootstrap.Run(ctx, host.Spec.SSHTarget, request)
+	if err := r.Bootstrap.Run(ctx, host.Spec.SSHTarget, request); err != nil {
+		machine.Status.Reason = "BootstrapFailed"
+		if strings.HasPrefix(request.Action, "reset") {
+			machine.Status.Reason = "ResetFailed"
+		}
+		machine.Status.Message = fmt.Sprintf("Remote %s failed. Check the node helper, CRI, agent and SPIRE journals. Allocation ownership is retained.", request.Action)
+		return errors.Join(err, r.updateMachine(ctx, machine, true))
+	}
+	machine.Status.Message = ""
+	return nil
 }

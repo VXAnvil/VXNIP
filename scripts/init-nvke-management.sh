@@ -38,10 +38,15 @@ for tool in kind kubectl clusterctl helm nvkectl vmetal-controller; do
 done
 [[ $(cat "$bundle/nvke/revision") == 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 ]]
 mapfile -t images <"$bundle/images"
-[[ ${#images[@]} == 3 ]]
+[[ ${#images[@]} == 3 || ${#images[@]} == 4 ]]
 node_image=${images[0]}
 controller_image=${images[1]}
 profile_image=${images[2]}
+if [[ ${#images[@]} == 4 ]]; then
+    [[ -f $bundle/control-plane-image && $(cat "$bundle/control-plane-image") == "${images[3]}" ]]
+fi
+# Read the provider files from the verified bundle when present.
+if [[ -d $bundle/provider ]]; then repo="$bundle/provider"; fi
 for image in "${images[@]}"; do
     [[ $image =~ ^[a-zA-Z0-9./_-]+:[a-zA-Z0-9._-]+$ ]]
 done
@@ -52,6 +57,15 @@ if ! command -v docker >/dev/null; then
     apt-get update -qq
     apt-get install -y docker.io
 fi
+# Kind, OVN and additional systemd nodes share this host's inotify quota.
+# Preserve larger administrator limits and persist the minimum across reboots.
+instances=$(sysctl -n fs.inotify.max_user_instances)
+watches=$(sysctl -n fs.inotify.max_user_watches)
+(( instances >= 2048 )) || instances=2048
+(( watches >= 1048576 )) || watches=1048576
+printf 'fs.inotify.max_user_instances=%s\nfs.inotify.max_user_watches=%s\n' \
+  "$instances" "$watches" >/etc/sysctl.d/90-vmetal-inotify.conf
+sysctl -p /etc/sysctl.d/90-vmetal-inotify.conf >/dev/null
 systemctl enable --now docker.service
 export PATH="$bundle/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export KUBECONFIG="$state/management.kubeconfig"
@@ -85,11 +99,19 @@ if [[ ! -s $KUBECONFIG ]]; then
     kind export kubeconfig --name "$site" --kubeconfig "$KUBECONFIG"
 fi
 [[ $(kubectl config current-context) == "kind-$site" ]]
-for image in "$controller_image" "$profile_image"; do
+for image in "${images[@]}"; do
     if ! docker image inspect "$image" >/dev/null 2>&1; then
         docker load -i "$bundle/images.tar"
     fi
 done
+if [[ -f $bundle/image-ids ]]; then
+    mapfile -t ids <"$bundle/image-ids"
+    [[ ${#ids[@]} == ${#images[@]} ]]
+    for index in "${!images[@]}"; do
+        [[ $(docker image inspect "${images[index]}" -f '{{.Id}}') == "${ids[index]}" ]] ||
+            { echo "An image tag differs from the verified bundle: ${images[index]}" >&2; exit 1; }
+    done
+fi
 kind load docker-image "$controller_image" "$profile_image" --name "$site"
 kubectl wait --for=condition=Ready "node/$site-control-plane" --timeout=120s
 clusterctl init --kubeconfig "$KUBECONFIG" --core cluster-api:v1.13.6 \
@@ -208,6 +230,7 @@ wait_port 127.0.0.1 18081
 export XDG_CONFIG_HOME="$state/nvkectl-config" XDG_CACHE_HOME="$state/nvkectl-cache"
 nvkectl config set-site --name "$site" --url http://127.0.0.1:18081 --kubeconfig "$KUBECONFIG"
 nvkectl --site "$site" get clusters
+printf '%s\n' "$bundle" >"$state/bundle"
 touch "$state/ready"
 printf 'Management kubeconfig: %s\n' "$KUBECONFIG"
 printf 'Issue a worker invitation: sudo bash %s/scripts/issue-nvke-enrollment.sh %s /path/to/worker-bundle\n' "$repo" "$state"

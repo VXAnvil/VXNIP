@@ -74,9 +74,15 @@ type VMetalHostStatus struct {
 	ObservedAt         *metav1.Time          `json:"observedAt,omitempty"`
 	ObservedGeneration int64                 `json:"observedGeneration,omitempty"`
 	DiscoveryReady     bool                  `json:"discoveryReady,omitempty"`
-	// +kubebuilder:validation:Enum=ProbeFailed;IdentityMismatch;Verified
-	DiscoveryReason string     `json:"discoveryReason,omitempty"`
-	Claim           *HostClaim `json:"claim,omitempty"`
+	// +kubebuilder:validation:Enum=ProbeFailed;IdentityMismatch;Verified;SSHAuthenticationFailed;SSHHostKeyMismatch;SSHTimeout;SSHUnreachable;RemotePrerequisiteFailed;InventoryInvalid
+	DiscoveryReason string `json:"discoveryReason,omitempty"`
+	// DiscoveryMessage is a credential-free explanation of the latest probe.
+	// +kubebuilder:validation:MaxLength=512
+	DiscoveryMessage string `json:"discoveryMessage,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Claim      *HostClaim         `json:"claim,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -84,6 +90,7 @@ type VMetalHostStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:validation:XValidation:rule="self.metadata.name == 'host-' + self.spec.machineID.substring(0, 32)",message="name must be host- followed by the first 32 characters of spec.machineID"
 // +kubebuilder:validation:XValidation:rule="self.spec == oldSelf.spec || (has(oldSelf.spec.managedAddress) && oldSelf.spec.managedAddress && has(self.spec.managedAddress) && self.spec.managedAddress && self.spec.machineID == oldSelf.spec.machineID && has(self.spec.allowBootstrap) == has(oldSelf.spec.allowBootstrap) && (!has(self.spec.allowBootstrap) || self.spec.allowBootstrap == oldSelf.spec.allowBootstrap) && (!has(oldSelf.status) || !has(oldSelf.status.claim)))",message="only an unclaimed managed host can update its address"
+// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=`.status.discoveryReason`
 // +kubebuilder:printcolumn:name="Verified",type=boolean,JSONPath=`.status.discoveryReady`
 // +kubebuilder:printcolumn:name="Claim",type=string,JSONPath=`.status.claim.name`
 type VMetalHost struct {
@@ -118,8 +125,11 @@ type VMetalMachineSpec struct {
 type VMetalMachineStatus struct {
 	// +kubebuilder:validation:Enum=Pending;Reserved;Provisioned
 	Phase string `json:"phase,omitempty"`
-	// +kubebuilder:validation:Enum=HostMissing;HostDeleting;HostUnverified;HostClaimed;HostReserved;BootstrapDisabled;WaitingForBootstrap;BootstrapRunning;BootstrapComplete;NodeIPUnverified
+	// +kubebuilder:validation:Enum=HostMissing;HostDeleting;HostUnverified;HostClaimed;HostReserved;BootstrapDisabled;WaitingForBootstrap;BootstrapRunning;BootstrapComplete;NodeIPUnverified;BootstrapFailed;ResetFailed
 	Reason string `json:"reason,omitempty"`
+	// Message reports the operation and a credential-free troubleshooting hint.
+	// +kubebuilder:validation:MaxLength=512
+	Message string `json:"message,omitempty"`
 
 	// BootstrapStarted records intent before any remote changes.
 	BootstrapStarted bool                          `json:"bootstrapStarted,omitempty"`

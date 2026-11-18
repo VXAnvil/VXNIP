@@ -8,6 +8,8 @@ VMetal exposes `VMetalHost`, `VMetalCluster`, `VMetalMachine`, and `VMetalMachin
 
 The VMetal naming transition changes Kubernetes resource identities, host registration hashes, provider IDs, and node-side state paths. Use the Quickstart with a fresh site and unallocated hosts. Keep the original controller and node helper for existing allocations until they are released or a migration is planned. Re-register released hosts using the VMetal tooling.
 
+See [installation, diagnostics and released-host migration](docs/operations.md) for verified control-plane bundles, terminal setup, network recovery and migration commands.
+
 ## Quickstart
 
 The standalone CLI runs on macOS or Linux with Go 1.24 or newer and an OpenSSH client. The initial target is an existing Ubuntu host with Python 3, SSH access and a valid, unique `/etc/machine-id`. Configure SSH key authentication and verify the host key in your OpenSSH known-hosts file before registration. Set any custom port or identity file through an OpenSSH host alias.

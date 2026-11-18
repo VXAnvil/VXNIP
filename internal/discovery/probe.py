@@ -72,6 +72,7 @@ def interfaces():
         return None
 
 
+# The vmetal: identity namespace is protocol v1 and stays fixed across renames.
 def main():
     identity = read("/etc/machine-id")
     if not re.fullmatch(r"[0-9a-f]{32}", identity) or identity == "0" * 32:
