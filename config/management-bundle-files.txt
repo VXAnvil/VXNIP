@@ -1,0 +1,33 @@
+# Provider files shipped in a management bundle. Paths are repository-relative.
+# Keep install, enrollment, recovery and operator dependencies here.
+config/management-bundle-files.txt
+config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalclusters.yaml
+config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalhosts.yaml
+config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalmachines.yaml
+config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalmachinetemplates.yaml
+config/crd/nvke/infrastructure.cluster.x-k8s.io_vmetalclusters.yaml
+config/crd/nvke/infrastructure.cluster.x-k8s.io_vmetalmachines.yaml
+config/crd/nvke/infrastructure.cluster.x-k8s.io_vmetalmachinetemplates.yaml
+config/rbac/capi.yaml
+config/rbac/nvke.yaml
+examples/kubeadm-two-vm.yaml.tmpl
+examples/nvke-two-hosts.yaml.tmpl
+examples/nvke-docker-control-plane.Dockerfile
+examples/nvke-docker-gpu.env.example
+internal/discovery/probe.py
+scripts/init-nvke-management.sh
+scripts/issue-nvke-enrollment.sh
+scripts/nvke-enrollment-server.py
+scripts/enroll-nvke-vm-worker.sh
+scripts/prepare-nvke-vm-worker.sh
+scripts/prepare-nvke-baremetal-worker.sh
+scripts/prepare-nvke-baremetal-cloud-init.sh
+scripts/vmetal-kubeadm
+scripts/configure-nvke-lab-host-recovery.sh
+scripts/configure-nvke-baremetal-ovn.sh
+scripts/configure-vmetal-manager-network.sh
+scripts/configure-vmetal-client.sh
+scripts/vmetal-network.py
+scripts/check-nvke-lab-workers.sh
+scripts/install-nvke-docker-gpu.sh
+scripts/migrate-vmetal-hosts.py

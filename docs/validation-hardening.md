@@ -41,3 +41,11 @@ The additional build and VM disk footprint triggered `DiskPressure` on the exist
 ## Scope and remaining administrator actions
 
 The legacy migration tool handles released host inventory. Active legacy Machines, workloads and provider IDs are released through their original controllers; this is not an in-place API-group conversion for a live cluster. Tailscale route/grant approval remains an administrator action. Presented agent certificate expiry and SPIRE connectivity checks do not replace long-duration renewal or whole-host reboot testing.
+
+## Runtime bundle cleanup validation
+
+The five optional Lima, CRI, OVS, lab SPIRE-forward and Plymouth helpers were moved unchanged to `hack/lab/`. The management packager now selects Provider files through `config/management-bundle-files.txt`. The tracked Provider payload decreased from 42 files to 31; binaries, NVKE deployment assets and container image payloads retain the same packaging interface. All 30 pre-existing runtime files in the new list were compared byte-for-byte with the preceding revision; the additional file is the list itself.
+
+The Linux packaging regression suite passed on ThinkPad in a disposable user directory. It invokes the real packager with fixture Docker metadata/image bytes and a tiny upstream Git archive. Both three-image and four-image bundles passed checksum verification, script dependency checks and file content/mode comparisons. Tests confirm that local untracked files, Go source, development tests and build tools are excluded. The actual bundled enrollment server issued a valid invitation. Removing a required recovery script caused packaging to fail without publishing an incomplete bundle or leaving staging files.
+
+`go test -race ./...`, the four node-helper tests, the four management regression tests, shell/Python syntax checks and local documentation links also passed. These checks verify unchanged Provider logic and bundle dependency preservation; they do not constitute a fresh full-cluster installation or whole-host reboot test. The cleanup does not install or replace running services.

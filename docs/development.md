@@ -137,3 +137,7 @@ kubectl --kubeconfig /tmp/vmetal-nvke-lab.kubeconfig get nodes
 ```
 
 Check that both nodes are `Ready` and each Node's provider ID matches its CAPI Machine. Scale the worker pool down and restore it to verify that the former allocation is cleaned up and the same host returns with a new provider ID. The current adapter supports join-token agent configuration and rejects bootstrap payloads with extra shell commands, custom files, or other SPIRE attestors.
+
+## Archived lab helpers
+
+Environment-specific Lima, CRI, OVS, SPIRE-forward and Plymouth experiments are preserved in [`hack/lab/`](../hack/lab/README.md). They are outside the runtime installation path and are not shipped in management bundles. CRD generation and regression tests remain in `scripts/` for development.
