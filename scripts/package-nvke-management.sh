@@ -20,12 +20,17 @@ staging=$(mktemp -d "$(dirname "$output")/.nvke-bundle.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
 mkdir "$staging/bin" "$staging/nvke" "$staging/provider"
 repo=$(cd "$(dirname "$0")/.." && pwd)
-cp -a "$repo/config" "$repo/scripts" "$repo/examples" "$staging/provider/"
-mkdir "$staging/provider/internal"
-cp -a "$repo/internal/discovery" "$staging/provider/internal/"
-# AppleDouble metadata can be present in source transferred from macOS.
-find "$staging/provider" -type f -name '._*' -delete
-find "$staging/provider" -type d -name __pycache__ -prune -exec rm -rf {} +
+# An explicit file list keeps tests, source code and optional lab tools out of
+# the runtime bundle. Preserve the existing paths and executable permissions.
+manifest="$repo/config/management-bundle-files.txt"
+while IFS= read -r file || [[ -n $file ]]; do
+    [[ -z $file || $file == \#* ]] && continue
+    [[ $file != /* && "/$file/" != *"/../"* && -f $repo/$file ]] || {
+        echo "Invalid or missing bundle file: $file" >&2
+        exit 1
+    }
+    (cd "$repo" && cp --parents -p -- "$file" "$staging/provider/")
+done <"$manifest"
 if [[ -n ${VMETAL_CONTROL_PLANE_IMAGE:-} ]]; then
     expected=$(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1)
     [[ $(docker image inspect "$VMETAL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == "$expected" ]]

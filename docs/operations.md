@@ -16,7 +16,7 @@ VMETAL_CONTROL_PLANE_IMAGE=vmetal-control-plane:1.36.3 \
     /path/to/new-management-bundle
 ```
 
-The bundle contains provider scripts, manifests, the discovery probe, tools, image IDs and a SHA-256 manifest. It verifies the image's helper hash and Kubernetes version before packaging. Management initialization checks image IDs against the bundle after loading. Existing three-image management bundles remain accepted.
+The bundle contains provider scripts, manifests, the discovery probe, tools, image IDs and a SHA-256 manifest. Provider files are selected explicitly by [`config/management-bundle-files.txt`](../config/management-bundle-files.txt), preserving their source paths and executable modes. Tests, CRD generators, build/packaging scripts, Go source and the [archived lab helpers](../hack/lab/README.md) remain in the checkout and are excluded from the runtime bundle. Build and package from the source checkout; install, enroll and recover using the bundled entry points. It verifies the image's helper hash and Kubernetes version before packaging. Management initialization checks image IDs against the bundle after loading. Existing three-image management bundles remain accepted.
 
 Management initialization also persists minimum inotify limits of 2048 instances and 1048576 watches, while preserving larger administrator settings. Kind, OVN and additional systemd containers consume the same host quota; exhaustion can otherwise stop a container before SSH is available.
 
@@ -120,7 +120,11 @@ The migration operates on released host inventory. Workloads, active provider ID
 KUBEBUILDER_ASSETS=/path/to/envtest go test -race ./...
 python3 scripts/test_vmetal_kubeadm.py
 python3 scripts/test_management_tools.py
+# Run on Linux (the bundle build target).
+python3 scripts/test_management_bundle.py
 ```
+
+The Linux bundle tests exercise both three-image and four-image packaging with fixture Docker metadata and a tiny upstream Git archive. They verify runtime dependency closure, file contents/modes, checksums, exclusion of local files and atomic failure when a recovery dependency is missing; they do not start a cluster.
 
 The migration integration test needs `kubectl` and Python 3 on PATH in addition to the envtest assets. It runs planning, migration and replay against a real isolated API server. Python regression checks cover interrupted migration, a newly claimed source, a changed mapping and Tailscale MTU derivation.
 
