@@ -46,4 +46,8 @@ jobs:
           version="$IMAGE:$GITHUB_REF_NAME"
           docker buildx imagetools create --tag "$version" "$IMAGE@sha256:$digest"
           test "$(digest_of "$version")" = "$digest"
-          echo "Published $version at sha256:$digest" >> "$GITHUB_STEP_SUMMARY"
+          {
+            printf 'Released `%s` from commit `%s`\n\n' "$GITHUB_REF_NAME" "$commit"
+            printf 'Pull by version: `docker pull %s`\n\n' "$version"
+            printf 'Pull by digest: `docker pull %s@sha256:%s`\n' "$IMAGE" "$digest"
+          } >> "$GITHUB_STEP_SUMMARY"
