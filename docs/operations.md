@@ -1,4 +1,4 @@
-# Install, diagnose and migrate VMetal
+# Install and operate VMetal
 
 ## Build a reproducible control-plane image
 
@@ -18,9 +18,9 @@ VMETAL_CONTROL_PLANE_IMAGE=vmetal-control-plane:1.36.3 \
 
 The builder checks the OVN charts installation and cloud-init settings, and preserves each container's machine ID across restarts. Rebuild the control-plane image and regenerate the bundle to apply image fixes; existing images are not updated in place.
 
-The bundle contains provider scripts, manifests, the discovery probe, tools, image IDs and a SHA-256 manifest. Provider files are selected explicitly by [`config/management-bundle-files.txt`](../config/management-bundle-files.txt), preserving their source paths and executable modes. Tests, CRD generators, build/packaging scripts, Go source and the [archived lab helpers](../hack/lab/README.md) remain in the checkout and are excluded from the runtime bundle. Build and package from the source checkout; install, enroll and recover using the bundled entry points. It verifies the image's helper hash and Kubernetes version before packaging. Management initialization checks image IDs against the bundle after loading. Existing three-image management bundles remain accepted.
+Build and package from the source checkout; install, enroll and recover through the bundle. [`config/management-bundle-files.txt`](../config/management-bundle-files.txt) selects the runtime files, preserving paths and executable modes. The bundle includes tools, NVKE assets, images and SHA-256 checksums. Packaging checks the control-plane helper and Kubernetes version; initialization verifies checksums and loaded image IDs. Three-image management bundles remain supported.
 
-Management initialization also persists minimum inotify limits of 2048 instances and 1048576 watches, while preserving larger administrator settings. Kind, OVN and additional systemd containers consume the same host quota; exhaustion can otherwise stop a container before SSH is available.
+Initialization persists minimum inotify limits of 2048 instances and 1048576 watches for Kind and OVN, preserving higher administrator settings.
 
 On the target host, run the bundled installer. It uses the provider files covered by the bundle's manifest.
 
@@ -48,9 +48,7 @@ kubectl --kubeconfig /home/ubuntu/.config/vmetal/sites/lab/management.kubeconfig
 kubectl --kubeconfig /home/ubuntu/.config/vmetal/sites/lab/workload.kubeconfig get nodes
 ```
 
-The script copies the matching `nvkectl` and `kubectl`, creates a private CLI configuration, and exports only environment variables. Commands use the full `nvkectl` and `kubectl` names, with explicit kubeconfig paths for management and workload operations. Source that file in each terminal, or source it from the intended user's shell startup file. Existing sites created before bundle-path recording can supply `VMETAL_MANAGEMENT_BUNDLE=/path/to/bundle` to the export command.
-
-If a terminal already loaded shortcut functions from an earlier generated environment, open a fresh terminal and source the regenerated file.
+The script copies the matching `nvkectl` and `kubectl`, creates a private CLI configuration, and exports only environment variables. Commands use the full `nvkectl` and `kubectl` names, with explicit kubeconfig paths for management and workload operations. Source that file in each terminal, or source it from the intended user's shell startup file.
 
 ## Inspect networking and recovery
 
@@ -96,38 +94,8 @@ Host status distinguishes SSH authentication, host key, timeout, routing, remote
 
 ## Migrate released legacy hosts
 
-Migration uses the same trusted SSH identities as the Provider. Keep the legacy controller running until its Clusters, Machines and host claims have been released through their original management workflow. Install the VMetal CRDs and controller on the target management site.
-
-Generate a private migration plan, inspect it, then apply it.
-
-```bash
-python3 scripts/migrate-vmetal-hosts.py \
-  --kubeconfig /path/to/legacy-management.kubeconfig \
-  --target-kubeconfig /path/to/vmetal-management.kubeconfig \
-  --plan /private/path/host-migration.json
-
-python3 scripts/migrate-vmetal-hosts.py \
-  --kubeconfig /path/to/legacy-management.kubeconfig \
-  --target-kubeconfig /path/to/vmetal-management.kubeconfig \
-  --plan /private/path/host-migration.json --apply
-```
-
-Omit `--target-kubeconfig` when both inventories share a management API. The planner verifies the Linux machine ID over authenticated SSH, checks its old hash, computes the VMetal hash and records both management-site UIDs. The apply step rechecks the physical identity, uses UID and resourceVersion delete preconditions, waits for the legacy finalizer, and creates one VMetalHost with migration provenance. A durable journal supports retry after a failed target create. A new claim or a changed mapping stops migration.
-
-The migration operates on released host inventory. Workloads, active provider IDs, bootstrap Secrets and node-side allocation state are released through the original controllers. Re-enroll a managed-address host with a fresh invitation to establish its new enrollment record. The `vmetal:` identity namespace is protocol v1 and remains fixed across future display-name changes.
+For an existing inventory, follow [released-host migration](compatibility.md#released-host-migration). Active allocations must first be released through their original controllers and helpers. Older client export options are also covered in that guide.
 
 ## Verification
 
-```bash
-KUBEBUILDER_ASSETS=/path/to/envtest go test -race ./...
-python3 scripts/test_vmetal_kubeadm.py
-python3 scripts/test_management_tools.py
-# Run on Linux (the bundle build target).
-python3 scripts/test_management_bundle.py
-```
-
-The Linux bundle tests exercise both three-image and four-image packaging with fixture Docker metadata and a tiny upstream Git archive. They verify runtime dependency closure, file contents/modes, checksums, exclusion of local files and atomic failure when a recovery dependency is missing; they do not start a cluster.
-
-The migration integration test needs `kubectl` and Python 3 on PATH in addition to the envtest assets. It runs planning, migration and replay against a real isolated API server. Python regression checks cover interrupted migration, a newly claimed source, a changed mapping and Tailscale MTU derivation.
-
-See [the hardening validation record](validation-hardening.md) for the executed installation, network recovery and existing-environment checks, including their limits.
+Maintainer test commands and prerequisites are in [Development: Run checks](development.md#run-checks). Use the Pod HTTP check above to validate an installed cluster.
