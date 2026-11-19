@@ -6,7 +6,7 @@ The addresses and paths below are examples. Choose a routable private management
 
 ## Prepare the management site
 
-If you already have a compatible NVKE management site, use its kubeconfig and tooling. For a site with allocations from before the VMetal naming transition, see the [compatibility notes](../README.md#vmetal) before installing these components. To start a new site, prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. Build `vmetal-controller` for the management host's architecture into the same tools directory.
+If you already have a compatible NVKE management site, use its kubeconfig and tooling. For a site with allocations from before the VMetal naming transition, see the [compatibility notes](../README.md#compatibility) before installing these components. To start a new site, prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. Build `vmetal-controller` for the management host's architecture into the same tools directory.
 
 ```bash
 go build -o "$LINUX_TOOL_DIR/vmetal-controller" ./cmd/vmetal-controller
@@ -41,7 +41,7 @@ sudo bash /path/to/worker01-invitation/enroll.sh /path/to/verified-worker-artifa
 kubectl --kubeconfig /var/lib/vmetal-nvke/management.kubeconfig get vmetalhosts
 ```
 
-Use [the NVKE adapter example](../README.md#test-the-nvke-infra-adapter) to allocate a control plane and the first worker. Compare the workload Node's `spec.providerID` with the management cluster Machine's `spec.providerID`. A reboot of the same allocation should preserve this identifier. Releasing and allocating again creates a new Machine.
+Use [the NVKE adapter example](development.md#test-the-nvke-infra-adapter) to allocate a control plane and the first worker. Compare the workload Node's `spec.providerID` with the management cluster Machine's `spec.providerID`. A reboot of the same allocation should preserve this identifier. Releasing and allocating again creates a new Machine.
 
 ## Use a Docker control plane with an NVIDIA GPU worker
 
@@ -87,4 +87,4 @@ bash scripts/install-nvke-docker-gpu.sh verify layout.env "$install_dir"
 kubectl --kubeconfig "$install_dir/workload.kubeconfig" get nodes -o wide -L kubernetes.io/arch
 ```
 
-For a remote ARM64 worker such as DGX Spark, prepare the verified ARM64 artifacts and use the [generic NVKE adapter workflow](../README.md#test-the-nvke-infra-adapter). Validate routing between the workload API, SPIRE, and the worker, and confirm Pod network connectivity before scheduling work.
+For a remote ARM64 worker such as DGX Spark, prepare the verified ARM64 artifacts and use the [generic NVKE adapter workflow](development.md#test-the-nvke-infra-adapter). Validate routing between the workload API, SPIRE, and the worker, and confirm Pod network connectivity before scheduling work.
