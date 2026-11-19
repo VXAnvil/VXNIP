@@ -65,6 +65,10 @@ install -m 0755 "$repo/scripts/vmetal-kubeadm" "$context/scripts/"
     printf 'ARG NVKE_NODE_IMAGE=vmetal-build-base:required\nFROM ${NVKE_NODE_IMAGE} AS assets\nCOPY root/ /\n'
     sed '1,2d' "$repo/examples/nvke-docker-control-plane.Dockerfile"
 } >"$context/Dockerfile"
+# The agent validates charts through dpkg-query, so extracting files alone is
+# insufficient. This package has no dependencies or maintainer scripts.
+cp "$artifacts/${packages[1]}" "$context/ovn-charts.deb"
+sed -i '/^COPY root\//a COPY ovn-charts.deb /tmp/ovn-charts.deb\nRUN dpkg -i /tmp/ovn-charts.deb && rm /tmp/ovn-charts.deb' "$context/Dockerfile"
 helper=$(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1)
 manifest=$(sha256sum "$artifacts/SHA256SUMS" | cut -d' ' -f1)
 docker build --build-arg "NVKE_NODE_IMAGE=$base" \
@@ -74,4 +78,14 @@ docker build --build-arg "NVKE_NODE_IMAGE=$base" \
     --label "vmetal.nvke.dev/artifacts-sha256=$manifest" -t "$image" "$context"
 docker run --rm --network none --entrypoint /usr/bin/kubeadm "$image" version -o short | grep -Fx v1.36.3
 docker run --rm --network none --user vmetal --entrypoint /usr/bin/python3 "$image" -c 'import os; assert os.geteuid()!=0'
+docker run --rm --network none --entrypoint /usr/bin/dpkg-query "$image" \
+    -W -f='${Version}\n' nvke-cni-ovn-charts-2.4.2 | grep -Fx 2.4.2
+docker run --rm --network none --entrypoint /usr/bin/python3 "$image" -c '
+from cloudinit import stages
+init = stages.Init()
+init.read_cfg()
+cfg = init.cfg
+assert cfg["network"]["config"] == "disabled"
+assert cfg["ssh_deletekeys"] is False
+assert all(cfg[key] == [] for key in ("cloud_init_modules", "cloud_config_modules", "cloud_final_modules"))'
 printf 'Control-plane image %s %s\n' "$image" "$(docker image inspect "$image" -f '{{.Id}}')"

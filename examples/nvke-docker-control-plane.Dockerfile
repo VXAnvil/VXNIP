@@ -5,6 +5,9 @@ RUN if ! (command -v sshd && command -v sudo && command -v python3 && test -x /u
       apt-get -o Acquire::Retries=3 update && \
       apt-get -o Acquire::Retries=3 install -y --no-install-recommends openssh-server sudo python3 cloud-init; \
     fi && rm -rf /var/lib/apt/lists/*
+# Kind's entrypoint regenerates machine-id on every container start. VMetal
+# clears it once below, then keeps the first generated identity across restarts.
+RUN python3 -c 'from pathlib import Path; p=Path("/usr/local/bin/entrypoint"); s=p.read_text(); needle="fix_machine_id() {\n"; guard="  if grep -Eq \"^[0-9a-f]{32}$\" /etc/machine-id; then return; fi\n"; assert s.count(needle)==1; p.write_text(s if guard in s else s.replace(needle, needle+guard))'
 RUN rm -f /usr/local/bin/cloud-init /etc/default/nke-agent /etc/default/nvke-agent \
       /var/lib/nvke/state.json /etc/systemd/system/spire-agent.service.d/override.conf \
       /etc/ssh/ssh_host_* /var/lib/dbus/machine-id && \
@@ -17,7 +20,7 @@ RUN rm -f /usr/local/bin/cloud-init /etc/default/nke-agent /etc/default/nvke-age
     printf '%s\n' '#cloud-config' 'manage_etc_hosts: false' > /var/lib/cloud/seed/nocloud/user-data && \
     printf '%s\n' 'datasource_list: [NoCloud]' 'network: {config: disabled}' 'preserve_hostname: true' \
       'ssh_deletekeys: false' 'cloud_init_modules: []' 'cloud_config_modules: []' 'cloud_final_modules: []' \
-      > /etc/cloud/cloud.cfg.d/99-vmetal.conf && \
+      > /etc/cloud/cloud.cfg.d/99-vmetal.cfg && \
     systemctl disable nvke-agent.service spire-agent.service && \
     ln -sfn nvke-agent.service /etc/systemd/system/nke-agent.service && \
     printf '%s\n' '[Service]' 'ExecStart=' 'ExecStart=/usr/local/bin/nvke-agent $AGENT_ARGS --disable-mlx5-rescan' \

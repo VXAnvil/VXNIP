@@ -41,7 +41,7 @@ The inventory API is `vmetal.infrastructure.cluster.x-k8s.io/v1alpha1`, with `VM
 
 Provider IDs use `vmetal://<machine-uid>`. A reboot preserves the current allocation's ID; releasing and allocating again creates a new Machine and ID.
 
-For new installations, use a fresh site and unallocated hosts. The Homelab-to-VMetal naming transition changed API identities, host hashes and node-side state paths. Existing Homelab allocations need their original controller and helper until released; see [released-host migration](docs/operations.md#migrate-released-legacy-hosts).
+For new installations, start with a fresh management site and hosts that are not allocated to another cluster.
 
 ## License
 
