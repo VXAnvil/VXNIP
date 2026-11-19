@@ -1,0 +1,51 @@
+name: Publish VMetal controller
+
+on:
+  push:
+    branches: ['**']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    if: github.event.deleted == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003
+      - name: Authenticate to GitHub Container Registry
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Build and publish each pushed revision
+        shell: bash
+        env:
+          IMAGE: ghcr.io/xdu31/cluster-api-provider-vmetal
+        run: |
+          set -euo pipefail
+          jq -r '([.commits[]?.id] + [.after]) | unique[]' "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/revisions"
+          while read -r revision; do
+            git checkout --quiet --detach "$revision"
+            docker buildx build --platform linux/amd64,linux/arm64 \
+              --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+              --label "org.opencontainers.image.revision=$revision" \
+              --tag "$IMAGE:$revision" --push -f - . <<'DOCKERFILE'
+          FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS build
+          WORKDIR /src
+          COPY go.mod go.sum ./
+          RUN go mod download
+          COPY . .
+          ARG TARGETOS TARGETARCH
+          RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -o /out/vmetal-controller ./cmd/vmetal-controller
+          FROM debian:bookworm-slim AS runtime-base
+          RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssh-client && rm -rf /var/lib/apt/lists/*
+          COPY --from=build /out/vmetal-controller /usr/local/bin/vmetal-controller
+          ENTRYPOINT ["/usr/local/bin/vmetal-controller"]
+          DOCKERFILE
+          done < "$RUNNER_TEMP/revisions"
