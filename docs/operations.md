@@ -2,7 +2,7 @@
 
 ## Build a reproducible control-plane image
 
-Build on a Linux host whose native architecture matches the verified NVKE artifacts. Supply a dependency image with systemd and the pinned NVKE node dependencies. The builder installs Kubernetes 1.36.3, OVN 2.4.2, NVKE agent, SPIRE agent and their services from the checksum-verified artifacts. SSH, Python, sudo and cloud-init are installed at build time if missing. The published bundle carries the resulting image.
+Build on a Linux host with Docker BuildKit/Buildx whose native architecture matches the verified NVKE artifacts. Supply a Kind-derived dependency image with systemd and the pinned NVKE node dependencies. The builder installs Kubernetes 1.36.3, OVN 2.4.2, NVKE agent, SPIRE agent and their services from the checksum-verified artifacts. SSH, Python, sudo and cloud-init are installed at build time if missing. The published bundle carries the resulting image.
 
 ```bash
 bash scripts/build-nvke-control-plane.sh \
@@ -15,6 +15,8 @@ VMETAL_CONTROL_PLANE_IMAGE=vmetal-control-plane:1.36.3 \
     "$KIND_NODE_IMAGE" "$NVKE_CONTROLLER_IMAGE" "$NVKE_PROFILE_IMAGE" \
     /path/to/new-management-bundle
 ```
+
+The builder checks the OVN charts installation and cloud-init settings, and preserves each container's machine ID across restarts. Rebuild the control-plane image and regenerate the bundle to apply image fixes; existing images are not updated in place.
 
 The bundle contains provider scripts, manifests, the discovery probe, tools, image IDs and a SHA-256 manifest. Provider files are selected explicitly by [`config/management-bundle-files.txt`](../config/management-bundle-files.txt), preserving their source paths and executable modes. Tests, CRD generators, build/packaging scripts, Go source and the [archived lab helpers](../hack/lab/README.md) remain in the checkout and are excluded from the runtime bundle. Build and package from the source checkout; install, enroll and recover using the bundled entry points. It verifies the image's helper hash and Kubernetes version before packaging. Management initialization checks image IDs against the bundle after loading. Existing three-image management bundles remain accepted.
 
