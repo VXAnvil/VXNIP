@@ -31,9 +31,8 @@ These commands record local inventory and read host information; they do not joi
 | Guide | Contents |
 | --- | --- |
 | [NVKE setup](docs/nvke-quickstart.md) | Management site, worker enrollment, Docker control plane and GPU worker example |
-| [Operations](docs/operations.md) | Verified images and bundles, terminal configuration, diagnostics, network recovery and migration |
+| [Operations](docs/operations.md) | Images and bundles, terminal configuration, diagnostics and recovery |
 | [Development and examples](docs/development.md) | CLI details, host allocation, kubeadm and NVKE adapter examples, test commands |
-| [Validation record](docs/validation-hardening.md) | Executed checks, recovery results and test limitations |
 
 ## Compatibility
 

@@ -6,28 +6,34 @@ The addresses and paths below are examples. Choose a routable private management
 
 ## Prepare the management site
 
-If you already have a compatible NVKE management site, use its kubeconfig and tooling. For a site with allocations from before the VMetal naming transition, see the [compatibility notes](../README.md#compatibility) before installing these components. To start a new site, prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. Build `vmetal-controller` for the management host's architecture into the same tools directory.
+Use the kubeconfig and tooling of an existing compatible management site, or create a new site below. Prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. Build `vmetal-controller` for the management host's architecture into the same tools directory:
 
 ```bash
 go build -o "$LINUX_TOOL_DIR/vmetal-controller" ./cmd/vmetal-controller
+```
+
+For a Docker control plane, build the four-image bundle using the [image workflow](operations.md#build-a-reproducible-control-plane-image). For a management-only bundle:
+
+```bash
 bash scripts/package-nvke-management.sh "$NVKE_CHECKOUT" "$LINUX_TOOL_DIR" \
   "$KIND_NODE_IMAGE" "$NVKE_CONTROLLER_IMAGE" "$NVKE_PROFILE_IMAGE" /path/to/management-bundle
 ```
 
-Run the following on the Linux management host. The script verifies the bundle, creates a dedicated Kind cluster, and installs CAPI, NVKE, SPIRE, and VMetal. The state directory contains credentials and generated configuration. Keep it on the management host with its original permissions.
+On the Linux management host, set `bundle` to the output directory and run the bundled installer. It verifies the bundle, creates a Kind cluster, and installs CAPI, NVKE, SPIRE and VMetal. The state directory contains credentials and generated configuration. Keep it on the management host with its original permissions.
 
 ```bash
-sudo bash scripts/init-nvke-management.sh \
-  /path/to/management-bundle /var/lib/vmetal-nvke \
+bundle=/path/to/management-bundle
+sudo bash "$bundle/provider/scripts/init-nvke-management.sh" \
+  "$bundle" /var/lib/vmetal-nvke \
   192.168.50.10 192.168.50.0/24 vmetal-site
 ```
 
 ## Register a worker
 
-For a virtual worker, issue its enrollment bundle from the management host. The worker needs the matching verified NVKE worker artifacts, and it must be able to reach the site's SPIRE endpoint and enrollment service. Deliver the invitation to the intended host via a trusted channel.
+Issue an enrollment bundle for an unallocated worker from the management host. The worker needs the matching verified NVKE worker artifacts, and it must be able to reach the site's SPIRE endpoint and enrollment service. Deliver the invitation to the intended host via a trusted channel.
 
 ```bash
-sudo bash scripts/issue-nvke-enrollment.sh \
+sudo bash "$bundle/provider/scripts/issue-nvke-enrollment.sh" \
   /var/lib/vmetal-nvke /root/worker01-invitation
 ```
 
@@ -38,18 +44,19 @@ sudo bash /path/to/worker01-invitation/enroll.sh /path/to/verified-worker-artifa
 ```
 
 ```bash
-kubectl --kubeconfig /var/lib/vmetal-nvke/management.kubeconfig get vmetalhosts
+sudo "$bundle/bin/kubectl" --kubeconfig /var/lib/vmetal-nvke/management.kubeconfig get vmetalhosts
 ```
 
 Use [the NVKE adapter example](development.md#test-the-nvke-infra-adapter) to allocate a control plane and the first worker. Compare the workload Node's `spec.providerID` with the management cluster Machine's `spec.providerID`. A reboot of the same allocation should preserve this identifier. Releasing and allocating again creates a new Machine.
 
 ## Use a Docker control plane with an NVIDIA GPU worker
 
-This optional path uses a management host and a dedicated Ubuntu AMD64 NVIDIA GPU worker on reachable networks. The worker requires a working NVIDIA driver and Container Toolkit. The management host requires the NVKE node base image and the existing management tools. Copy `examples/nvke-docker-gpu.env.example` to a trusted local `layout.env` on both systems and set the addresses for your layout.
+This example uses a management host and an unallocated Ubuntu AMD64 NVIDIA GPU worker. The worker is tainted `vmetal.nvke.dev/experiment=true:NoSchedule`; workloads need a matching toleration. Use the generic adapter for other worker layouts. The worker requires a working NVIDIA driver and Container Toolkit. The management host requires the NVKE node base image and the existing management tools. Copy `examples/nvke-docker-gpu.env.example` to a trusted local `layout.env` on both systems and set the addresses for your layout.
 
-On the management host, run under the account that owns the site state. Build and package `CP_IMAGE` using the [verified control-plane image workflow](operations.md#build-a-reproducible-control-plane-image). The installer uses the Provider SSH wrapper generated by the management installer.
+Use a root shell on the management host for the root-owned site state. Select the verified `CP_IMAGE` included in the bundle. The installer uses the site's generated Provider SSH wrapper.
 
 ```bash
+provider_dir=/path/to/management-bundle/provider
 MGMT_STATE=/var/lib/vmetal-nvke
 export PATH="/path/to/management-bundle/bin:$PATH"
 export KUBECONFIG="$MGMT_STATE/management.kubeconfig"
@@ -63,27 +70,28 @@ export PROVIDER_KNOWN_HOSTS="$MGMT_STATE/known-hosts"
 export PROVIDER_SSH="$MGMT_STATE/bin/ssh"
 
 install_dir="$HOME/vmetal-docker-gpu-install"
-bash scripts/install-nvke-docker-gpu.sh check-control-plane layout.env "$install_dir"
-bash scripts/install-nvke-docker-gpu.sh control-plane layout.env "$install_dir"
+bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" check-control-plane layout.env "$install_dir"
+bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" control-plane layout.env "$install_dir"
 ```
 
-Copy the Docker control-plane installer's public `provider.pub` and workload `ca.crt` from `$install_dir/worker/` into the worker's state directory. On the worker, run preflight and preparation with the same layout file.
+On the worker, copy the bundle's runtime `provider/` directory and the same trusted layout. Copy the installer's public `provider.pub` and workload `ca.crt` from `$install_dir/worker/` into the worker state directory. Set `provider_dir` to the copied directory, then run preflight and preparation:
 
 ```bash
+provider_dir=/path/to/provider
 worker_state=/var/lib/vmetal-gpu-install
 sudo env WORKER_USER=ubuntu WORKER_ARTIFACTS=/path/to/verified-worker-artifacts \
   WORKER_STORAGE=/var/lib/vmetal-nvke-worker \
-  bash scripts/install-nvke-docker-gpu.sh check-worker layout.env "$worker_state"
+  bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" check-worker layout.env "$worker_state"
 sudo env WORKER_USER=ubuntu WORKER_ARTIFACTS=/path/to/verified-worker-artifacts \
   WORKER_STORAGE=/var/lib/vmetal-nvke-worker \
-  bash scripts/install-nvke-docker-gpu.sh worker layout.env "$worker_state"
+  bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" worker layout.env "$worker_state"
 ```
 
 Transfer the worker's `worker-report.json` to `$install_dir/worker/report.json` on the management host over a trusted channel. Then join and verify. The verifier checks Node readiness, NVIDIA GPU registration, agent certificates, cross-node Pod HTTP, and in-cluster access to the Kubernetes API.
 
 ```bash
-bash scripts/install-nvke-docker-gpu.sh join layout.env "$install_dir"
-bash scripts/install-nvke-docker-gpu.sh verify layout.env "$install_dir"
+bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" join layout.env "$install_dir"
+bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" verify layout.env "$install_dir"
 kubectl --kubeconfig "$install_dir/workload.kubeconfig" get nodes -o wide -L kubernetes.io/arch
 ```
 

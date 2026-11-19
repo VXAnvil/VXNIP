@@ -1,6 +1,6 @@
 # VMetal development and examples
 
-Run the commands below from the repository root. These examples cover local inventory, standalone host allocation, kubeadm bootstrap, and the pinned NVKE adapter. Use the [NVKE setup guide](nvke-quickstart.md) for the management bundle and worker installation workflow, and [operations](operations.md) for image builds, diagnostics and released-host migration.
+Run the commands below from the repository root. These examples cover local inventory, standalone host allocation, kubeadm bootstrap, and the pinned NVKE adapter. Use the [NVKE setup guide](nvke-quickstart.md) for the management bundle and worker installation workflow, and [operations](operations.md) for image builds and diagnostics.
 
 ## Quickstart
 
@@ -14,7 +14,6 @@ go build -o vmetal .
 ./vmetal refresh desktop
 ./vmetal reserve desktop lab-cluster
 ./vmetal release desktop lab-cluster
-go test ./...
 ```
 
 `inspect` reads the last successful probe and `refresh` contacts the host again. The observation timestamp records the last successful contact. Discovery runs unprivileged and reads system information over SSH. PCI discovery can identify NVIDIA display devices without a driver. GPU names, VRAM, driver version and the driver's reported maximum CUDA version depend on a working `nvidia-smi`.
@@ -62,7 +61,7 @@ The controller verifies the SSH identity, then records a reservation for the mac
 
 ## Bootstrap a two-VM workload cluster
 
-The lab example has been verified with Cluster API v1.13.6, workload Kubernetes v1.34.13, Ubuntu 24.04 VMs, and Flannel v0.28.10. The worker was scaled down, reset, released, and admitted again on the same VM with a new provider ID.
+Example versions: Cluster API v1.13.6, workload Kubernetes v1.34.13 and Ubuntu 24.04. Install a CNI configured for the template's Pod CIDR.
 
 Use a separate development management cluster with Cluster API's `v1beta2` core, kubeadm bootstrap, and kubeadm control-plane providers. The two workload VMs must be disposable Ubuntu installations with unique hostnames and machine IDs, key-based SSH, Python 3, kubeadm and kubelet at the workload Kubernetes version (use Kubernetes 1.34.x for this example), and working containerd with the systemd cgroup driver. Disable swap and configure the usual kubeadm networking prerequisites on the VMs. The management cluster and the worker must be able to reach the control-plane VM's stable IP on TCP 6443. Choose cluster CIDRs that do not overlap your VM, LAN, or management networks.
 
@@ -94,19 +93,17 @@ On the controller host, apply the CRDs and start the controller as in the alloca
 )
 ```
 
-When the control-plane API is reachable, run `clusterctl get kubeconfig vmetal-lab > /tmp/vmetal-lab.kubeconfig` and install a CNI configured for the example's pod CIDR. Check `kubectl --kubeconfig /tmp/vmetal-lab.kubeconfig get nodes -o wide`. To verify worker reuse, scale the worker MachineDeployment to zero, wait for its Machines to finish deleting and the host claim to clear, then scale back to one and wait for the worker to become Ready again.
+When the control-plane API is reachable, run `clusterctl get kubeconfig vmetal-lab > /tmp/vmetal-lab.kubeconfig` and install a CNI configured for the example's pod CIDR. Check `kubectl --kubeconfig /tmp/vmetal-lab.kubeconfig get nodes -o wide`. To reuse a worker, scale its MachineDeployment to zero and wait for deletion and claim release before scaling back up. The new allocation receives a new provider ID.
 
 The example uses the default kubeadm cloud-config for a single control plane and a worker. The helper applies kubeadm configuration and the required control-plane keys. It rejects additional shell commands, cloud-init operations, and control-plane joins. It persists the allocation attempt, so an interrupted or failed init/join requires reset before reuse. Cleanup runs `kubeadm reset` and removes the CNI configuration on an opted-in VM. If cleanup fails, the host remains claimed. Keep diagnostics such as `/var/lib/vmetal-kubeadm/kubeadm.log` on the VM, since they can contain bootstrap credentials.
-
-The API integration test uses an isolated API server and etcd. With [envtest assets](https://book.kubebuilder.io/reference/envtest) for Kubernetes 1.34 installed, run `KUBEBUILDER_ASSETS=/path/to/envtest go test -race ./...`. Without the assets, the API integration test is skipped. Run `python3 scripts/test_vmetal_kubeadm.py` to verify the VM helper's state checks and NVKE boot recovery.
 
 ## Test the NVKE infra adapter
 
 See the [NVKE setup guide](nvke-quickstart.md) for management setup, worker enrollment, and GPU worker checks.
 
-The experimental adapter targets the generic `infra` contract in NVKE commit `2f31480`. It uses the standard `infrastructure.cluster.x-k8s.io` group for cluster and machine objects, with the `VMetalHost` inventory shared by both API groups. The kubeadm-only example uses `vmetal.infrastructure.cluster.x-k8s.io`.
+The adapter targets the generic `infra` contract in NVKE commit `2f31480`. It uses the standard `infrastructure.cluster.x-k8s.io` group for cluster and machine objects, with the `VMetalHost` inventory shared by both API groups. The kubeadm-only example uses `vmetal.infrastructure.cluster.x-k8s.io`.
 
-Use a dedicated NVKE development deployment with `supportedInfraProviders: infra`, tenant kubeconfig publishing, and SPIRE join-token attestation for this experiment. Prepare two unallocated Linux nodes with the matching NVKE agent and service, the SPIRE agent and its `spire` system account, the required NVKE node dependencies and CNI packages, and the VMetal helper and SSH configuration from the previous example. Verify that `cloud-init status` reports `done` on both nodes, as required by NVKE's node preflight. The pinned agent unit should recognize both `nke-agent.service` and `nvke-agent.service`. Keep existing agent configuration off these dedicated test nodes. The helper places the supplied agent configuration, adds a kubelet identity drop-in, and starts the services. NVKE drives `kubeadm init/join` through its agent.
+Use a dedicated NVKE development deployment with `supportedInfraProviders: infra`, tenant kubeconfig publishing, and SPIRE join-token attestation. Prepare two unallocated Linux nodes with the matching NVKE agent and service, the SPIRE agent and its `spire` system account, the required NVKE node dependencies and CNI packages, and the VMetal helper and SSH configuration from the previous example. Verify that `cloud-init status` reports `done` on both nodes, as required by NVKE's node preflight. The pinned agent unit should recognize both `nke-agent.service` and `nvke-agent.service`. Keep existing agent configuration off these dedicated test nodes. The helper places the supplied agent configuration, adds a kubelet identity drop-in, and starts the services. NVKE drives `kubeadm init/join` through its agent.
 
 When using preinstalled OVN Debian packages, set `cni.installAfterInit: true` in the NVKE controller Helm values before creating the workload cluster. NVKE then installs the CNI from the node's OVN charts package after kubeadm initializes the control plane.
 
@@ -136,8 +133,22 @@ nvkectl get kubeconfig vmetal-nvke-lab --output-file /tmp/vmetal-nvke-lab.kubeco
 kubectl --kubeconfig /tmp/vmetal-nvke-lab.kubeconfig get nodes
 ```
 
-Check that both nodes are `Ready` and each Node's provider ID matches its CAPI Machine. Scale the worker pool down and restore it to verify that the former allocation is cleaned up and the same host returns with a new provider ID. The current adapter supports join-token agent configuration and rejects bootstrap payloads with extra shell commands, custom files, or other SPIRE attestors.
+Check that both nodes are `Ready` and each Node's provider ID matches its CAPI Machine. Scale the worker pool down and restore it to verify that the former allocation is cleaned up and the same host returns with a new provider ID. The adapter supports join-token agent configuration and rejects bootstrap payloads with extra shell commands, custom files, or other SPIRE attestors.
+
+## Run checks
+
+Run from the repository root with Python 3 and `kubectl` on PATH. The Go integration tests use a real temporary Kubernetes API server and etcd; install Kubernetes 1.34 [envtest assets](https://book.kubebuilder.io/reference/envtest). Without those assets, API integration tests are skipped.
+
+```bash
+KUBEBUILDER_ASSETS=/path/to/envtest go test -race ./...
+python3 scripts/test_vmetal_kubeadm.py
+python3 scripts/test_management_tools.py
+# Run packaging tests on Linux.
+python3 scripts/test_management_bundle.py
+```
+
+Packaging tests use fixture image data and do not start a cluster. They check file selection, runtime dependencies, checksums and atomic failure. Migration regression tests cover interrupted replay and allocation ownership. These tests do not replace live installation and recovery checks.
 
 ## Archived lab helpers
 
-Environment-specific Lima, CRI, OVS, SPIRE-forward and Plymouth experiments are preserved in [`hack/lab/`](../hack/lab/README.md). They are outside the runtime installation path and are not shipped in management bundles. CRD generation and regression tests remain in `scripts/` for development.
+Optional development utilities remain in [`hack/lab/`](../hack/lab/README.md). Installation and recovery do not invoke them, and management bundles exclude them.
