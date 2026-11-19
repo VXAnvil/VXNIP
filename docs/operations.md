@@ -41,12 +41,14 @@ sudo bash scripts/configure-vmetal-client.sh /var/lib/vmetal-site \
   /home/ubuntu/.config/vmetal/sites/lab /path/to/workload.kubeconfig
 
 source /home/ubuntu/.config/vmetal/sites/lab/env.sh
-nv get clusters
-mg get vmetalhosts
-wk get nodes
+nvkectl --site "$NVKE_SITE" get clusters
+kubectl --kubeconfig /home/ubuntu/.config/vmetal/sites/lab/management.kubeconfig get vmetalhosts
+kubectl --kubeconfig /home/ubuntu/.config/vmetal/sites/lab/workload.kubeconfig get nodes
 ```
 
-The script copies the matching `nvkectl` and `kubectl`, creates a private CLI configuration, and generates `nv`, `mg` and optional `wk` functions. Source that file in each terminal, or source it from the intended user's shell startup file. Existing sites created before bundle-path recording can supply `VMETAL_MANAGEMENT_BUNDLE=/path/to/bundle` to the export command.
+The script copies the matching `nvkectl` and `kubectl`, creates a private CLI configuration, and exports only environment variables. Commands use the full `nvkectl` and `kubectl` names, with explicit kubeconfig paths for management and workload operations. Source that file in each terminal, or source it from the intended user's shell startup file. Existing sites created before bundle-path recording can supply `VMETAL_MANAGEMENT_BUNDLE=/path/to/bundle` to the export command.
+
+If a terminal already loaded shortcut functions from an earlier generated environment, open a fresh terminal and source the regenerated file.
 
 ## Inspect networking and recovery
 

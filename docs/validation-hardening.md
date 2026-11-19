@@ -17,7 +17,7 @@ A temporary Ubuntu 24.04 VM hosted a new Kind management site and a separate Doc
 1. Built the control-plane image and checked Kubernetes version and non-root Python execution.
 2. Packaged four images, the Provider binary and runtime files with SHA-256 checksums and image IDs.
 3. Initialized a new management site. Repeated initialization passed without creating another tenant.
-4. Exported the CLI client and sourced it in a terminal with an initially minimal PATH. `nvkectl`, `nv get clusters` and `wk get nodes` worked.
+4. Exported the CLI client and sourced it in a terminal with an initially minimal PATH. The exported tools successfully listed NVKE clusters and workload nodes.
 5. Registered both hosts, obtained SPIRE certificates, and let NVKE provision the control plane and worker. Both Nodes reached `Ready`, with `vmetal://` provider IDs.
 6. Ran ordinary Pods on each node. HTTP succeeded in both directions.
 7. Restarted the generated manager network recovery unit. API `/readyz` returned `ok`; a second pair of Pod HTTP checks succeeded in both directions.

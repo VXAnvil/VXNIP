@@ -41,11 +41,6 @@ XDG_CONFIG_HOME="$output/config" XDG_CACHE_HOME="$output/cache" \
     printf 'export PATH=%q:"$PATH"\n' "$output/bin"
     printf 'export XDG_CONFIG_HOME=%q XDG_CACHE_HOME=%q NVKE_SITE=%q\n' "$output/config" "$output/cache" "${site[0]}"
     printf 'export KUBECONFIG=%q\n' "$output/management.kubeconfig"
-    printf 'nv() { nvkectl --site "$NVKE_SITE" "$@"; }\n'
-    printf 'mg() { kubectl --kubeconfig %q "$@"; }\n' "$output/management.kubeconfig"
-    if [[ -f $output/workload.kubeconfig ]]; then
-        printf 'wk() { kubectl --kubeconfig %q "$@"; }\n' "$output/workload.kubeconfig"
-    fi
 } >"$output/env.sh.next"
 chmod 0600 "$output/env.sh.next"
 mv -f "$output/env.sh.next" "$output/env.sh"
@@ -53,6 +48,8 @@ if [[ $EUID == 0 && -n ${SUDO_UID:-} && $SUDO_UID != 0 ]]; then
     chown -R "$SUDO_UID:$SUDO_GID" "$output"
 fi
 printf '\nLoad this site in any new terminal:\nsource %q\n' "$output/env.sh"
-printf 'Commands: nv get clusters; mg get vmetalhosts'
-if [[ -f $output/workload.kubeconfig ]]; then printf '; wk get nodes'; fi
-printf '\n'
+printf 'Commands:\nnvkectl --site "$NVKE_SITE" get clusters\n'
+printf 'kubectl --kubeconfig %q get vmetalhosts\n' "$output/management.kubeconfig"
+if [[ -f $output/workload.kubeconfig ]]; then
+    printf 'kubectl --kubeconfig %q get nodes\n' "$output/workload.kubeconfig"
+fi
