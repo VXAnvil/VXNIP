@@ -19,10 +19,6 @@ make verify-generated
 
 Keep changes focused. Include the problem, resulting behavior and relevant verification in the PR. Fix generated-file drift with `make verify-generated` and commit the intended generated changes. User-facing installation commands are in [the setup guide](docs/nvke-quickstart.md).
 
-## Architecture decisions
-
-Use [ADRs](docs/adrs/README.md) for significant choices about interfaces, dependencies, ownership or lifecycle. Submit the record as `proposed` and discuss it in the PR. Merging a proposed record does not accept the decision. Routine fixes do not need an ADR. Detailed designs can be linked from a record when needed; internal machine-specific experiment logs stay outside the repository.
-
 ## Publishing images
 
 Every pushed branch revision continues to publish a multi-platform image under its commit SHA. Version-tag promotion requires a successful `CI` run for the **exact tagged commit**, from a `main` push or an explicit manual CI run in this repository. All four CI jobs must have succeeded. PR-only results, other commits and older green runs followed by a newer failure do not authorize promotion.

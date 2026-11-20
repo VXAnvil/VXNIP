@@ -137,7 +137,7 @@ Check that both nodes are `Ready` and each Node's provider ID matches its CAPI M
 
 ## Run checks
 
-Use the reproducible commands in [Contributing](../CONTRIBUTING.md#run-the-checks-locally). CI runs the same lint, test, generation and build checks on PRs and `main`. It explicitly requires the API integration tests to execute rather than skip. Architecture proposals follow the [ADR conventions](adrs/README.md).
+Use the reproducible commands in [Contributing](../CONTRIBUTING.md#run-the-checks-locally). CI runs the same lint, test, generation and build checks on PRs and `main`. It explicitly requires the API integration tests to execute rather than skip.
 
 ## Archived lab helpers
 
