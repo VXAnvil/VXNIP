@@ -2,6 +2,8 @@
 
 ## Build a reproducible control-plane image
 
+For a fresh Ubuntu host, [Prepare public inputs](public-inputs.md) supplies the public-source dependency image, verified artifacts and tools used by this workflow.
+
 Build on a Linux host with Docker BuildKit/Buildx whose native architecture matches the verified NVKE artifacts. Supply a Kind-derived dependency image with systemd and the pinned NVKE node dependencies. The builder installs Kubernetes 1.36.3, OVN 2.4.2, NVKE agent, SPIRE agent and their services from the checksum-verified artifacts. SSH, Python, sudo and cloud-init are installed at build time if missing. The published bundle carries the resulting image.
 
 ```bash

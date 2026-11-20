@@ -34,6 +34,7 @@ These commands record local inventory and read host information; they do not joi
 
 | Guide | Contents |
 | --- | --- |
+| [Prepare public inputs](docs/public-inputs.md) | Fresh Ubuntu: fixed source, verified tools, node artifacts and management bundle |
 | [NVKE setup](docs/nvke-quickstart.md) | Management site, worker enrollment, Docker control plane and GPU worker example |
 | [Operations](docs/operations.md) | Images and bundles, terminal configuration, diagnostics and recovery |
 | [Development and examples](docs/development.md) | CLI details, host allocation, kubeadm and NVKE adapter examples, test commands |
