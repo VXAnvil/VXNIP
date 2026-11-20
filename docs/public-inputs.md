@@ -12,7 +12,7 @@ Run the build sections as your regular user, in one Bash session on the manageme
 sudo apt-get update
 sudo apt-get install -y build-essential git curl jq ca-certificates openssh-client \
   python3 python3-yaml iproute2 openssl gnupg dpkg-dev zstd xz-utils \
-  docker.io docker-buildx conntrack socat ethtool
+  docker.io docker-buildx conntrack socat ethtool kmod
 sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER"
 ```
@@ -35,6 +35,27 @@ export GIT_TERMINAL_PROMPT=0
 export GOMAXPROCS=4 GOFLAGS=-p=3
 docker info
 ```
+
+## Check the host and VM prerequisites
+
+The Docker control plane uses the management host's kernel. Check its Open vSwitch module and kernel config before building the image:
+
+```bash
+sudo modprobe openvswitch
+test -r "/boot/config-$(uname -r)"
+```
+
+If the module or matching config is missing, prepare the matching Ubuntu kernel packages before continuing. The control-plane image must be rebuilt when the target Docker host kernel changes.
+
+For the CPU worker path, use a dedicated Ubuntu Server VM with cloud-init's first boot completed:
+
+```bash
+cloud-init status --wait
+```
+
+The preparation script requires `status: done`. Give the VM a unique hostname and machine ID, usable SSH and a reachable private address. The clean replay used a 2-CPU, 4-GiB ARM64 worker VM.
+
+For a management VM provisioned with a NoCloud seed CD, preserve that VM's own seed/metadata for subsequent boots and detach the virtual seed CD after cloud-init completes, using the hypervisor's controls. Do this before starting the privileged Docker tenant: it can see the VM's block devices and must not consume the management VM's seed instead of its own. Follow the hypervisor's procedure for its configuration drive; boot/config-drive handling varies by platform.
 
 ## Install Go and check out fixed source versions
 
