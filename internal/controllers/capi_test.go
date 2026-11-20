@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	api "github.com/xdu31/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/bootstrap"
+	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
 )
 
 type kubeadmFunc func(context.Context, string, bootstrap.Request) error

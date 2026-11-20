@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	api "github.com/xdu31/cluster-api-provider-vmetal/api/v1alpha1"
+	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

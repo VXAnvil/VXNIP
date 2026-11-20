@@ -12,10 +12,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	api "github.com/xdu31/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/bootstrap"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/controllers"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/discovery"
+	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/controllers"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
 )
 
 func run() error {

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/xdu31/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/bootstrap"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/discovery"
+	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

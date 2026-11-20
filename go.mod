@@ -1,4 +1,4 @@
-module github.com/xdu31/cluster-api-provider-vmetal
+module github.com/vmetal-lab/cluster-api-provider-vmetal
 
 go 1.24.0
 

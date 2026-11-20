@@ -16,8 +16,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	api "github.com/xdu31/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/bootstrap"
+	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
 )
 
 const (

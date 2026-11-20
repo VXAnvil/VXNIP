@@ -21,6 +21,10 @@ Keep changes focused. Include the problem, resulting behavior and relevant verif
 
 ## Publishing images
 
+The image repository is `ghcr.io/vmetal-lab/cluster-api-provider-vmetal`. Workflows derive the registry path from the GitHub repository identity.
+
+Existing tags retain their historical source and module path. Use a new tested tag when releasing the module under the organization path.
+
 Every pushed branch revision continues to publish a multi-platform image under its commit SHA. Version-tag promotion requires a successful `CI` run for the **exact tagged commit**, from a `main` push or an explicit manual CI run in this repository. All four CI jobs must have succeeded. PR-only results, other commits and older green runs followed by a newer failure do not authorize promotion.
 
 For a new release, tag a tested revision containing the CI and release policy workflows. The tag becomes the image tag exactly as pushed, including a numeric tag without `v`. Promotion preserves the source image digest. Previously published images are not modified by installing these checks.
@@ -32,7 +36,7 @@ The tag workflow also accepts a manual run with an existing Git tag and `dry_run
 Workflow checks and branch protection are separate. An administrator must enable protection after `gate` has reported once. For a new, unprotected `main`, the owner can run:
 
 ```bash
-gh api --method PUT repos/xdu31/cluster-api-provider-vmetal/branches/main/protection \
+gh api --method PUT repos/vmetal-lab/cluster-api-provider-vmetal/branches/main/protection \
   --input .github/main-protection.json
 ```
 

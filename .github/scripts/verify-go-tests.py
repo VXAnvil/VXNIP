@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 
-MODULE = "github.com/xdu31/cluster-api-provider-vmetal"
+MODULE = "github.com/vmetal-lab/cluster-api-provider-vmetal"
 REQUIRED = {
     (MODULE + "/cmd/vmetal-controller", "TestManagerResumesAndReleasesClaims"),
     (MODULE + "/internal/controllers", "TestAllocationWithAPIServer"),

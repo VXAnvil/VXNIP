@@ -25,10 +25,9 @@ jobs:
         run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
       - name: Build and publish each pushed revision
         shell: bash
-        env:
-          IMAGE: ghcr.io/xdu31/cluster-api-provider-vmetal
         run: |
           set -euo pipefail
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           jq -r '([.commits[]?.id] + [.after]) | unique[]' "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/revisions"
           while read -r revision; do
             git checkout --quiet --detach "$revision"

@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	api "github.com/xdu31/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/discovery"
+	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
 )
 
 const (

@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	api "github.com/xdu31/cluster-api-provider-vmetal/api/v1alpha1"
+	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
 )
 
 func TestManagerResumesAndReleasesClaims(t *testing.T) {

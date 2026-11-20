@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/discovery"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
 )
 
 type machine struct {

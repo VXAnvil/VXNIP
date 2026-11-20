@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/xdu31/cluster-api-provider-vmetal/internal/discovery"
+	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
 )
 
 const usage = `Usage: vmetal [-state PATH] COMMAND [ARGS]

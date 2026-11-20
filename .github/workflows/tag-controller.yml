@@ -84,11 +84,11 @@ jobs:
       - name: Promote the published multi-platform image
         shell: bash
         env:
-          IMAGE: ghcr.io/xdu31/cluster-api-provider-vmetal
           RELEASE_COMMIT: ${{ needs.verify-ci.outputs.commit }}
           RELEASE_TAG: ${{ needs.verify-ci.outputs.tag }}
         run: |
           set -euo pipefail
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           digest_of() {
             docker buildx imagetools inspect --raw "$1" | sha256sum | cut -d ' ' -f 1
           }
