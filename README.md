@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/vmetal-lab/cluster-api-provider-vmetal/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/vmetal-lab/cluster-api-provider-vmetal/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Tag: 0.0.1-rc.1](https://img.shields.io/badge/tag-0.0.1--rc.1-orange)](https://github.com/vmetal-lab/cluster-api-provider-vmetal/tree/0.0.1-rc.1)
+[![Release: v0.0.1-rc.2](https://img.shields.io/badge/release-v0.0.1--rc.2-orange)](https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/tag/v0.0.1-rc.2)
 
 A Cluster API infrastructure provider for existing Linux machines. VMetal discovers hosts over SSH, allocates them to Kubernetes clusters, and supports kubeadm bootstrap and NVIDIA NVKE's generic `infra` contract.
 
