@@ -137,17 +137,7 @@ Check that both nodes are `Ready` and each Node's provider ID matches its CAPI M
 
 ## Run checks
 
-Run from the repository root with Python 3 and `kubectl` on PATH. The Go integration tests use a real temporary Kubernetes API server and etcd; install Kubernetes 1.34 [envtest assets](https://book.kubebuilder.io/reference/envtest). Without those assets, API integration tests are skipped.
-
-```bash
-KUBEBUILDER_ASSETS=/path/to/envtest go test -race ./...
-python3 scripts/test_vmetal_kubeadm.py
-python3 scripts/test_management_tools.py
-# Run packaging tests on Linux.
-python3 scripts/test_management_bundle.py
-```
-
-Packaging tests use fixture image data and do not start a cluster. They check file selection, runtime dependencies, checksums and atomic failure. Migration regression tests cover interrupted replay and allocation ownership. These tests do not replace live installation and recovery checks.
+Use the reproducible commands in [Contributing](../CONTRIBUTING.md#run-the-checks-locally). CI runs the same lint, test, generation and build checks on PRs and `main`. It explicitly requires the API integration tests to execute rather than skip. Architecture proposals follow the [ADR conventions](adrs/README.md).
 
 ## Archived lab helpers
 
