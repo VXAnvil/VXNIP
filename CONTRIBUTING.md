@@ -4,7 +4,7 @@ Open a pull request against `main`. CI checks formatting, lint, tests and Linux 
 
 ## Run the checks locally
 
-Use Go matching `go.mod`, Python 3, Make and OpenSSH. Tool versions are pinned in `.github/ci-versions.env`; downloaded lint tools are checksum-verified.
+Use Go matching `go.mod`, Python 3, Make and OpenSSH. Tool versions are pinned in `.github/ci-versions.env`; lint tools (including ShellCheck) use release asset digests pinned in `.github/ci-tool-checksums.txt`.
 
 ```bash
 make tools

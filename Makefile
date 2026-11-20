@@ -22,7 +22,7 @@ lint:
 	@set -euo pipefail; files=$$(git ls-files '*.go' | xargs gofmt -l); if [[ -n $$files ]]; then printf 'Run gofmt on:\n%s\n' "$$files"; exit 1; fi
 	"$(BIN)/golangci-lint" config verify
 	"$(BIN)/golangci-lint" run --timeout=5m
-	"$(BIN)/actionlint"
+	"$(BIN)/actionlint" -shellcheck="$(BIN)/shellcheck"
 	@set -euo pipefail; while IFS= read -r -d '' file; do bash -n "$$file"; done < <(find scripts .github -type f -name '*.sh' -print0)
 	$(PYTHON) -c 'import ast; from pathlib import Path; [ast.parse(p.read_text(),filename=str(p)) for d in ("scripts", ".github") for p in Path(d).rglob("*.py")]'
 

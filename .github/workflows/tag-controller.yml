@@ -69,7 +69,7 @@ jobs:
 
   promote:
     needs: verify-ci
-    if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
+    if: needs.verify-ci.result == 'success' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -105,7 +105,7 @@ jobs:
           docker buildx imagetools create --tag "$version" "$IMAGE@sha256:$digest"
           test "$(digest_of "$version")" = "$digest"
           {
-            printf 'Released `%s` from commit `%s`\n\n' "$RELEASE_TAG" "$RELEASE_COMMIT"
-            printf 'Pull by version: `docker pull %s`\n\n' "$version"
-            printf 'Pull by digest: `docker pull %s@sha256:%s`\n' "$IMAGE" "$digest"
+            printf 'Released %s from commit %s\n\n' "\`$RELEASE_TAG\`" "\`$RELEASE_COMMIT\`"
+            printf 'Pull by version: %s\n\n' "\`docker pull $version\`"
+            printf 'Pull by digest: %s\n' "\`docker pull $IMAGE@sha256:$digest\`"
           } >> "$GITHUB_STEP_SUMMARY"

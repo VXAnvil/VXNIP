@@ -16,14 +16,15 @@ def install(name, version, system, arch, destination):
     if name == "actionlint":
         repository = "rhysd/actionlint"
         archive = f"actionlint_{version}_{system}_{arch}.tar.gz"
-        checksums = f"actionlint_{version}_checksums.txt"
+    elif name == "shellcheck":
+        repository = "koalaman/shellcheck"
+        shell_arch = {"amd64": "x86_64", "arm64": "aarch64"}[arch]
+        archive = f"shellcheck-v{version}.{system}.{shell_arch}.tar.gz"
     else:
         repository = "golangci/golangci-lint"
         archive = f"golangci-lint-{version}-{system}-{arch}.tar.gz"
-        checksums = f"golangci-lint-{version}-checksums.txt"
     base = f"https://github.com/{repository}/releases/download/v{version}"
-    with urlopen(f"{base}/{checksums}", timeout=90) as response:
-        rows = [line.split() for line in response.read().decode().splitlines()]
+    rows = [line.split() for line in (ROOT / ".github/ci-tool-checksums.txt").read_text().splitlines() if not line.startswith("#")]
     expected = [row[0] for row in rows if len(row) == 2 and row[1].lstrip("*") == archive]
     if len(expected) != 1:
         raise ValueError(f"Missing or ambiguous checksum for {archive}")
@@ -51,7 +52,7 @@ def main():
         raise ValueError("Lint tools support Linux/macOS AMD64 and ARM64")
     destination = ROOT / ".ci-bin"
     destination.mkdir(exist_ok=True)
-    for name, key in (("golangci-lint", "GOLANGCI_LINT_VERSION"), ("actionlint", "ACTIONLINT_VERSION")):
+    for name, key in (("golangci-lint", "GOLANGCI_LINT_VERSION"), ("actionlint", "ACTIONLINT_VERSION"), ("shellcheck", "SHELLCHECK_VERSION")):
         install(name, versions[key], system, arch, destination)
 
 
