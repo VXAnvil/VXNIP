@@ -3,19 +3,80 @@ name: Tag VMetal controller image
 on:
   push:
     tags: ['v*', '[0-9]*.[0-9]*.[0-9]*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Git tag to verify or publish
+        required: true
+        type: string
+      dry_run:
+        description: Verify CI without publishing an image tag
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
-  packages: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  promote:
-    if: github.event.deleted == false
-    runs-on: ubuntu-latest
+  verify-ci:
+    if: github.event.deleted != true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      commit: ${{ steps.revision.outputs.commit }}
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout workflow policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Validate the requested tag
+        id: tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^[v0-9][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo 'The Git tag must also be a valid OCI tag.' >&2
+            exit 1
+          fi
+          printf 'tag=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+      - name: Checkout the exact tagged revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.tag }}
+          path: release-source
+          persist-credentials: false
+      - name: Resolve the commit
+        id: revision
+        run: printf 'commit=%s\n' "$(git -C release-source rev-parse 'HEAD^{commit}')" >> "$GITHUB_OUTPUT"
+      - name: Require successful CI on that commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_COMMIT: ${{ steps.revision.outputs.commit }}
+        run: python3 .github/scripts/ci-policy.py release --commit "$RELEASE_COMMIT"
+      - name: Summarize dry run
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: echo 'Dry run passed. No registry tag was created or changed.' >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: verify-ci
+    if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
       - name: Authenticate to GHCR
         env:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -24,30 +85,27 @@ jobs:
         shell: bash
         env:
           IMAGE: ghcr.io/xdu31/cluster-api-provider-vmetal
+          RELEASE_COMMIT: ${{ needs.verify-ci.outputs.commit }}
+          RELEASE_TAG: ${{ needs.verify-ci.outputs.tag }}
         run: |
           set -euo pipefail
-          if [[ ! "$GITHUB_REF_NAME" =~ ^[v0-9][A-Za-z0-9_.-]{0,127}$ ]]; then
-            echo 'The Git tag must also be a valid OCI tag.' >&2
-            exit 1
-          fi
-          commit=$(git rev-parse 'HEAD^{commit}')
           digest_of() {
             docker buildx imagetools inspect --raw "$1" | sha256sum | cut -d ' ' -f 1
           }
           # A branch and its release tag can arrive in the same push.
           for attempt in {1..30}; do
-            if digest=$(digest_of "$IMAGE:$commit"); then break; fi
+            if digest=$(digest_of "$IMAGE:$RELEASE_COMMIT"); then break; fi
             if (( attempt == 30 )); then
-              echo "Missing image for $commit. Check the branch publish run and retry." >&2
+              echo "Missing image for $RELEASE_COMMIT. Check the branch publish run and retry." >&2
               exit 1
             fi
             sleep 20
           done
-          version="$IMAGE:$GITHUB_REF_NAME"
+          version="$IMAGE:$RELEASE_TAG"
           docker buildx imagetools create --tag "$version" "$IMAGE@sha256:$digest"
           test "$(digest_of "$version")" = "$digest"
           {
-            printf 'Released `%s` from commit `%s`\n\n' "$GITHUB_REF_NAME" "$commit"
+            printf 'Released `%s` from commit `%s`\n\n' "$RELEASE_TAG" "$RELEASE_COMMIT"
             printf 'Pull by version: `docker pull %s`\n\n' "$version"
             printf 'Pull by digest: `docker pull %s@sha256:%s`\n' "$IMAGE" "$digest"
           } >> "$GITHUB_STEP_SUMMARY"

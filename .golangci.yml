@@ -1,0 +1,14 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+  settings:
+    staticcheck:
+      # Style and optional rewrite suggestions are not merge requirements.
+      checks: ["all", "-QF*", "-ST*"]
+  exclusions:
+    generated: strict
