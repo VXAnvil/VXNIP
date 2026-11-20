@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 
 MODULE = "github.com/xdu31/cluster-api-provider-vmetal"
@@ -15,11 +16,14 @@ REQUIRED = {
 
 def verify(lines):
     results = {}
+    cached = set()
     for line in lines:
         event = json.loads(line)
+        if event.get("Action") == "output" and not event.get("Test") and re.match(r"^ok\s+.*\s+\(cached\)", event.get("Output", "")):
+            cached.add(event["Package"])
         if event.get("Action") in ("pass", "fail", "skip") and event.get("Test"):
             results[(event["Package"], event["Test"])] = event["Action"]
-    missing = sorted(f"{package}/{test}: {results.get((package, test), 'not run')}" for package, test in REQUIRED if results.get((package, test)) != "pass")
+    missing = sorted(f"{package}/{test}: {'cached' if package in cached else results.get((package, test), 'not run')}" for package, test in REQUIRED if results.get((package, test)) != "pass" or package in cached)
     if missing:
         raise ValueError("Required API integration tests did not pass: " + "; ".join(missing))
     print(f"All {len(REQUIRED)} required API integration tests executed and passed")

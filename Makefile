@@ -29,7 +29,7 @@ lint:
 test:
 	$(PYTHON) .github/scripts/verify-go-tests.py --check-tools
 	mkdir -p .ci-output
-	PATH="$$KUBEBUILDER_ASSETS:$$PATH" bash -o pipefail -c '$(GO) test -race -json -coverprofile=.ci-output/coverage.out ./... | tee .ci-output/go-test.jsonl'
+	PATH="$$KUBEBUILDER_ASSETS:$$PATH" bash -o pipefail -c '$(GO) test -race -count=1 -json -coverprofile=.ci-output/coverage.out ./... | tee .ci-output/go-test.jsonl'
 	$(PYTHON) .github/scripts/verify-go-tests.py .ci-output/go-test.jsonl
 	$(PYTHON) scripts/test_vmetal_kubeadm.py
 	$(PYTHON) scripts/test_management_tools.py

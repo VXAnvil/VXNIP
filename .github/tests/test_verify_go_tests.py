@@ -32,6 +32,13 @@ class IntegrationResultTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify.verify(self.reports(package_override="another/package"))
 
+    def test_cached_api_package_is_not_a_fresh_integration_run(self):
+        package = next(iter(verify.REQUIRED))[0]
+        cached = json.dumps({"Package": package, "Action": "output",
+                             "Output": f"ok\t{package}\t(cached)\n"})
+        with self.assertRaises(ValueError):
+            verify.verify(self.reports() + [cached])
+
     def test_invalid_report_is_not_success(self):
         with self.assertRaises(ValueError):
             verify.verify(["not JSON"])

@@ -27,6 +27,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: |
+            go.sum
+            .golangci.yml
       - name: Install lint tools
         run: make tools
       - name: Lint
@@ -44,6 +47,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: |
+            go.sum
+            .github/scripts/verify-go-tests.py
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -76,6 +82,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: |
+            go.sum
+            Makefile
       - name: Compile CLI and controller for AMD64 and ARM64
         run: make build
       - name: Check generated CRDs and DeepCopy code

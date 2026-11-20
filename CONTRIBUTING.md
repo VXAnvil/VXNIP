@@ -15,7 +15,7 @@ make build
 make verify-generated
 ```
 
-`make test` requires envtest and verifies that all three API integration tests actually executed. Set `KUBEBUILDER_ASSETS` to an existing compatible asset directory to use an offline installation. Packaging regression tests run on Linux; on macOS that suite is skipped. Go test output and coverage go to the ignored `.ci-output/` directory. CI retains that output for seven days; there is no coverage percentage gate.
+`make test` disables Go test-result caching and verifies that all three API integration tests actually executed; skipped or cached API results fail the check. Set `KUBEBUILDER_ASSETS` to an existing compatible asset directory to use an offline installation. Packaging regression tests run on Linux; on macOS that suite is skipped. Go test output and coverage go to the ignored `.ci-output/` directory. CI retains that output for seven days; there is no coverage percentage gate.
 
 Keep changes focused. Include the problem, resulting behavior and relevant verification in the PR. Fix generated-file drift with `make verify-generated` and commit the intended generated changes. User-facing installation commands are in [the setup guide](docs/nvke-quickstart.md).
 
