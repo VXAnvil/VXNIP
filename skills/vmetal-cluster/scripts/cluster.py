@@ -284,6 +284,7 @@ def make_plan(config, get_facts=None):
         changes += ['Create new management and workload control plane; do not adopt existing allocations',
                     'Prepare VM or isolated bare-metal runtime and append a scoped Provider SSH key',
                     'Register/allocate only the planned hosts and verify network/identity',
+                    'In LAN mode, retain the planned API /32 route across NVKE network reconfiguration',
                     'Preserve existing worker Docker containers, shared runtime, driver and network interfaces']
         if network_mode == 'tailscale':
             changes += ['Merge API/SPIRE route advertisements without SNAT; accept routes on workers',

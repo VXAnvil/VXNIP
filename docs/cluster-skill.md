@@ -14,10 +14,10 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-Download the [skill preview release](https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/tag/skill-v0.1.0-rc.3). Its `vmetal-cluster.zip` asset contains a single `vmetal-cluster/` directory; `vmetal-cluster.zip.sha256` verifies the downloaded bytes.
+Download the [skill preview release](https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/tag/skill-v0.1.0-rc.4). Its `vmetal-cluster.zip` asset contains a single `vmetal-cluster/` directory; `vmetal-cluster.zip.sha256` verifies the downloaded bytes.
 
 ```bash
-release=skill-v0.1.0-rc.3
+release=skill-v0.1.0-rc.4
 base="https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/download/$release"
 curl --proto '=https' --proto-redir '=https' -fL "$base/vmetal-cluster.zip" -o vmetal-cluster.zip
 curl --proto '=https' --proto-redir '=https' -fL "$base/vmetal-cluster.zip.sha256" -o vmetal-cluster.zip.sha256
@@ -37,7 +37,7 @@ Extract into **one** skill directory used by your agent. Back up an existing `vm
 | Codex, current local skill discovery | `python3 -m zipfile -e vmetal-cluster.zip "$HOME/.agents/skills"` | `$vmetal-cluster` |
 | Claude Code | `python3 -m zipfile -e vmetal-cluster.zip "$HOME/.claude/skills"` | `/vmetal-cluster` |
 
-For a Codex client configured with another skill directory, extract there instead. You can also ask its built-in installer to install `https://github.com/vmetal-lab/cluster-api-provider-vmetal/tree/skill-v0.1.0-rc.3/skills/vmetal-cluster`. The directory conventions are documented by [OpenAI](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) and [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+For a Codex client configured with another skill directory, extract there instead. You can also ask its built-in installer to install `https://github.com/vmetal-lab/cluster-api-provider-vmetal/tree/skill-v0.1.0-rc.4/skills/vmetal-cluster`. The directory conventions are documented by [OpenAI](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) and [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load).
 
 Then ask, for example:
 

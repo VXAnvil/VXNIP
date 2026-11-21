@@ -198,6 +198,53 @@ class ImagePortabilityTests(unittest.TestCase):
                 self.assertFalse(dest.exists())
 
 
+class LANRouteTests(unittest.TestCase):
+    def setUp(self):
+        import routes
+        self.routes=routes
+        self.plan={'mode':'create','network_mode':'lan','manager':{'address':'192.168.50.10'},'networks':{'docker':'172.30.91.0/24'}}
+        self.node={'address':'192.168.50.20','subnet':'192.168.50.0/24'}
+        self.ifaces=[{'ifname':'lan0','addr_info':[{'local':self.node['address']}]}]
+        self.current=[{'gateway':'192.168.50.10','dev':'lan0','prefsrc':'192.168.50.20'}]
+        self.calls=[]
+
+    def command(self, args, text=True):
+        self.calls.append(args)
+        if args==['ip','-j','-4','address','show']:return json.dumps(self.ifaces)
+        if args==['ip','-j','-4','route','get','172.30.91.20']:return json.dumps(self.current)
+        return ''
+
+    def test_route_restored_after_netplan_discards_it_or_replaces_interface(self):
+        self.assertFalse(self.routes.ensure(self.plan,self.node,self.command))
+        self.current=[{'gateway':'10.0.2.2','dev':'brnat0','prefsrc':'10.0.2.15'}]
+        self.ifaces[0]['ifname']='brlan0'
+        before=copy.deepcopy(self.current)
+        self.assertTrue(self.routes.ensure(self.plan,self.node,self.command))
+        self.assertEqual(self.calls[-1],['ip','-4','route','replace','172.30.91.20/32','via','192.168.50.10','dev','brlan0','src','192.168.50.20'])
+        self.assertEqual(self.current,before)
+        self.assertEqual(sum(c[1:4]==['-4','route','replace'] for c in self.calls),1)
+
+    def test_no_default_route_still_restores_the_explicit_api_route(self):
+        def command(args, text=True):
+            if args[1:5]==['-j','-4','route','get']:
+                raise subprocess.CalledProcessError(2,args)
+            return self.command(args,text=text)
+        self.assertTrue(self.routes.ensure(self.plan,self.node,command))
+        self.assertEqual(self.calls[-1][4],'172.30.91.20/32')
+
+    def test_missing_address_waits_without_changing_any_route(self):
+        self.ifaces=[]
+        with self.assertRaisesRegex(RuntimeError,'Waiting'):
+            self.routes.ensure(self.plan,self.node,self.command)
+        self.assertEqual(len(self.calls),1)
+
+    def test_existing_and_tailscale_modes_cannot_use_lan_route_watch(self):
+        for field,value in (('mode','existing'),('network_mode','tailscale')):
+            plan={**self.plan,field:value}
+            with self.assertRaises(ValueError):self.routes.ensure(plan,self.node,self.command)
+        self.assertEqual(self.calls,[])
+
+
 class BootstrapTests(unittest.TestCase):
     def setUp(self):
         self.config = {'artifact_mode': 'source', 'manager': {'ssh': 'manager'}, 'workers': [{'ssh': 'worker'}]}

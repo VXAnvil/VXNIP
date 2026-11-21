@@ -140,6 +140,34 @@ worker)
         bash "$recovery" --install worker "$NODE_IP" "$CP_IP" "$MANAGER_IP" "$MANAGER_IP"
     fi
     systemctl start vmetal-nvke-lab-worker-recovery.service
+    if [[ $NETWORK_MODE == lan ]]; then
+        # NVKE can reapply netplan and replace the interface carrying NODE_IP.
+        # Keep the explicit API /32 through that change without altering defaults.
+        route_unit=$SITE-api-route.service
+        unit_file=/etc/systemd/system/$route_unit
+        expected_unit=$ROOT/api-route.service
+        cat >"$expected_unit" <<UNIT
+[Unit]
+Description=Restore planned VMetal LAN API route
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 $ROOT/runtime/routes.py $ROOT/settings.json
+Restart=on-failure
+RestartSec=5s
+[Install]
+WantedBy=multi-user.target
+UNIT
+        if [[ -e $unit_file ]] && ! cmp -s "$expected_unit" "$unit_file"; then
+            echo 'Existing API route service differs; inspect state instead of replacing it.' >&2
+            exit 1
+        fi
+        install -m 0644 "$expected_unit" "$unit_file"
+        systemctl daemon-reload
+        systemctl enable --now "$route_unit"
+    fi
     ;;
 join)
     python3 "$ROOT/runtime/join.py" "$ROOT/settings.json"

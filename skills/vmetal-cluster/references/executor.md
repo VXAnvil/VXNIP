@@ -26,6 +26,8 @@ Omitted `mode`, `network_mode` and `artifact_mode` mean `create`, `lan` and `rel
 
 LAN workers must share the manager's directly connected IPv4 subnet. The executor plans a route to the workload API through the manager and configures scoped forwarding/firewall rules for each worker. SSH reachability alone does not prove that the cluster data plane works: final verification checks every worker, bidirectional Pod HTTP and Service DNS/HTTP. Routed VLANs are not currently supported by this LAN preflight; report the limitation instead of enabling Tailscale automatically.
 
+NVKE may reapply netplan while joining a node, which can replace its interface or discard a manually added route. LAN workers install a site-specific API route service that follows the interface holding the planned node IP and restores only the planned workload API `/32` via the manager. It leaves default routes and other destinations alone; no Tailscale service or route approval is required.
+
 The endpoint is a provisioned NVKE management/workload cluster with fresh readiness and network checks and a kubeconfig location. Model bundles and acir-produced Helm charts belong to the user's subsequent deployment workflow.
 
 ## Optional: Tailscale
