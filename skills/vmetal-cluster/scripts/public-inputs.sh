@@ -11,7 +11,13 @@ umask 022
 export DEBIAN_FRONTEND=noninteractive GIT_TERMINAL_PROMPT=0 GOMAXPROCS=4 GOFLAGS=-p=3 LC_ALL=C
 apt-get update
 packages=(build-essential git curl jq ca-certificates openssh-client python3 python3-yaml
-  iproute2 openssl gnupg dpkg-dev zstd xz-utils docker.io docker-buildx conntrack socat ethtool kmod)
+  iproute2 openssl gnupg dpkg-dev zstd xz-utils conntrack socat ethtool kmod)
+if [[ ${VMETAL_USE_EXISTING_BUILD_DOCKER:-0} == 1 ]]; then
+    docker info >/dev/null
+    docker buildx version >/dev/null
+else
+    packages+=(docker.io docker-buildx)
+fi
 if [[ $mode == --node-only ]]; then
     # A native builder can share a bare-metal host with existing Docker workloads.
     # Never upgrade/remove their runtime dependencies as a side effect of building.
