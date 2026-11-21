@@ -89,7 +89,7 @@ Routes and grants may require approval by the tailnet administrator. The worker 
 
 ## Public inputs
 
-- VMetal: `https://github.com/vmetal-lab/cluster-api-provider-vmetal.git`, revision `5dfc1b0031d0963fc664f8463fcd16ab02a80a6c`.
+- VMetal: `https://github.com/vmetal-lab/cluster-api-provider-vmetal.git`, revision `633b2efb1d3b087376b995c906887a3d8c994ba7`.
 - NVKE: `https://github.com/dsx-ai-factory/nvke.git`, revision `2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049`.
 - Go 1.27.4, Kind 0.32.0, kubectl 1.36.3, clusterctl 1.13.6 and Helm 4.2.4 from architecture-specific upstream downloads, verified against HTTPS publisher metadata/checksums before execution. Git checkouts are checked against full commit IDs.
 - Native node packages, OVN/SPIRE agents, unit files and images are built through the fixed public-source procedure; NVKE package builders use committed upstream locks. SHA256SUMS and image IDs are retained and checked before packaging/installation.
