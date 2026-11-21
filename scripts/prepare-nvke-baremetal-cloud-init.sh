@@ -23,7 +23,7 @@ if [[ -e $seed ]] && ! grep -Fxq "$metadata" "$seed/meta-data"; then
     exit 1
 fi
 if [[ -f $marker && -e $backup ]]; then
-    printf 'Both the cloud-init marker and its VMetal backup exist.\n' >&2
+    printf 'Both the cloud-init marker and its VXAnvil backup exist.\n' >&2
     exit 1
 fi
 dir=$(mktemp -d)
@@ -39,7 +39,7 @@ cloud_config_modules: []
 cloud_final_modules: []
 CLOUD
 if [[ -e $config ]] && ! cmp -s "$dir/cloud.cfg" "$config"; then
-    printf 'Refusing to replace the existing VMetal cloud-init configuration.\n' >&2
+    printf 'Refusing to replace the existing VXAnvil cloud-init configuration.\n' >&2
     exit 1
 fi
 route=$(ip -4 route show default)

@@ -1,4 +1,4 @@
-name: Tag VMetal controller image
+name: Tag VXAnvil controller image
 
 on:
   push:

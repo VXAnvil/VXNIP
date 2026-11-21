@@ -22,12 +22,19 @@ scripts/enroll-nvke-vm-worker.sh
 scripts/prepare-nvke-vm-worker.sh
 scripts/prepare-nvke-baremetal-worker.sh
 scripts/prepare-nvke-baremetal-cloud-init.sh
-scripts/vmetal-kubeadm
+scripts/vxanvil-kubeadm
 scripts/configure-nvke-lab-host-recovery.sh
 scripts/configure-nvke-baremetal-ovn.sh
-scripts/configure-vmetal-manager-network.sh
-scripts/configure-vmetal-client.sh
-scripts/vmetal-network.py
+scripts/configure-vxanvil-manager-network.sh
+scripts/configure-vxanvil-client.sh
+scripts/vxanvil-network.py
 scripts/check-nvke-lab-workers.sh
 scripts/install-nvke-docker-gpu.sh
+scripts/migrate-vxanvil-hosts.py
+
+# Compatibility entrypoints for existing automation and copied worker bundles.
+scripts/vmetal-kubeadm
+scripts/vmetal-network.py
+scripts/configure-vmetal-client.sh
+scripts/configure-vmetal-manager-network.sh
 scripts/migrate-vmetal-hosts.py

@@ -12,10 +12,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/controllers"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/controllers"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
 )
 
 func run() error {
@@ -27,13 +27,13 @@ func run() error {
 	if err := api.SchemeBuilder.AddToScheme(scheme); err != nil {
 		return err
 	}
-	standaloneMachine := &api.VMetalMachine{}
+	standaloneMachine := &api.VXAnvilMachine{}
 	standaloneMachine.SetGroupVersionKind(api.GroupVersion.WithKind("VMetalMachine"))
-	directReads := []client.Object{&api.VMetalHost{}, standaloneMachine, &corev1.Secret{}}
-	enableNVKE := os.Getenv("VMETAL_ENABLE_NVKE_INFRA") == "1"
+	directReads := []client.Object{&api.VXAnvilHost{}, standaloneMachine, &corev1.Secret{}}
+	enableNVKE := nvkeEnabled()
 	if enableNVKE {
 		api.AddInfrastructureToScheme(scheme)
-		nvkeMachine := &api.VMetalMachine{}
+		nvkeMachine := &api.VXAnvilMachine{}
 		nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VMetalMachine"))
 		directReads = append(directReads, nvkeMachine)
 	}
@@ -82,9 +82,18 @@ func run() error {
 	return manager.Start(ctrl.SetupSignalHandler())
 }
 
+// The new option wins even when explicitly disabled. Existing service units
+// continue using the legacy option and the same leader-election Lease.
+func nvkeEnabled() bool {
+	if value, configured := os.LookupEnv("VXANVIL_ENABLE_NVKE_INFRA"); configured {
+		return value == "1"
+	}
+	return os.Getenv("VMETAL_ENABLE_NVKE_INFRA") == "1"
+}
+
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "vmetal-controller:", err)
+		fmt.Fprintln(os.Stderr, "vxanvil-controller:", err)
 		os.Exit(1)
 	}
 }

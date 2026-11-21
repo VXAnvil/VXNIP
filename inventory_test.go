@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
 )
 
 type mockDiscovery func(context.Context, string) (discovery.Hardware, error)

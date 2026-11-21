@@ -1,4 +1,4 @@
-# VMetal development and examples
+# VXAnvil development and examples
 
 Run the commands below from the repository root. These examples cover local inventory, standalone host allocation, kubeadm bootstrap, and the pinned NVKE adapter. Use the [NVKE setup guide](nvke-quickstart.md) for the management bundle and worker installation workflow, and [operations](operations.md) for image builds and diagnostics.
 
@@ -7,34 +7,34 @@ Run the commands below from the repository root. These examples cover local inve
 The standalone CLI runs on macOS or Linux with Go 1.24 or newer and an OpenSSH client. The initial target is an existing Ubuntu host with Python 3, SSH access and a valid, unique `/etc/machine-id`. Configure SSH key authentication and verify the host key in your OpenSSH known-hosts file before registration. Set any custom port or identity file through an OpenSSH host alias.
 
 ```sh
-go build -o vmetal .
-./vmetal register desktop ubuntu@desktop.local
-./vmetal list
-./vmetal inspect desktop
-./vmetal refresh desktop
-./vmetal reserve desktop lab-cluster
-./vmetal release desktop lab-cluster
+go build -o vxanvil .
+./vxanvil register desktop ubuntu@desktop.local
+./vxanvil list
+./vxanvil inspect desktop
+./vxanvil refresh desktop
+./vxanvil reserve desktop lab-cluster
+./vxanvil release desktop lab-cluster
 ```
 
 `inspect` reads the last successful probe and `refresh` contacts the host again. The observation timestamp records the last successful contact. Discovery runs unprivileged and reads system information over SSH. PCI discovery can identify NVIDIA display devices without a driver. GPU names, VRAM, driver version and the driver's reported maximum CUDA version depend on a working `nvidia-smi`.
 
-The inventory is stored in `vmetal/inventory.json` under the user's OS configuration directory. Set `-state /path/to/inventory.json` before the subcommand to use a different file. Use one inventory on a local filesystem for all reservations for the lab. Registration detects aliases using a hash of the Linux machine ID, so cloned installations need unique IDs. Reservations are advisory ownership records scoped to that inventory. Release checks the cluster owner and updates only the local record.
+For compatibility, the inventory is stored in `vmetal/inventory.json` under the user's OS configuration directory. Set `-state /path/to/inventory.json` before the subcommand to use a different file. Use one inventory on a local filesystem for all reservations for the lab. Registration detects aliases using a hash of the Linux machine ID, so cloned installations need unique IDs. Reservations are advisory ownership records scoped to that inventory. Release checks the cluster owner and updates only the local record.
 
 ## Try Kubernetes host allocation
 
-Use a development Kubernetes cluster and set `KUBECONFIG` to its kubeconfig before running these commands. The controller uses the same OpenSSH configuration as the CLI, so run it from a machine that can reach the Ubuntu host. The kubeconfig identity needs cluster-wide access to watch the VMetal resources, update their status and finalizers, and manage a leader-election Lease in `kube-system`. Restrict creation of these resources to trusted operators. A namespaced `VMetalMachine` can request any registered host.
+Use a development Kubernetes cluster and set `KUBECONFIG` to its kubeconfig before running these commands. The controller uses the same OpenSSH configuration as the CLI, so run it from a machine that can reach the Ubuntu host. The kubeconfig identity needs cluster-wide access to watch the VXAnvil resources, update their status and finalizers, and manage a leader-election Lease in `kube-system`. Restrict creation of these resources to trusted operators. A namespaced `VMetalMachine` can request any registered host.
 
 ```sh
 kubectl apply -f config/crd
-go run ./cmd/vmetal-controller
+go run ./cmd/vxanvil-controller
 ```
 
 In a second terminal with the same `KUBECONFIG`, use the CLI and `jq` to get the machine identity. Replace `ubuntu@worker.local` with your Ubuntu test host.
 
 ```sh
-go build -o vmetal .
+go build -o vxanvil .
 target=ubuntu@worker.local
-id=$(./vmetal register test-worker "$target" | jq -er '.hardware.machine_id_hash')
+id=$(./vxanvil register test-worker "$target" | jq -er '.hardware.machine_id_hash')
 host=host-$(printf '%s' "$id" | cut -c 1-32)
 kubectl apply -f - <<EOF
 apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
@@ -68,32 +68,32 @@ Use a separate development management cluster with Cluster API's `v1beta2` core,
 On **each VM**, install the helper as root and use `sudo visudo -f /etc/sudoers.d/vmetal-kubeadm` to grant only the SSH account access to the exact helper command. Replace `ubuntu` with that VM's SSH user.
 
 ```sh
-sudo install -o root -g root -m 0755 scripts/vmetal-kubeadm /usr/local/sbin/vmetal-kubeadm
+sudo install -o root -g root -m 0755 scripts/vxanvil-kubeadm /usr/local/sbin/vmetal-kubeadm
 ```
 
 ```sudoers
 ubuntu ALL=(root) NOPASSWD: /usr/local/sbin/vmetal-kubeadm ""
 ```
 
-On the controller host, apply the CRDs and start the controller as in the allocation example. Apply `kubectl apply -f config/rbac/capi.yaml` to let the CAPI and kubeadm control-plane controllers manage the provider's infrastructure objects. The VMetal controller also needs to read CAPI Machines, Clusters, and kubeadm bootstrap Secrets. With the management kubeconfig selected, set the VM endpoints and the exact version installed on both VMs, then render the example:
+On the controller host, apply the CRDs and start the controller as in the allocation example. Apply `kubectl apply -f config/rbac/capi.yaml` to let the CAPI and kubeadm control-plane controllers manage the provider's infrastructure objects. The VXAnvil controller also needs to read CAPI Machines, Clusters, and kubeadm bootstrap Secrets. With the management kubeconfig selected, set the VM endpoints and the exact version installed on both VMs, then render the example:
 
 ```sh
 (
   set -eu
   export CONTROL_PLANE_SSH=ubuntu@192.168.56.10 WORKER_SSH=ubuntu@192.168.56.11
   export CONTROL_PLANE_IP=192.168.56.10 KUBERNETES_VERSION=v1.34.13
-  CONTROL_PLANE_ID=$(./vmetal register lab-cp "$CONTROL_PLANE_SSH" | jq -er '.hardware.machine_id_hash')
-  WORKER_ID=$(./vmetal register lab-worker "$WORKER_SSH" | jq -er '.hardware.machine_id_hash')
+  CONTROL_PLANE_ID=$(./vxanvil register lab-cp "$CONTROL_PLANE_SSH" | jq -er '.hardware.machine_id_hash')
+  WORKER_ID=$(./vxanvil register lab-worker "$WORKER_SSH" | jq -er '.hardware.machine_id_hash')
   test -n "$CONTROL_PLANE_ID" && test -n "$WORKER_ID" || exit 1
   export CONTROL_PLANE_ID WORKER_ID
   export CONTROL_PLANE_HOST=host-$(printf '%s' "$CONTROL_PLANE_ID" | cut -c 1-32)
   export WORKER_HOST=host-$(printf '%s' "$WORKER_ID" | cut -c 1-32)
-  envsubst < examples/kubeadm-two-vm.yaml.tmpl > /tmp/vmetal-lab.yaml
-  kubectl apply -f /tmp/vmetal-lab.yaml
+  envsubst < examples/kubeadm-two-vm.yaml.tmpl > /tmp/vxanvil-lab.yaml
+  kubectl apply -f /tmp/vxanvil-lab.yaml
 )
 ```
 
-When the control-plane API is reachable, run `clusterctl get kubeconfig vmetal-lab > /tmp/vmetal-lab.kubeconfig` and install a CNI configured for the example's pod CIDR. Check `kubectl --kubeconfig /tmp/vmetal-lab.kubeconfig get nodes -o wide`. To reuse a worker, scale its MachineDeployment to zero and wait for deletion and claim release before scaling back up. The new allocation receives a new provider ID.
+When the control-plane API is reachable, run `clusterctl get kubeconfig vxanvil-lab > /tmp/vxanvil-lab.kubeconfig` and install a CNI configured for the example's pod CIDR. Check `kubectl --kubeconfig /tmp/vxanvil-lab.kubeconfig get nodes -o wide`. To reuse a worker, scale its MachineDeployment to zero and wait for deletion and claim release before scaling back up. The new allocation receives a new provider ID.
 
 The example uses the default kubeadm cloud-config for a single control plane and a worker. The helper applies kubeadm configuration and the required control-plane keys. It rejects additional shell commands, cloud-init operations, and control-plane joins. It persists the allocation attempt, so an interrupted or failed init/join requires reset before reuse. Cleanup runs `kubeadm reset` and removes the CNI configuration on an opted-in VM. If cleanup fails, the host remains claimed. Keep diagnostics such as `/var/lib/vmetal-kubeadm/kubeadm.log` on the VM, since they can contain bootstrap credentials.
 
@@ -103,7 +103,7 @@ See the [NVKE setup guide](nvke-quickstart.md) for management setup, worker enro
 
 The adapter targets the generic `infra` contract in NVKE commit `2f31480`. It uses the standard `infrastructure.cluster.x-k8s.io` group for cluster and machine objects, with the `VMetalHost` inventory shared by both API groups. The kubeadm-only example uses `vmetal.infrastructure.cluster.x-k8s.io`.
 
-Use a dedicated NVKE development deployment with `supportedInfraProviders: infra`, tenant kubeconfig publishing, and SPIRE join-token attestation. Prepare two unallocated Linux nodes with the matching NVKE agent and service, the SPIRE agent and its `spire` system account, the required NVKE node dependencies and CNI packages, and the VMetal helper and SSH configuration from the previous example. Verify that `cloud-init status` reports `done` on both nodes, as required by NVKE's node preflight. The pinned agent unit should recognize both `nke-agent.service` and `nvke-agent.service`. Keep existing agent configuration off these dedicated test nodes. The helper places the supplied agent configuration, adds a kubelet identity drop-in, and starts the services. NVKE drives `kubeadm init/join` through its agent.
+Use a dedicated NVKE development deployment with `supportedInfraProviders: infra`, tenant kubeconfig publishing, and SPIRE join-token attestation. Prepare two unallocated Linux nodes with the matching NVKE agent and service, the SPIRE agent and its `spire` system account, the required NVKE node dependencies and CNI packages, and the VXAnvil helper and SSH configuration from the previous example. Verify that `cloud-init status` reports `done` on both nodes, as required by NVKE's node preflight. The pinned agent unit should recognize both `nke-agent.service` and `nvke-agent.service`. Keep existing agent configuration off these dedicated test nodes. The helper places the supplied agent configuration, adds a kubelet identity drop-in, and starts the services. NVKE drives `kubeadm init/join` through its agent.
 
 When using preinstalled OVN Debian packages, set `cni.installAfterInit: true` in the NVKE controller Helm values before creating the workload cluster. NVKE then installs the CNI from the node's OVN charts package after kubeadm initializes the control plane.
 
@@ -114,10 +114,10 @@ kubectl apply -f config/crd
 kubectl apply -f config/crd/nvke
 kubectl apply -f config/rbac/capi.yaml
 kubectl apply -f config/rbac/nvke.yaml
-VMETAL_ENABLE_NVKE_INFRA=1 go run ./cmd/vmetal-controller
+VXANVIL_ENABLE_NVKE_INFRA=1 go run ./cmd/vxanvil-controller
 ```
 
-The stock CAPI installation can manage resources in the standard infrastructure API group. The RBAC in `config/rbac/nvke.yaml` grants the NVKE service account access to the three VMetal infrastructure kinds in the NVKE workload namespace and read access to their CRD definitions. Adjust both namespaces and the service account to match your test deployment.
+The stock CAPI installation can manage resources in the standard infrastructure API group. The RBAC in `config/rbac/nvke.yaml` grants the NVKE service account access to the three VXAnvil infrastructure kinds in the NVKE workload namespace and read access to their CRD definitions. Adjust both namespaces and the service account to match your test deployment.
 
 When NVKE publishes SPIFFE exec-auth kubeconfigs, run its upstream `controller/hack/apply-capi-spiffe-exec-auth.sh --kubeconfig <management-kubeconfig>` after the SPIRE CSI driver is installed. This lets the CAPI controllers authenticate to the workload API and match Machines to Nodes.
 
@@ -126,11 +126,11 @@ Use the read-only probe to get each machine ID. Create two `VMetalHost` records 
 Configure `nvkectl` for the dedicated test site. Export `CONTROL_PLANE_HOST` and `WORKER_HOST` with the two inventory names, `CONTROL_PLANE_IP` with the control-plane address, and `KUBERNETES_VERSION` with the NVKE workload version (without the leading `v`), then render:
 
 ```sh
-envsubst < examples/nvke-two-hosts.yaml.tmpl > /tmp/vmetal-nvke-lab.yaml
-nvkectl create cluster -f /tmp/vmetal-nvke-lab.yaml
+envsubst < examples/nvke-two-hosts.yaml.tmpl > /tmp/vxanvil-nvke-lab.yaml
+nvkectl create cluster -f /tmp/vxanvil-nvke-lab.yaml
 nvkectl get clusters
-nvkectl get kubeconfig vmetal-nvke-lab --output-file /tmp/vmetal-nvke-lab.kubeconfig
-kubectl --kubeconfig /tmp/vmetal-nvke-lab.kubeconfig get nodes
+nvkectl get kubeconfig vxanvil-nvke-lab --output-file /tmp/vxanvil-nvke-lab.kubeconfig
+kubectl --kubeconfig /tmp/vxanvil-nvke-lab.kubeconfig get nodes
 ```
 
 Check that both nodes are `Ready` and each Node's provider ID matches its CAPI Machine. Scale the worker pool down and restore it to verify that the former allocation is cleaned up and the same host returns with a new provider ID. The adapter supports join-token agent configuration and rejects bootstrap payloads with extra shell commands, custom files, or other SPIRE attestors.

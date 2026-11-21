@@ -2,7 +2,7 @@
 
 Date: 2026-11-20 (America/Vancouver).
 
-This record covers the working-tree VMetal skill/executor changes for mixed AMD64/ARM64 artifacts, Tailscale, isolated bare-metal preparation and read-only existing-cluster inspection. It does not describe a published release. Existing-mode validation and the isolated mixed-architecture VM install/verification described below completed. A fresh unallocated physical bare-metal install was not performed.
+This record covers the working-tree VXAnvil skill/executor changes for mixed AMD64/ARM64 artifacts, Tailscale, isolated bare-metal preparation and read-only existing-cluster inspection. It does not describe a published release. Existing-mode validation and the isolated mixed-architecture VM install/verification described below completed. A fresh unallocated physical bare-metal install was not performed.
 
 ## Automated checks
 
@@ -43,7 +43,7 @@ Real connection data, machine identifiers, kubeconfig locations, full snapshots 
 
 Two new Ubuntu 24.04 VMs run on Spark: an ARM64 KVM manager (6 CPUs, 16 GiB RAM) and an AMD64 TCG worker (2 CPUs, 8 GiB RAM). They use private user-mode NAT, loopback-only operator SSH forwards, independent disks/identities and dedicated cluster networks. No existing host bridge, GPU, shared runtime or allocation is reused. The user authenticated both guests to Tailscale.
 
-Completed on the fresh manager: public source/checksum acquisition, native ARM64 Kubernetes/OVN/SPIRE artifacts and images, Kind/CAPI/NVKE/SPIRE/VMetal management setup, then new workload control-plane creation and API readyz. The AMD64 native build completed inside the emulated AMD64 guest. Both architecture-specific artifact manifests verified successfully. The user approved the manager's planned API/SPIRE routes; the worker gate verified tailscale0 selection and real API/SPIRE TCP connectivity before preparation. The manager preserves source addresses.
+Completed on the fresh manager: public source/checksum acquisition, native ARM64 Kubernetes/OVN/SPIRE artifacts and images, Kind/CAPI/NVKE/SPIRE/VXAnvil management setup, then new workload control-plane creation and API readyz. The AMD64 native build completed inside the emulated AMD64 guest. Both architecture-specific artifact manifests verified successfully. The user approved the manager's planned API/SPIRE routes; the worker gate verified tailscale0 selection and real API/SPIRE TCP connectivity before preparation. The manager preserves source addresses.
 
 The real run exposed a naming collision: the original skill gave Kind management and workload control planes the same Docker name. Ownership checks correctly stopped before workload creation. The fix explicitly separates the management site and workload cluster names and adds two behavioral regressions. Operator recovery first verified the inactive process/remote lock, exact old digest, successful build/management receipts, artifact manifests, healthy management API, unchanged machine identities, empty tenant directory and absent workload inventory/network. The original unknown journal and runtime remain archived. Only the two verified completed phases were carried into an explicitly recorded corrected plan; the failed phase was not marked successful.
 

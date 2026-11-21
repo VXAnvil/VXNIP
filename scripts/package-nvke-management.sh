@@ -1,5 +1,10 @@
 #!/bin/bash
 set -euo pipefail
+# Accept existing automation without changing the new variable's precedence.
+for legacy_key in ${!VMETAL_@}; do
+    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
+    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
+done
 
 if [[ $# != 6 ]]; then
     echo "Usage: bash $0 nvke-checkout tool-bin-dir kind-image controller-image profile-image output-dir" >&2
@@ -8,8 +13,8 @@ fi
 nvke=$(realpath "$1")
 tools=$(realpath "$2")
 images=("$3" "$4" "$5")
-if [[ -n ${VMETAL_CONTROL_PLANE_IMAGE:-} ]]; then
-    images+=("$VMETAL_CONTROL_PLANE_IMAGE")
+if [[ -n ${VXANVIL_CONTROL_PLANE_IMAGE:-} ]]; then
+    images+=("$VXANVIL_CONTROL_PLANE_IMAGE")
 fi
 output=$(realpath -m "$6")
 revision=$(git -C "$nvke" rev-parse HEAD)
@@ -31,14 +36,16 @@ while IFS= read -r file || [[ -n $file ]]; do
     }
     (cd "$repo" && cp --parents -p -- "$file" "$staging/provider/")
 done <"$manifest"
-if [[ -n ${VMETAL_CONTROL_PLANE_IMAGE:-} ]]; then
-    expected=$(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1)
-    [[ $(docker image inspect "$VMETAL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == "$expected" ]]
-    [[ $(docker image inspect "$VMETAL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]]
-    printf '%s\n' "$VMETAL_CONTROL_PLANE_IMAGE" >"$staging/control-plane-image"
+if [[ -n ${VXANVIL_CONTROL_PLANE_IMAGE:-} ]]; then
+    expected=$(sha256sum "$repo/scripts/vxanvil-kubeadm" | cut -d' ' -f1)
+    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == "$expected" ]]
+    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]]
+    printf '%s\n' "$VXANVIL_CONTROL_PLANE_IMAGE" >"$staging/control-plane-image"
 fi
-for tool in kind kubectl clusterctl helm nvkectl vmetal-controller; do
-    install -m 0755 "$tools/$tool" "$staging/bin/$tool"
+for tool in kind kubectl clusterctl helm nvkectl vxanvil-controller; do
+    source_tool="$tools/$tool"
+    if [[ $tool == vxanvil-controller && ! -x $source_tool ]]; then source_tool="$tools/vmetal-controller"; fi
+    install -m 0755 "$source_tool" "$staging/bin/$tool"
 done
 git -C "$nvke" archive "$revision" deploy controller/deploy controller/hack/ci/deploy-stack.sh \
     controller/hack/apply-capi-spiffe-exec-auth.sh controller/test/fixtures/releases |

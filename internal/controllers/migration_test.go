@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -70,7 +70,7 @@ func TestReleasedLegacyHostMigrationWithAPIServer(t *testing.T) {
 	must(t, os.WriteFile(filepath.Join(directory, "ssh"), []byte("#!/bin/sh\nprintf '%s\\n' '"+identity+"'\n"), 0700))
 	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
 	plan := filepath.Join(directory, "migration.json")
-	script := "../../scripts/migrate-vmetal-hosts.py"
+	script := "../../scripts/migrate-vxanvil-hosts.py"
 	for _, apply := range []bool{false, true, true} {
 		args := []string{script, "--kubeconfig", kubeconfig, "--plan", plan}
 		if apply {
@@ -81,7 +81,7 @@ func TestReleasedLegacyHostMigrationWithAPIServer(t *testing.T) {
 			t.Fatalf("migration apply=%v: %v %s", apply, err, out)
 		}
 	}
-	var registered api.VMetalHost
+	var registered api.VXAnvilHost
 	must(t, c.Get(context.Background(), client.ObjectKey{Name: "host-" + newID[:32]}, &registered))
 	if registered.Spec.MachineID != newID || registered.Annotations["vmetal.nvke.dev/migrated-from-uid"] != string(old.GetUID()) {
 		t.Fatalf("migration lost identity provenance: %+v", registered)

@@ -1,10 +1,10 @@
-# VMetal
+# VXAnvil
 
-[![CI](https://github.com/vmetal-lab/cluster-api-provider-vmetal/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/vmetal-lab/cluster-api-provider-vmetal/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI](https://github.com/VXAnvil/cluster-api-provider-vxanvil/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/VXAnvil/cluster-api-provider-vxanvil/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Release: v0.0.1-rc.2](https://img.shields.io/badge/release-v0.0.1--rc.2-orange)](https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/tag/v0.0.1-rc.2)
+[![Release: v0.0.1-rc.2](https://img.shields.io/badge/release-v0.0.1--rc.2-orange)](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/v0.0.1-rc.2)
 
-A Cluster API infrastructure provider for existing Linux machines. VMetal discovers hosts over SSH, allocates them to Kubernetes clusters, and supports kubeadm bootstrap and NVIDIA NVKE's generic `infra` contract.
+A Cluster API infrastructure provider for existing Linux machines. VXAnvil discovers hosts over SSH, allocates them to Kubernetes clusters, and supports kubeadm bootstrap and NVIDIA NVKE's generic `infra` contract.
 
 **Status:** experimental NVKE integration, tested against revision `2f31480`. Current focus is stability, compatibility and reproducible setup.
 
@@ -22,10 +22,10 @@ The core Provider manages host lifecycle. GPU runtime configuration and model de
 Build on macOS or Linux with Go 1.24+ and OpenSSH. The target needs Ubuntu, Python 3, a unique `/etc/machine-id`, and key-based SSH with a verified host key.
 
 ```sh
-go build -o vmetal .
-./vmetal register desktop ubuntu@desktop.local
-./vmetal list
-./vmetal inspect desktop
+go build -o vxanvil .
+./vxanvil register desktop ubuntu@desktop.local
+./vxanvil list
+./vxanvil inspect desktop
 ```
 
 These commands record local inventory and read host information; they do not join a machine to Kubernetes. For cluster provisioning, follow the guides below. Local CLI reservations and Kubernetes host claims are separate; keep each host under one allocation system.
@@ -34,13 +34,15 @@ These commands record local inventory and read host information; they do not joi
 
 | Guide | Contents |
 | --- | --- |
-| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/tag/skill-v0.1.0-rc.4): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
+| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.1.0-rc.4): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
 | [Prepare public inputs](docs/public-inputs.md) | Fresh Ubuntu: fixed source, verified tools, node artifacts and management bundle |
 | [NVKE setup](docs/nvke-quickstart.md) | Management site, worker enrollment, Docker control plane and GPU worker example |
 | [Operations](docs/operations.md) | Images and bundles, terminal configuration, diagnostics and recovery |
 | [Development and examples](docs/development.md) | CLI details, host allocation, kubeadm and NVKE adapter examples, test commands |
 
 ## Compatibility
+
+VXAnvil keeps existing wire identities and installed state so allocated clusters continue to work. The old spelling below is intentional; see [name compatibility and upgrades](docs/compatibility.md#vxanvil-name-compatibility).
 
 The inventory API is `vmetal.infrastructure.cluster.x-k8s.io/v1alpha1`, with `VMetalHost`, `VMetalCluster`, `VMetalMachine` and `VMetalMachineTemplate`. The NVKE adapter exposes the three infrastructure kinds in `infrastructure.cluster.x-k8s.io/v1alpha1` and shares the host inventory.
 

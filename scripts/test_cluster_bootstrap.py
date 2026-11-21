@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-RUNTIME = Path(__file__).resolve().parents[1] / 'skills/vmetal-cluster/scripts'
+RUNTIME = Path(__file__).resolve().parents[1] / 'skills/vxanvil-cluster/scripts'
 sys.path.insert(0, str(RUNTIME))
 import cluster  # noqa: E402
 import reconcile  # noqa: E402
@@ -32,6 +32,26 @@ def facts(ip='192.168.50.10', identity='a', user='ubuntu'):
             'host_key': 'ssh-ed25519 ' + identity * 40, 'user': user, 'users': ['ubuntu'],
             'address': ip, 'addresses': [{'addr_info': [{'family': 'inet', 'local': ip, 'prefixlen': 24}]}],
             'routes': [{'dst': '192.168.50.0/24'}, {'dst': 'default', 'gateway': '192.168.50.1'}]}
+
+
+class NameCompatibilityTests(unittest.TestCase):
+    def test_historical_asset_catalog_keeps_real_filenames_and_digests(self):
+        manifest = cluster.runtime_assets.catalog(cluster.BUNDLE_MANIFEST, cluster.RELEASE)
+        self.assertEqual(set(manifest['assets']), {'manager-amd64', 'manager-arm64', 'node-amd64', 'node-arm64'})
+        for asset in manifest['assets'].values():
+            self.assertIn('/VXAnvil/cluster-api-provider-vxanvil/releases/download/', asset['url'])
+            self.assertIn('/vmetal-', asset['url'])
+
+    def test_new_source_and_old_entrypoints_ship_identical_runtime_behavior(self):
+        root = RUNTIME.parents[2]
+        for new, old in [('vxanvil-kubeadm','vmetal-kubeadm'), ('vxanvil-network.py','vmetal-network.py'),
+                         ('configure-vxanvil-client.sh','configure-vmetal-client.sh'),
+                         ('configure-vxanvil-manager-network.sh','configure-vmetal-manager-network.sh'),
+                         ('migrate-vxanvil-hosts.py','migrate-vmetal-hosts.py')]:
+            self.assertEqual((root/'scripts'/new).read_bytes(), (root/'scripts'/old).read_bytes())
+        helper=(root/'scripts/vxanvil-kubeadm').read_bytes()
+        import hashlib
+        self.assertEqual(hashlib.sha256(helper).hexdigest(), '007fb029a88f25a88dc9cd7ce504a33788f099b82302374a41ef34c83de0a065')
 
 
 class RuntimeAssetTests(unittest.TestCase):
@@ -54,7 +74,7 @@ class RuntimeAssetTests(unittest.TestCase):
         cluster.runtime_assets.validate_asset(asset, 'node', 'amd64')
         staging = self.root / 'staging'
         staging.mkdir()
-        archive = self.root / 'vmetal-node-amd64.tar.gz'
+        archive = self.root / 'vxanvil-node-amd64.tar.gz'
         result = cluster.runtime_assets.unpack(archive, staging, asset, cluster.RELEASE)
         self.assertEqual((result / 'node-tool').read_bytes(), b'verified tool')
         self.assertFalse((result / 'unused-build-output').exists())
@@ -73,7 +93,7 @@ class RuntimeAssetTests(unittest.TestCase):
         self.assertEqual(len(verifier.verify(self.root, tag)['assets']), 4)
         with self.assertRaisesRegex(ValueError, 'release tag differs'):
             verifier.verify(self.root, 'runtime-v0.1.0-other')
-        with (self.root / 'vmetal-manager-amd64.tar.gz').open('ab') as stream:
+        with (self.root / 'vxanvil-manager-amd64.tar.gz').open('ab') as stream:
             stream.write(b'changed')
         with self.assertRaisesRegex(ValueError, 'bytes differ'):
             verifier.verify(self.root, tag)
@@ -84,7 +104,7 @@ class RuntimeAssetTests(unittest.TestCase):
         settings = {'root':str(self.root / 'state'), 'node':{'facts':{'arch':'amd64'}},
                     'plan':{'release':cluster.RELEASE, 'artifacts':{'amd64':{'asset':asset}}}}
         Path(settings['root']).mkdir()
-        archive = self.root / 'vmetal-node-amd64.tar.gz'
+        archive = self.root / 'vxanvil-node-amd64.tar.gz'
         with patch.object(cluster.runtime_assets, 'download', side_effect=lambda asset, target:shutil.copyfile(archive,target)) as download:
             cluster.runtime_assets.install(settings, 'node')
             cluster.runtime_assets.install(settings, 'node')
@@ -153,7 +173,7 @@ class ImagePortabilityTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.source = self.root / 'management-bundle'
         self.source.mkdir()
-        self.names = ['kindest/node:test', 'vmetal/controller:test', 'vmetal/profile:test']
+        self.names = ['kindest/node:test', 'vxanvil/controller:test', 'vxanvil/profile:test']
         (self.source / 'images').write_text('\n'.join(self.names)+'\n')
         (self.source / 'image-ids').write_text(('sha256:'+'a'*64+'\n')*3)
         self.actual = {}
@@ -528,9 +548,9 @@ class BootstrapTests(unittest.TestCase):
         package.package(output, development=True)
         with zipfile.ZipFile(output) as archive:
             self.assertIsNone(archive.testzip())
-            self.assertIn('vmetal-cluster/SKILL.md', archive.namelist())
-            self.assertIn('vmetal-cluster/scripts/public-inputs.sh', archive.namelist())
-            self.assertTrue(all(name.startswith('vmetal-cluster/') for name in archive.namelist()))
+            self.assertIn('vxanvil-cluster/SKILL.md', archive.namelist())
+            self.assertIn('vxanvil-cluster/scripts/public-inputs.sh', archive.namelist())
+            self.assertTrue(all(name.startswith('vxanvil-cluster/') for name in archive.namelist()))
             self.assertFalse(any('__pycache__' in name or 'settings.json' in name for name in archive.namelist()))
 
     def test_service_probe_cleans_up_only_its_namespace_on_success_and_failure(self):
@@ -544,10 +564,10 @@ with open(os.environ['CALLS'], 'a') as f: f.write(json.dumps(sys.argv[1:])+'\\n'
 args=sys.argv[1:]
 if 'create' in args:
     sys.stdin.read()
-    if '-o' in args: print('vmetal-service-check-fixture',end='')
+    if '-o' in args: print('vxanvil-service-check-fixture',end='')
 elif 'exec' in args:
     if os.environ['PROBE_FAIL']=='1': sys.exit(1)
-    print('vmetal-ok')
+    print('vxanvil-ok')
 ''')
         kubectl.chmod(0o755)
         sleep = fake / 'sleep'
@@ -564,7 +584,7 @@ elif 'exec' in args:
                 calls = [json.loads(line) for line in records.read_text().splitlines()]
                 deleted = [call for call in calls if 'delete' in call]
                 self.assertEqual(len(deleted), 1)
-                self.assertIn('vmetal-service-check-fixture', deleted[0])
+                self.assertIn('vxanvil-service-check-fixture', deleted[0])
 
 
     def test_pod_probe_waits_for_http_before_testing_both_directions(self):
@@ -580,7 +600,7 @@ s=json.loads(p.read_text()) if p.exists() else {'probes':[], 'serving':False}
 with open(os.environ['CALLS'],'a') as f:f.write(json.dumps(a)+'\\n')
 if 'config' in a: print('https://192.168.50.10:6443',end='')
 elif 'create' in a:
-    sys.stdin.read(); print('vmetal-worker-check-fixture',end='')
+    sys.stdin.read(); print('vxanvil-worker-check-fixture',end='')
 elif 'apply' in a:
     manifest=sys.stdin.read()
     s['probes'].append('readinessProbe:' in manifest and 'httpGet:' in manifest)
@@ -616,7 +636,7 @@ p.write_text(json.dumps(s))
                     self.assertEqual(len([c for c in calls if 'exec' in c]), 2)
                     deleted = [c for c in calls if 'delete' in c]
                     self.assertEqual(len(deleted), 1)
-                    self.assertIn('vmetal-worker-check-fixture', deleted[0])
+                    self.assertIn('vxanvil-worker-check-fixture', deleted[0])
 
     def test_probe_failure_keeps_private_diagnostics_without_echoing_them(self):
         log = self.state / 'probe.log'
@@ -652,7 +672,7 @@ class MixedEnvironmentTests(unittest.TestCase):
             self.config.update(mode='existing',existing={
                 'management_kubeconfig':'/private/management.kubeconfig',
                 'workload_kubeconfig':'/private/workload.kubeconfig',
-                'api':'https://172.30.91.20:6443','cluster':'vmetal-lab','spire_address':'192.168.50.10'})
+                'api':'https://172.30.91.20:6443','cluster':'vxanvil-lab','spire_address':'192.168.50.10'})
         return self.plan()
 
     def test_mixed_tailscale_baremetal_plan_uses_native_artifacts(self):

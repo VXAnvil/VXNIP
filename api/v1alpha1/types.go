@@ -1,4 +1,4 @@
-// Package v1alpha1 contains the experimental VMetal inventory and allocation API.
+// Package v1alpha1 contains the VXAnvil inventory (stable wire identities) and allocation API.
 // +groupName=vmetal.infrastructure.cluster.x-k8s.io
 // +kubebuilder:object:generate=true
 package v1alpha1

@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
 )
 
 const (
@@ -30,7 +30,7 @@ type HostReconciler struct {
 }
 
 func (r *HostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var host api.VMetalHost
+	var host api.VXAnvilHost
 	if err := r.Get(ctx, req.NamespacedName, &host); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -89,6 +89,6 @@ func (r *HostReconciler) SetupWithManager(manager ctrl.Manager) error {
 			return e.ObjectOld.GetDeletionTimestamp().IsZero() != e.ObjectNew.GetDeletionTimestamp().IsZero()
 		},
 	})
-	return ctrl.NewControllerManagedBy(manager).For(&api.VMetalHost{}).
+	return ctrl.NewControllerManagedBy(manager).For(&api.VXAnvilHost{}).
 		WithEventFilter(changes).Complete(r)
 }

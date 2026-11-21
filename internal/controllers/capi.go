@@ -16,8 +16,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
 )
 
 const (
@@ -43,7 +43,7 @@ func infraGroup(group schema.GroupVersion) schema.GroupVersion {
 }
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var cluster api.VMetalCluster
+	var cluster api.VXAnvilCluster
 	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalCluster"))
 	if err := r.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -59,7 +59,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (r *ClusterReconciler) SetupWithManager(manager ctrl.Manager) error {
-	cluster := &api.VMetalCluster{}
+	cluster := &api.VXAnvilCluster{}
 	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalCluster"))
 	builder := ctrl.NewControllerManagedBy(manager).For(cluster)
 	if r.InfrastructureGroup == api.InfrastructureGroupVersion {
@@ -68,7 +68,7 @@ func (r *ClusterReconciler) SetupWithManager(manager ctrl.Manager) error {
 	return builder.Complete(r)
 }
 
-func capiOwner(machine *api.VMetalMachine) *metav1.OwnerReference {
+func capiOwner(machine *api.VXAnvilMachine) *metav1.OwnerReference {
 	for _, owner := range machine.OwnerReferences {
 		if owner.Kind == "Machine" && strings.HasPrefix(owner.APIVersion, "cluster.x-k8s.io/") {
 			return &owner
@@ -78,7 +78,7 @@ func capiOwner(machine *api.VMetalMachine) *metav1.OwnerReference {
 }
 
 func (r *MachineReconciler) reconcileBootstrap(
-	ctx context.Context, machine *api.VMetalMachine, host *api.VMetalHost,
+	ctx context.Context, machine *api.VXAnvilMachine, host *api.VXAnvilHost,
 ) (ctrl.Result, error) {
 	owner := capiOwner(machine)
 	if owner == nil {
@@ -99,7 +99,7 @@ func (r *MachineReconciler) reconcileBootstrap(
 	ref, _, _ := unstructured.NestedStringMap(capiMachine.Object, "spec", "infrastructureRef")
 	if capiMachine.GetUID() != owner.UID || ref["apiGroup"] != infraGroup(r.InfrastructureGroup).Group ||
 		ref["kind"] != "VMetalMachine" || ref["name"] != machine.Name {
-		return ctrl.Result{}, fmt.Errorf("CAPI Machine does not reference this VMetalMachine")
+		return ctrl.Result{}, fmt.Errorf("CAPI Machine does not reference this VXAnvilMachine")
 	}
 	if isPaused(&capiMachine) || !capiMachine.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{RequeueAfter: allocationPoll}, nil
@@ -191,7 +191,7 @@ func (r *MachineReconciler) reconcileBootstrap(
 	return r.setStatus(ctx, machine, "Provisioned", "BootstrapComplete")
 }
 
-func verifiedNodeIP(host *api.VMetalHost) bool {
+func verifiedNodeIP(host *api.VXAnvilHost) bool {
 	address, err := netip.ParseAddr(host.Spec.NodeIP)
 	if err != nil || !address.Is4() || !address.IsGlobalUnicast() ||
 		!host.Status.DiscoveryReady || host.Status.Hardware == nil {
@@ -215,8 +215,8 @@ func verifiedNodeIP(host *api.VMetalHost) bool {
 	return false
 }
 
-func (r *MachineReconciler) runBootstrap(ctx context.Context, machine *api.VMetalMachine,
-	host *api.VMetalHost, request bootstrap.Request) error {
+func (r *MachineReconciler) runBootstrap(ctx context.Context, machine *api.VXAnvilMachine,
+	host *api.VXAnvilHost, request bootstrap.Request) error {
 	if r.Bootstrap == nil {
 		return fmt.Errorf("bootstrap runner is unavailable")
 	}

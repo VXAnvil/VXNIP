@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
 )
 
 type probeFunc func(context.Context, string) (discovery.Hardware, error)
@@ -45,13 +45,13 @@ type interruptedStatus struct {
 
 func (s interruptedStatus) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 	switch obj := obj.(type) {
-	case *api.VMetalHost:
+	case *api.VXAnvilHost:
 		if obj.Status.Claim != nil {
 			if err := s.beforeClaim(ctx); err != nil {
 				return err
 			}
 		}
-	case *api.VMetalMachine:
+	case *api.VXAnvilMachine:
 		if obj.Status.Phase == "Reserved" {
 			return errInterrupted
 		}
@@ -80,9 +80,9 @@ func TestAllocationWithAPIServer(t *testing.T) {
 	must(t, err)
 
 	id := strings.Repeat("a", 64)
-	host := &api.VMetalHost{
+	host := &api.VXAnvilHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32]},
-		Spec:       api.VMetalHostSpec{MachineID: id, SSHTarget: "ubuntu@worker", ManagedAddress: true},
+		Spec:       api.VXAnvilHostSpec{MachineID: id, SSHTarget: "ubuntu@worker", ManagedAddress: true},
 	}
 	alias := host.DeepCopy()
 	alias.Name = "host-" + strings.Repeat("b", 32)
@@ -98,12 +98,12 @@ func TestAllocationWithAPIServer(t *testing.T) {
 	_, err = hostController.Reconcile(ctx, hostReq)
 	must(t, err)
 
-	machines := make([]*api.VMetalMachine, 0, 2)
+	machines := make([]*api.VXAnvilMachine, 0, 2)
 	for _, namespace := range []string{"pool-a", "pool-b"} {
 		must(t, c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}))
-		machine := &api.VMetalMachine{
+		machine := &api.VXAnvilMachine{
 			ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: namespace},
-			Spec:       api.VMetalMachineSpec{HostRef: host.Name},
+			Spec:       api.VXAnvilMachineSpec{HostRef: host.Name},
 		}
 		must(t, c.Create(ctx, machine))
 		machines = append(machines, machine)

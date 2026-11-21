@@ -1,6 +1,6 @@
-## VMetal cluster skill: prebuilt runtime preview
+## VXAnvil cluster skill: prebuilt runtime preview
 
-Download **vmetal-cluster.zip** and its **.sha256** file, verify the checksum and extract into your agent's skills directory. See the [installation guide](https://github.com/vmetal-lab/cluster-api-provider-vmetal/blob/skill-v0.1.0-rc.4/docs/cluster-skill.md).
+Download **vxanvil-cluster.zip** and its **.sha256** file, verify the checksum and extract into your agent's skills directory. See the [installation guide](https://github.com/VXAnvil/cluster-api-provider-vxanvil/blob/skill-v0.1.0-rc.4/docs/cluster-skill.md).
 
 - Provide one manager and one or more worker SSH connections. Runtime assets are selected automatically for AMD64/ARM64 and verified against the included manifest. No source compilation or image build runs on user machines; failed downloads do not silently fall back to source builds.
 - Portable image content verification handles Docker store/version differences while preserving the original downloaded bundle.

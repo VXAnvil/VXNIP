@@ -159,7 +159,7 @@ else
 fi
 install_checked 0644 "$dir/lib/systemd/system/kubelet.service" /etc/systemd/system/kubelet.service
 install_checked 0644 "$dir/lib/systemd/system/kubelet.service.d/10-kubeadm.conf" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-install_checked 0755 "$repo/scripts/vmetal-kubeadm" /usr/local/sbin/vmetal-kubeadm
+install_checked 0755 "$repo/scripts/vxanvil-kubeadm" /usr/local/sbin/vmetal-kubeadm
 printf '%s ALL=(root) NOPASSWD: /usr/local/sbin/vmetal-kubeadm ""\n' "$ssh_user" >"$dir/sudoers"
 visudo -cf "$dir/sudoers"
 install_checked 0440 "$dir/sudoers" /etc/sudoers.d/vmetal-nvke-worker
@@ -183,7 +183,7 @@ fi
 install_checked 0644 "$dir/containerd.toml" /etc/vmetal-nvke/containerd.toml
 cat >"$dir/containerd.service" <<'UNIT'
 [Unit]
-Description=Container runtime for the NVKE VMetal worker
+Description=Container runtime for the NVKE VXAnvil worker
 After=network-online.target
 UNIT
 if [[ -n $storage_dir ]]; then

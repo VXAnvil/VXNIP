@@ -6,9 +6,9 @@ import os
 import re
 from pathlib import Path
 
-MODULE = "github.com/vmetal-lab/cluster-api-provider-vmetal"
+MODULE = "github.com/VXAnvil/cluster-api-provider-vxanvil"
 REQUIRED = {
-    (MODULE + "/cmd/vmetal-controller", "TestManagerResumesAndReleasesClaims"),
+    (MODULE + "/cmd/vxanvil-controller", "TestManagerResumesAndReleasesClaims"),
     (MODULE + "/internal/controllers", "TestAllocationWithAPIServer"),
     (MODULE + "/internal/controllers", "TestReleasedLegacyHostMigrationWithAPIServer"),
 }

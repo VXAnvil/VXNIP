@@ -1,4 +1,7 @@
 __pycache__/
-/vmetal
+/vxanvil
 /.ci-bin/
 /.ci-output/
+
+# Existing local builds from before the rename.
+/vmetal

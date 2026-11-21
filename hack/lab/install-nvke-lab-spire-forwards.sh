@@ -8,7 +8,7 @@ fi
 kubeconfig=$1
 bind_address=$2
 kubectl=$(command -v kubectl)
-context=kind-vmetal-validation
+context=kind-vxanvil-validation
 [[ -r $kubeconfig && $kubeconfig != *[\"%\\]* && $kubeconfig != *$'\n'* ]]
 [[ $( "$kubectl" --kubeconfig "$kubeconfig" config current-context ) == "$context" ]] ||
     { echo "Expected the isolated lab management context: $context" >&2; exit 1; }
@@ -29,7 +29,7 @@ for component in spire oidc; do
     units+=("$unit")
     cat >"$temp/$unit" <<UNIT
 [Unit]
-Description=NVKE VMetal lab $component port forward
+Description=NVKE VXAnvil lab $component port forward
 StartLimitIntervalSec=0
 
 [Service]

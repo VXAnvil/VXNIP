@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package only the portable VMetal skill runtime; never include site state."""
+"""Package only the portable VXAnvil skill runtime; never include site state."""
 import argparse
 import hashlib
 from pathlib import Path
@@ -8,7 +8,7 @@ import sys
 
 
 def package(output, development=False):
-    source = Path(__file__).resolve().parents[1] / 'skills/vmetal-cluster'
+    source = Path(__file__).resolve().parents[1] / 'skills/vxanvil-cluster'
     files = [source / 'SKILL.md', source / 'references/executor.md']
     manifest = source / 'references/runtime-artifacts.json'
     if manifest.is_file():
@@ -25,7 +25,7 @@ def package(output, development=False):
         for path in files:
             if path.is_symlink() or not path.is_file():
                 raise ValueError('Invalid runtime file: ' + str(path))
-            archive.write(path, str(Path('vmetal-cluster') / path.relative_to(source)))
+            archive.write(path, str(Path('vxanvil-cluster') / path.relative_to(source)))
     checksum = hashlib.sha256(output.read_bytes()).hexdigest()
     output.with_suffix(output.suffix + '.sha256').write_text(checksum + '  ' + output.name + '\n')
     return checksum

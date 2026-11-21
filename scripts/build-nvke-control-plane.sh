@@ -1,12 +1,17 @@
 #!/bin/bash
 set -euo pipefail
+# Accept existing automation without changing the new variable's precedence.
+for legacy_key in ${!VMETAL_@}; do
+    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
+    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
+done
 umask 077
 [[ $# == 3 || $# == 4 ]] || {
     echo "Usage: $0 dependency-base-image verified-artifact-dir output-image [host-kernel-config]" >&2
     exit 2
 }
 base_id=$(docker image inspect "$1" --format '{{.Id}}')
-base="vmetal-build-base:${base_id#sha256:}"
+base="vxanvil-build-base:${base_id#sha256:}"
 docker image tag "$1" "$base"
 [[ $(docker image inspect "$base" --format '{{.Id}}') == "$base_id" ]]
 artifacts=$(realpath "$2")
@@ -49,13 +54,13 @@ for tool in nvke-agent spire-agent; do
     install -D -m 0755 "$artifacts/$tool" "$context/root/usr/local/bin/$tool"
     install -D -m 0644 "$artifacts/$tool.service" "$context/root/etc/systemd/system/$tool.service"
 done
-portable_kernel=${VMETAL_PORTABLE_KERNEL_CONFIG:-0}
+portable_kernel=${VXANVIL_PORTABLE_KERNEL_CONFIG:-0}
 if [[ $portable_kernel == 1 ]]; then
     target_kernel=host-bind-v1
 else
     kernel_config=${4:-/boot/config-$(uname -r)}
     [[ -f $kernel_config ]] || { echo "Supply the running host kernel config." >&2; exit 1; }
-    target_kernel=${VMETAL_TARGET_KERNEL:-$(uname -r)}
+    target_kernel=${VXANVIL_TARGET_KERNEL:-$(uname -r)}
     if [[ $(basename "$kernel_config") == config-* ]]; then
         target_kernel=$(basename "$kernel_config")
         target_kernel=${target_kernel#config-}
@@ -63,18 +68,18 @@ else
     [[ $target_kernel =~ ^[a-zA-Z0-9.+_-]+$ ]]
     install -D -m 0644 "$kernel_config" "$context/root/boot/config-$target_kernel"
 fi
-install -m 0755 "$repo/scripts/vmetal-kubeadm" "$context/scripts/"
+install -m 0755 "$repo/scripts/vxanvil-kubeadm" "$context/scripts/"
 # The dependency image may be built online once. All node versions come from
 # the verified artifacts and the resulting image is shipped inside the bundle.
 {
-    printf 'ARG NVKE_NODE_IMAGE=vmetal-build-base:required\nFROM ${NVKE_NODE_IMAGE} AS assets\nCOPY root/ /\n'
+    printf 'ARG NVKE_NODE_IMAGE=vxanvil-build-base:required\nFROM ${NVKE_NODE_IMAGE} AS assets\nCOPY root/ /\n'
     sed '1,2d' "$repo/examples/nvke-docker-control-plane.Dockerfile"
 } >"$context/Dockerfile"
 # The agent validates charts through dpkg-query, so extracting files alone is
 # insufficient. This package has no dependencies or maintainer scripts.
 cp "$artifacts/${packages[1]}" "$context/ovn-charts.deb"
 sed -i '/^COPY root\//a COPY ovn-charts.deb /tmp/ovn-charts.deb\nRUN dpkg -i /tmp/ovn-charts.deb && rm /tmp/ovn-charts.deb' "$context/Dockerfile"
-helper=$(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1)
+helper=$(sha256sum "$repo/scripts/vxanvil-kubeadm" | cut -d' ' -f1)
 manifest=$(sha256sum "$artifacts/SHA256SUMS" | cut -d' ' -f1)
 docker build --build-arg "NVKE_NODE_IMAGE=$base" \
     --label vmetal.nvke.dev/kubernetes=v1.36.3 \

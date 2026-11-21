@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
 )
 
 type kubeadmFunc func(context.Context, string, bootstrap.Request) error
@@ -45,21 +45,21 @@ func TestCABPKBootstrapAndCleanup(t *testing.T) {
 			},
 		},
 	}}
-	host := &api.VMetalHost{
+	host := &api.VXAnvilHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + strings.Repeat("a", 32), Finalizers: []string{hostFinalizer}},
-		Spec:       api.VMetalHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker", AllowBootstrap: true},
-		Status: api.VMetalHostStatus{
+		Spec:       api.VXAnvilHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker", AllowBootstrap: true},
+		Status: api.VXAnvilHostStatus{
 			DiscoveryReady: true, ObservedAt: &metav1.Time{Time: metav1.Now().Time},
 		},
 	}
-	machine := &api.VMetalMachine{
+	machine := &api.VXAnvilMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "worker", Namespace: "default", UID: types.UID("infra-worker"),
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: capiVersion, Kind: "Machine", Name: "worker", UID: capiMachine.GetUID(),
 			}},
 		},
-		Spec: api.VMetalMachineSpec{HostRef: host.Name},
+		Spec: api.VXAnvilMachineSpec{HostRef: host.Name},
 	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -94,7 +94,7 @@ runcmd:
 		}
 		switch op.Action {
 		case "apply":
-			var stored api.VMetalMachine
+			var stored api.VXAnvilMachine
 			must(t, c.Get(ctx, req.NamespacedName, &stored))
 			if !stored.Status.BootstrapStarted || !strings.Contains(op.Plan.Config, "vmetal://infra-worker") {
 				t.Fatal("bootstrap started without persisting the intent or setting the kubelet identity")

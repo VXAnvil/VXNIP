@@ -1,4 +1,4 @@
-module github.com/vmetal-lab/cluster-api-provider-vmetal
+module github.com/VXAnvil/cluster-api-provider-vxanvil
 
 go 1.24.0
 

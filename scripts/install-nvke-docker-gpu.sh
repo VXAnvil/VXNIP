@@ -11,7 +11,7 @@ repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source "$layout"
 : "${CLUSTER:?}" "${MANAGER_IP:?}" "${LAN_CIDR:?}" "${DOCKER_CIDR:?}" "${CP_IP:?}"
 : "${POD_CIDR:?}" "${SERVICE_CIDR:?}" "${WORKER_IP:?}" "${WORKER_GATEWAY:?}"
-[[ $CLUSTER =~ ^vmetal-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$ ]] || fail "Choose a unique vmetal-* name."
+[[ $CLUSTER =~ ^(vxanvil|vmetal)-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$ ]] || fail "Choose a unique vxanvil-* name."
 network="$CLUSTER-routed"
 container="$CLUSTER-control-plane"
 volume="$container-var"
@@ -157,8 +157,8 @@ check_manager() {
         else
             [[ $kernel_mode == $(uname -r) ]] || fail "CP_IMAGE kernel config differs from this Docker host."
         fi
-        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]] || fail "CP_IMAGE must be a verified VMetal Kubernetes 1.36.3 image."
-        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == $(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1) ]] || fail "CP_IMAGE helper differs from this release."
+        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]] || fail "CP_IMAGE must be a verified VXAnvil Kubernetes 1.36.3 image."
+        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == $(sha256sum "$repo/scripts/vxanvil-kubeadm" | cut -d' ' -f1) ]] || fail "CP_IMAGE helper differs from this release."
     fi
     if docker network inspect "$network" >/dev/null 2>&1; then
         owned_docker "$network" network || fail "Existing Docker network is not owned by this installation."
@@ -226,12 +226,12 @@ control_plane() {
         docker network create --label "$marker=$CLUSTER" --subnet "$DOCKER_CIDR" \
             -o com.docker.network.bridge.gateway_mode_ipv4=routed "$network"
     fi
-    privilege bash "$repo/scripts/configure-vmetal-manager-network.sh" --install "$layout"
+    privilege bash "$repo/scripts/configure-vxanvil-manager-network.sh" --install "$layout"
     if ! docker container inspect "$container" >/dev/null 2>&1; then
         if [[ -z ${CP_IMAGE:-} ]]; then
         context=$(mktemp -d "$state/build.XXXXXXXX")
         mkdir "$context/scripts"
-        cp "$repo/scripts/vmetal-kubeadm" "$context/scripts/"
+        cp "$repo/scripts/vxanvil-kubeadm" "$context/scripts/"
         cp "$repo/examples/nvke-docker-control-plane.Dockerfile" "$context/Dockerfile"
         if ! docker build --build-arg "NVKE_NODE_IMAGE=$CP_BASE_IMAGE" -t "$image" "$context"; then
             rm -rf -- "$context"
@@ -320,7 +320,7 @@ YAML
         fail "NVKE published an unexpected workload API endpoint."
     wait_for 30 kube get --raw=/readyz
     kube wait --for=condition=Ready node -l node-role.kubernetes.io/control-plane --timeout=130s
-    OVN_MTU=${OVN_MTU:-$(python3 "$repo/scripts/vmetal-network.py" --peer "$WORKER_IP" --mtu-only)} \
+    OVN_MTU=${OVN_MTU:-$(python3 "$repo/scripts/vxanvil-network.py" --peer "$WORKER_IP" --mtu-only)} \
       bash "$repo/scripts/configure-nvke-baremetal-ovn.sh" --apply "$state/workload.kubeconfig" "$api"
     install -d -m 0700 "$state/worker"
     install -m 0644 "$PROVIDER_PUBLIC_KEY" "$state/worker/provider.pub"
@@ -360,7 +360,7 @@ check_worker() {
     else
         printf 'Workload API TLS will be checked after adding the /32 route through %s.\n' "$WORKER_GATEWAY"
     fi
-    python3 "$repo/scripts/vmetal-network.py" --peer "$CP_IP" --spire "$MANAGER_IP" \
+    python3 "$repo/scripts/vxanvil-network.py" --peer "$CP_IP" --spire "$MANAGER_IP" \
       --cidrs "$LAN_CIDR" "$DOCKER_CIDR" "$POD_CIDR" "$SERVICE_CIDR"
     [[ -x /usr/bin/nvidia-container-runtime ]] || fail "Install NVIDIA Container Toolkit."
     nvidia-smi --query-gpu=name,memory.free --format=csv,noheader

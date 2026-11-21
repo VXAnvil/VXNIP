@@ -22,13 +22,13 @@ class FakeAPI:
 
 class PolicyTests(unittest.TestCase):
     def setUp(self):
-        self.repository = "example/vmetal"
+        self.repository = "example/vxanvil"
         self.commit = "a" * 40
         self.run = {
             "id": 10, "run_attempt": 1, "head_sha": self.commit,
             "head_repository": {"full_name": self.repository}, "head_branch": "main",
             "event": "push", "status": "completed", "conclusion": "success",
-            "html_url": "https://github.com/example/vmetal/actions/runs/10",
+            "html_url": "https://github.com/example/vxanvil/actions/runs/10",
         }
         self.jobs = [{"id": i, "name": name, "run_attempt": 1,
                       "status": "completed", "conclusion": "success"}
@@ -62,7 +62,7 @@ class PolicyTests(unittest.TestCase):
             self.check()
 
     def test_fork_repository_cannot_approve_release(self):
-        self.run["head_repository"]["full_name"] = "fork/vmetal"
+        self.run["head_repository"]["full_name"] = "fork/vxanvil"
         with self.assertRaises(policy.PolicyError):
             self.check()
 

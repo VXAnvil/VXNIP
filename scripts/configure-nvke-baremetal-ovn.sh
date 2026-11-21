@@ -48,7 +48,7 @@ patch=$(jq -c '
     | .spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions as $expressions
     | (if any($expressions[]; .key == "vmetal.nvke.dev/gateway") then
         if any($expressions[]; .key=="vmetal.nvke.dev/gateway" and .operator=="NotIn" and .values==["local"])
-        then [] else error("Unexpected existing VMetal gateway selector") end
+        then [] else error("Unexpected existing VXAnvil gateway selector") end
       else [
         {op:"test", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions", value:$expressions},
         {op:"add", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/-", value:{key:"vmetal.nvke.dev/gateway",operator:"NotIn",values:["local"]}}

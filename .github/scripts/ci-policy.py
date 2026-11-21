@@ -62,7 +62,7 @@ class GitHub:
             request = Request(f"{self.base}{path}{separator}per_page=100&page={page}", headers={
                 "Authorization": "Bearer " + self.token,
                 "Accept": "application/vnd.github+json",
-                "User-Agent": "vmetal-ci-policy",
+                "User-Agent": "vxanvil-ci-policy",
             })
             with urlopen(request, timeout=30) as response:
                 batch = json.load(response)[key]

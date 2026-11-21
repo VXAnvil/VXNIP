@@ -12,8 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
 )
 
 const (
@@ -28,7 +28,7 @@ type MachineReconciler struct {
 }
 
 func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var machine api.VMetalMachine
+	var machine api.VXAnvilMachine
 	gvk := infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine")
 	machine.SetGroupVersionKind(gvk)
 	if err := r.Get(ctx, req.NamespacedName, &machine); err != nil {
@@ -47,7 +47,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	var host api.VMetalHost
+	var host api.VXAnvilHost
 	err := r.Get(ctx, client.ObjectKey{Name: machine.Spec.HostRef}, &host)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return ctrl.Result{}, err
@@ -108,7 +108,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return r.reconcileBootstrap(ctx, &machine, &host)
 }
 
-func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VMetalMachine, phase, reason string) (ctrl.Result, error) {
+func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VXAnvilMachine, phase, reason string) (ctrl.Result, error) {
 	// Poll for changes to the requested host. This also repairs status from
 	// the authoritative claim after a restart between the two writes.
 	result := ctrl.Result{RequeueAfter: allocationPoll}
@@ -120,7 +120,7 @@ func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VMetalMa
 	return result, r.updateMachine(ctx, machine, true)
 }
 
-func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VMetalMachine, status bool) error {
+func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VXAnvilMachine, status bool) error {
 	// API decoding can discard TypeMeta for typed objects. Preserve it across
 	// writes because this Go type is registered under two API groups.
 	gvk := infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine")
@@ -133,7 +133,7 @@ func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VMet
 }
 
 func (r *MachineReconciler) SetupWithManager(manager ctrl.Manager) error {
-	machine := &api.VMetalMachine{}
+	machine := &api.VXAnvilMachine{}
 	machine.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine"))
 	builder := ctrl.NewControllerManagedBy(manager).For(machine)
 	if r.InfrastructureGroup == api.InfrastructureGroupVersion {

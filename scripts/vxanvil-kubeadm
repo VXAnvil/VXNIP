@@ -1,0 +1,391 @@
+#!/usr/bin/python3
+"""Apply or reset a kubeadm or NVKE allocation on an opted-in lab node."""
+
+import fcntl
+import hashlib
+import ipaddress
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import shutil
+import subprocess
+import sys
+import syslog
+
+ROOT = Path("/var/lib/vmetal-kubeadm")
+STATE = ROOT / "current.json"
+CONFIG = ROOT / "kubeadm.yaml"
+LOG = ROOT / "kubeadm.log"
+PKI = Path("/etc/kubernetes/pki")
+CNI = Path("/etc/cni/net.d")
+ETCD = Path("/var/lib/etcd")
+PACKAGE_MARKERS = {PKI.parent / "manifests/.kubelet-keep", CNI / ".kubernetes-cni-keep"}
+CERTS = {
+    "ca.crt", "ca.key", "etcd/ca.crt", "etcd/ca.key",
+    "front-proxy-ca.crt", "front-proxy-ca.key", "sa.key", "sa.pub",
+}
+AGENT_ENV = {
+    "nke-agent.service": Path("/etc/default/nke-agent"),
+    "nvke-agent.service": Path("/etc/default/nvke-agent"),
+}
+AGENT_CA = {
+    "nke-agent.service": Path("/etc/nke/controller-ca.crt"),
+    "nvke-agent.service": Path("/etc/nvke/controller-ca.crt"),
+}
+SPIRE_CONFIG = Path("/etc/spire-agent/agent.conf")
+SPIRE_BUNDLE = Path("/etc/spire-agent/initial-trust-bundle.pem")
+SPIRE_STATE = Path("/var/lib/spire-agent")
+NVKE_STATE = Path("/var/lib/nvke/state.json")
+NVKE_WORKER_RUNTIME_UNIT = Path("/etc/systemd/system/vmetal-nvke-containerd.service")
+NVKE_WORKER_RUNTIME_SOCKET = Path("/run/vmetal-nvke-containerd/containerd.sock")
+RECOVERY_SERVICE = Path("/etc/systemd/system/vmetal-nvke-allocation-recovery.service")
+RECOVERY_TIMER = RECOVERY_SERVICE.with_suffix(".timer")
+NVKE_KUBEADM_FILES = (
+    "patches/kube-apiserver-base-graceful-shutdown+merge.yaml",
+    "patches/kubeletconfiguration0+merge.yaml",
+    "policies/audit-policy.yaml",
+    "oidc/auth-config.yaml",
+    "kube-api-encryption/encryption-config.yaml",
+)
+KUBELET_DROPIN = Path("/etc/systemd/system/kubelet.service.d/90-vmetal-nvke.conf")
+KUBELET_ENV = ROOT / "nvke-kubelet.env"
+NVKE_TEMP = tuple(Path("/tmp") / name for name in (
+    "kubeadm-init-config.yaml", "kubeadm-join-config.yaml", "kubeadm-reset-config.yaml",
+))
+AGENT_ARGS = re.compile(
+    r'AGENT_ARGS="--secure-server-port [0-9]{1,5}'
+    r'( --nvke-controller-client-ca-bundle=/etc/(nke|nvke)/controller-ca\.crt)?'
+    r'( --grpc-auth-mode=tls-jwt --dsx-identity-exchange-url=https://[a-zA-Z0-9.:/_%-]+)?"\n?'
+)
+SPIRE_JOIN_TOKEN = re.compile(
+    r'agent \{ data_dir = "/var/lib/spire-agent" log_level = "DEBUG" '
+    r'server_address = "[a-zA-Z0-9.:_-]+" server_port = "[0-9]+" trust_domain = "[a-zA-Z0-9.-]+" '
+    r'trust_bundle_path = "/etc/spire-agent/initial-trust-bundle.pem" join_token = "[a-zA-Z0-9_.:-]+" \} '
+    r'plugins \{ KeyManager "disk" \{ plugin_data \{ directory = "/var/lib/spire-agent" \} \} '
+    r'NodeAttestor "join_token" \{ plugin_data \{\} \} WorkloadAttestor "unix" \{ plugin_data \{\} \} \}'
+)
+
+class HelperError(Exception):
+    pass
+
+
+def save_state(uid, phase, **fields):
+    temporary = ROOT / "current.tmp"
+    temporary.write_text(json.dumps({"uid": uid, "phase": phase, **fields}))
+    temporary.replace(STATE)
+
+
+def kubeadm(*args):
+    with LOG.open("ab") as output:
+        subprocess.run(
+            ["/usr/bin/kubeadm", *args], check=True, timeout=630,
+            stdout=output, stderr=subprocess.STDOUT,
+        )
+
+
+def is_package_marker(path):
+    return path in PACKAGE_MARKERS and not path.is_symlink() and path.is_file() and path.stat().st_size == 0
+
+
+def has_files(directory):
+    return any(not is_package_marker(path) and (path.is_symlink() or not path.is_dir())
+               for path in directory.rglob("*"))
+
+
+def assert_clean_node():
+    if any(has_files(directory) for directory in (PKI.parent, CNI, ETCD)):
+        raise HelperError("existing Kubernetes, CNI, or etcd state; use a dedicated clean node")
+
+
+def apply(uid, state, plan):
+    if (ROOT / ("retired-" + uid)).exists():
+        raise HelperError("this allocation was retired")
+    if state:
+        if state["phase"] == "complete":
+            return
+        raise HelperError("bootstrap was interrupted or failed; inspect the log and delete the Machine to reset")
+    if plan["command"] not in {"init", "join"} or not plan["config"]:
+        raise HelperError("unsupported plan")
+    assert_clean_node()
+    for entry in plan["files"]:
+        if entry["path"] not in {str(PKI / name) for name in CERTS} or entry["mode"] not in {"0600", "0640"}:
+            raise HelperError("unsupported bootstrap file")
+    if plan["command"] == "join" and plan["files"]:
+        raise HelperError("worker bootstrap must not write control-plane keys")
+
+    save_state(uid, "started")
+    try:
+        for entry in plan["files"]:
+            path = Path(entry["path"])
+            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            with path.open("x") as destination:
+                destination.write(entry["content"])
+            path.chmod(int(entry["mode"], 8))
+        CONFIG.write_text(plan["config"])
+        kubeadm(plan["command"], "--config", str(CONFIG))
+        save_state(uid, "complete")
+    finally:
+        CONFIG.unlink(missing_ok=True)
+
+
+def reset_kubernetes(mode):
+    args = ["reset", "--force"]
+    if mode == "nvke" and NVKE_WORKER_RUNTIME_UNIT.exists():
+        if not NVKE_WORKER_RUNTIME_SOCKET.is_socket():
+            raise HelperError("the independent NVKE worker runtime socket is unavailable")
+        args.extend(("--cri-socket", f"unix://{NVKE_WORKER_RUNTIME_SOCKET}"))
+    kubeadm(*args)
+    if mode == "nvke":
+        for relative in NVKE_KUBEADM_FILES:
+            path = PKI.parent / relative
+            if not PKI.parent.is_symlink() and not path.parent.is_symlink():
+                path.unlink(missing_ok=True)
+    if CNI.exists():
+        for path in CNI.iterdir():
+            if is_package_marker(path):
+                continue
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+    if has_files(PKI.parent):
+        raise HelperError("kubeadm reset left files in /etc/kubernetes; inspect before reuse")
+    if has_files(ETCD):
+        raise HelperError("kubeadm reset left etcd data; inspect before reuse")
+    CONFIG.unlink(missing_ok=True)
+    LOG.unlink(missing_ok=True)
+
+
+def systemctl(*args):
+    subprocess.run(
+        ["/usr/bin/systemctl", *args], check=True, timeout=90,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def nvke_plan_files(uid, plan):
+    unit = plan["unit"]
+    if unit not in AGENT_ENV or plan["providerID"] != "vmetal://" + uid:
+        raise HelperError("unexpected NVKE unit or provider ID")
+    address = ipaddress.IPv4Address(plan["nodeIP"])
+    if address.is_loopback or address.is_link_local or address.is_multicast or address.is_unspecified:
+        raise HelperError("invalid NVKE node IP")
+    env_path, ca_path = AGENT_ENV[unit], AGENT_CA[unit]
+    modes = {env_path: "0600", ca_path: "0644", SPIRE_CONFIG: "0640", SPIRE_BUNDLE: "0644"}
+    files = {}
+    for entry in plan["files"]:
+        path = Path(entry["path"])
+        if path not in modes or path in files or entry["mode"] != modes[path]:
+            raise HelperError("unsupported NVKE file")
+        files[path] = (entry["content"], int(entry["mode"], 8))
+    env = files.get(env_path, ("", 0))[0]
+    if not AGENT_ARGS.fullmatch(env):
+        raise HelperError("unsupported NVKE agent arguments")
+    if ("--nvke-controller-client-ca-bundle=" in env) != (ca_path in files) or (
+        ca_path in files and ("=" + str(ca_path) not in env or
+                              not files[ca_path][0].startswith("-----BEGIN CERTIFICATE-----"))
+    ):
+        raise HelperError("NVKE agent arguments and controller CA do not match")
+    if (SPIRE_CONFIG in files) != (SPIRE_BUNDLE in files):
+        raise HelperError("incomplete SPIRE configuration")
+    if SPIRE_CONFIG in files:
+        config = " ".join(" ".join(
+            line for line in files[SPIRE_CONFIG][0].splitlines() if not line.strip().startswith("#")
+        ).split())
+        if not SPIRE_JOIN_TOKEN.fullmatch(config) or not files[SPIRE_BUNDLE][0].startswith("-----BEGIN CERTIFICATE-----"):
+            raise HelperError("unsupported SPIRE join-token configuration")
+    files[KUBELET_ENV] = (f'KUBELET_EXTRA_ARGS="--provider-id=vmetal://{uid} --node-ip={address}"\n', 0o600)
+    files[KUBELET_DROPIN] = (f"[Service]\nEnvironmentFile={KUBELET_ENV}\n", 0o644)
+    return files
+
+
+def install_nvke_recovery(state):
+    unit = state["unit"]
+    if unit not in AGENT_ENV:
+        raise HelperError("unsupported NVKE agent unit for recovery")
+    runtime = NVKE_WORKER_RUNTIME_UNIT.name if NVKE_WORKER_RUNTIME_UNIT.is_file() else "containerd.service"
+    services = [runtime, *(["spire-agent.service"] if state["spire"] else []), unit]
+    starts = "\n".join(f"ExecStart=/usr/bin/systemctl start {service}" for service in services)
+    # The allocation can be complete before NVKE runs kubeadm. Start kubelet
+    # only if kubeadm has left both its credentials and configuration.
+    kubelet_start = (
+        "ExecStart=/bin/sh -c 'if [ -s /etc/kubernetes/kubelet.conf ] && "
+        "[ -s /var/lib/kubelet/config.yaml ]; then exec /usr/bin/systemctl start kubelet.service; fi'"
+    )
+    recovery = {
+        RECOVERY_SERVICE: f"""[Unit]
+Description=Restore services for the allocated NVKE node
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=15s
+TimeoutStartSec=120s
+{starts}
+{kubelet_start}
+""",
+        # The packaged NVKE agent is ordered after multi-user.target. Trigger
+        # recovery via a timer so boot does not wait on the agent in that target.
+        RECOVERY_TIMER: """[Unit]
+Description=Run NVKE allocation recovery after boot
+
+[Timer]
+OnBootSec=10s
+
+[Install]
+WantedBy=timers.target
+""",
+    }
+    for path, content in recovery.items():
+        temporary = path.with_suffix(path.suffix + ".vmetal-next")
+        temporary.unlink(missing_ok=True)
+        with temporary.open("x") as stream:
+            stream.write(content)
+        temporary.chmod(0o644)
+        temporary.replace(path)
+    systemctl("daemon-reload")
+    systemctl("enable", RECOVERY_TIMER.name)
+
+
+def apply_nvke(uid, state, plan):
+    if (ROOT / ("retired-" + uid)).exists():
+        raise HelperError("this allocation was retired")
+    unit = plan["unit"]
+    files = nvke_plan_files(uid, plan)
+    digest = hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest()
+    metadata = {
+        "mode": "nvke", "digest": digest, "unit": unit,
+        "files": [str(path) for path in files], "spire": SPIRE_CONFIG in files,
+    }
+    if state:
+        if state.get("digest") != digest:
+            raise HelperError("NVKE bootstrap changed for the active allocation")
+        if state["phase"] == "complete":
+            install_nvke_recovery(state)
+            return
+    else:
+        assert_clean_node()
+        all_paths = (*AGENT_ENV.values(), *AGENT_CA.values(), SPIRE_CONFIG, SPIRE_BUNDLE,
+                     KUBELET_ENV, KUBELET_DROPIN, NVKE_STATE, *NVKE_TEMP)
+        if any(path.exists() or path.is_symlink() for path in all_paths) or has_files(SPIRE_STATE):
+            raise HelperError("existing agent state; use a dedicated unconfigured node")
+        save_state(uid, "started", **metadata)
+    if metadata["spire"] and not SPIRE_CONFIG.parent.exists():
+        SPIRE_CONFIG.parent.mkdir(mode=0o750)
+        os.chown(SPIRE_CONFIG.parent, 0, pwd.getpwnam("spire").pw_gid)
+        # The process-wide umask protects Secrets but would also prevent
+        # the SPIRE service user from traversing the new directory.
+        SPIRE_CONFIG.parent.chmod(0o750)
+    for path, (content, mode) in files.items():
+        path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".vmetal-next")
+        tmp.unlink(missing_ok=True)
+        with tmp.open("x") as destination:
+            destination.write(content)
+        if path == SPIRE_CONFIG:
+            os.chown(tmp, 0, pwd.getpwnam("spire").pw_gid)
+        tmp.chmod(mode)
+        tmp.replace(path)
+    systemctl("daemon-reload")
+    if metadata["spire"]:
+        systemctl("restart", "spire-agent.service")
+    systemctl("restart", unit)
+    install_nvke_recovery(metadata)
+    save_state(uid, "complete", **metadata)
+
+
+def reset(uid, state, mode):
+    # Disallow a delayed request for this UID after reset, even if it never ran.
+    (ROOT / ("retired-" + uid)).touch()
+    if not state:
+        return
+    if mode == "nvke":
+        if RECOVERY_TIMER.is_file():
+            systemctl("disable", "--now", RECOVERY_TIMER.name)
+        if RECOVERY_SERVICE.is_file():
+            systemctl("stop", RECOVERY_SERVICE.name)
+        for path in (RECOVERY_SERVICE, RECOVERY_TIMER):
+            path.unlink(missing_ok=True)
+            path.with_suffix(path.suffix + ".vmetal-next").unlink(missing_ok=True)
+        systemctl("stop", state["unit"])
+        if state["spire"]:
+            systemctl("stop", "spire-agent.service")
+    reset_kubernetes(mode)
+    if mode == "nvke":
+        for raw in state["files"]:
+            path = Path(raw)
+            path.unlink(missing_ok=True)
+            path.with_name(path.name + ".vmetal-next").unlink(missing_ok=True)
+        for path in (NVKE_STATE, *NVKE_TEMP):
+            path.unlink(missing_ok=True)
+        if state["spire"] and SPIRE_STATE.exists():
+            for path in SPIRE_STATE.iterdir():
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+        systemctl("daemon-reload")
+    STATE.unlink()
+
+
+def main():
+    if os.geteuid() != 0:
+        raise HelperError("the helper requires root")
+    if sys.argv[1:] == ["--install-recovery"]:
+        os.umask(0o077)
+        with (ROOT / "lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            state = json.loads(STATE.read_text())
+            if state.get("mode") != "nvke" or state.get("phase") != "complete":
+                raise HelperError("a completed NVKE allocation is required")
+            install_nvke_recovery(state)
+        return
+    if len(sys.argv) != 1:
+        raise HelperError("unknown command-line argument")
+    request = json.loads(sys.stdin.buffer.read(2 * 1024 * 1024 + 1))
+    uid = request["ownerUID"]
+    if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", uid):
+        raise HelperError("invalid allocation UID")
+    identity = Path("/etc/machine-id").read_text().strip()
+    # Protocol v1 identity namespace, fixed across future branding changes.
+    observed = hashlib.sha256(("vmetal:" + identity).encode()).hexdigest()
+    if request["machineID"] != observed:
+        raise HelperError("machine identity changed")
+    os.umask(0o077)
+    ROOT.mkdir(mode=0o700, exist_ok=True)
+    with (ROOT / "lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        state = json.loads(STATE.read_text()) if STATE.exists() else None
+        if state and state["uid"] != uid:
+            raise HelperError("another allocation owns this host")
+        action = request["action"]
+        mode = "nvke" if action in {"apply-nvke", "reset-nvke"} else "kubeadm"
+        if state and state.get("mode", "kubeadm") != mode:
+            raise HelperError("allocation bootstrap mode changed")
+        if action == "apply":
+            apply(uid, state, request["plan"])
+        elif action == "apply-nvke":
+            apply_nvke(uid, state, request["agent"])
+        elif action in {"reset", "reset-nvke"}:
+            reset(uid, state, mode)
+        else:
+            raise HelperError("unknown action")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except HelperError as err:
+        syslog.openlog("vmetal-kubeadm")
+        syslog.syslog(syslog.LOG_ERR, str(err))
+        sys.exit(1)
+    except (ValueError, OSError, subprocess.SubprocessError, KeyError, TypeError):
+        # Exceptions from payload parsing and child processes must not leak secrets.
+        print("VMetal kubeadm helper failed; inspect VM prerequisites and its root-only log", file=sys.stderr)
+        sys.exit(1)

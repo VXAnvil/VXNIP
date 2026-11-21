@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan and resume migration of released legacy hosts to the VMetal inventory."""
+"""Plan and resume migration of released legacy hosts to the VXAnvil inventory."""
 import argparse
 import hashlib
 import json

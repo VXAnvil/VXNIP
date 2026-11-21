@@ -1,6 +1,6 @@
 # Executor usage and contract
 
-The caller needs Python 3.10+ and OpenSSH on macOS/Linux. Runtime paths below are relative to the installed skill. No VMetal checkout or node artifacts are required on the caller. Keep real connections, plans, logs and snapshots in a private directory outside Git.
+The caller needs Python 3.10+ and OpenSSH on macOS/Linux. Runtime paths below are relative to the installed skill. No VXAnvil checkout or node artifacts are required on the caller. Keep real connections, plans, logs and snapshots in a private directory outside Git.
 
 ## Select the mode before execution
 
@@ -81,7 +81,7 @@ Default release mode downloads SHA-256-pinned manager and node runtimes for AMD6
 
 Developer-only `artifact_mode: source` compiles on the targets. In that mode, manager-native workers receive the manager's verified artifacts. Each other architecture builds natively on its first suitable worker (6 GiB available RAM and 80 GiB free disk required), and shares that verified artifact tree only with the same architecture. No AMD64 package is reused for ARM64 and no QEMU/binfmt changes are made. The native node-only builder rejects apt removals/upgrades, uses a unique build image name and does not restart shared Docker/containerd or build an extra management stack. An incompatible dependency transaction blocks and requires a separately prepared native build environment; it is not forced through.
 
-The new manager installs runtime prerequisites and Docker, loads Open vSwitch, verifies downloaded runtime assets, initializes Kind/CAPI/NVKE/SPIRE/VMetal, persists inotify/IPv4 forwarding and starts a privileged Docker workload control plane. The topology is an evaluation path, not HA/production-qualified. GPU drivers, GPU Operator and models are outside scope.
+The new manager installs runtime prerequisites and Docker, loads Open vSwitch, verifies downloaded runtime assets, initializes Kind/CAPI/NVKE/SPIRE/VXAnvil, persists inotify/IPv4 forwarding and starts a privileged Docker workload control plane. The topology is an evaluation path, not HA/production-qualified. GPU drivers, GPU Operator and models are outside scope.
 
 ## Tailscale create mode
 
@@ -91,7 +91,7 @@ Routes and grants may require approval by the tailnet administrator. The worker 
 
 ## Public inputs
 
-- VMetal: `https://github.com/vmetal-lab/cluster-api-provider-vmetal.git`, revision `633b2efb1d3b087376b995c906887a3d8c994ba7`.
+- VXAnvil: `https://github.com/VXAnvil/cluster-api-provider-vxanvil.git`, revision `633b2efb1d3b087376b995c906887a3d8c994ba7`.
 - NVKE: `https://github.com/dsx-ai-factory/nvke.git`, revision `2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049`.
 - Publisher/developer build tools: Go 1.27.4, Kind 0.32.0, kubectl 1.36.3, clusterctl 1.13.6 and Helm 4.2.4 from architecture-specific upstream downloads, verified against HTTPS publisher metadata/checksums before execution. Git checkouts are checked against full commit IDs.
 - Native node packages, OVN/SPIRE agents, unit files and images are built once by the native publisher through the fixed public-source procedure; NVKE package builders use committed upstream locks. SHA256SUMS and image IDs are retained and checked before packaging/installation.
@@ -117,6 +117,10 @@ python3 scripts/reconcile.py --plan /private/path/plan.json \
 
 Receipts cover management/build/control-plane/handoff/join, native architecture builds, shared-host baselines, Tailscale worker gates and worker preparation. An active process, missing receipt or incomplete staging requires inspection. Do not delete state to bypass the guard. The Tailscale approval gate is separately classified as safely resumable; arbitrary installer failures are not.
 
-New-install verification checks the exact TLS API, current Host generation/claim, VMetalMachine and CAPI owner/infraRef/nodeRef, Node Ready/address/providerID, public agent certificate expiry, ordinary Pod HTTP both ways and Service DNS/HTTP, followed by bare-metal preservation checks. Temporary namespaces are trap-cleaned; interruption can leave a namespace requiring exact-name inspection/cleanup. This is not a full SPIFFE audit or a health guarantee.
+New-install verification checks the exact TLS API, current Host generation/claim, VXAnvilMachine and CAPI owner/infraRef/nodeRef, Node Ready/address/providerID, public agent certificate expiry, ordinary Pod HTTP both ways and Service DNS/HTTP, followed by bare-metal preservation checks. Temporary namespaces are trap-cleaned; interruption can leave a namespace requiring exact-name inspection/cleanup. This is not a full SPIFFE audit or a health guarantee.
 
 CAPI v1beta2 may publish a name-only `status.nodeRef`. The verifier checks a supplied Node UID strictly; if omitted it reports `node_ref_uid_verified: false`, retains the observed Node UID for preservation comparisons, and still requires the exact allocation-derived providerID, physical Host identity, expected address and Node Ready. It does not invent a UID or accept a mismatched providerID.
+
+## Name compatibility
+
+The skill is named `vxanvil-cluster`; its fixed historical runtimes still require `vmetal-*` site names and retain installed paths/API identities. Keep those identifiers and existing plan/runtime digests unchanged. Published runtime archive names and checksums are preserved; see the repository name-compatibility guide before upgrading an existing site.

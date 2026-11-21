@@ -1,6 +1,6 @@
 # Prepare public inputs on Ubuntu
 
-Use this page when you have no existing NVKE checkout, management bundle or node artifacts. It prepares the inputs for [NVKE setup](nvke-quickstart.md) using public source repositories, upstream downloads and the public VMetal controller image. No GitHub or NVIDIA account is required for this pinned evaluation path.
+Use this page when you have no existing NVKE checkout, management bundle or node artifacts. It prepares the inputs for [NVKE setup](nvke-quickstart.md) using public source repositories and upstream downloads. No GitHub or NVIDIA account is required for this pinned evaluation path. This guide deliberately reproduces rc.2: its binary and script names retain the old spelling. See [name compatibility](compatibility.md#vxanvil-name-compatibility) for the current source names.
 
 This is an evaluation setup for Ubuntu 24.04 on AMD64 or ARM64. The complete public-input replay was verified with ARM64 management and worker VMs; the commands select native AMD64 or ARM64 tools and packages. Use a fresh management host with sudo, at least 6 CPUs, 16 GiB RAM and 100 GiB free disk, plus a separate unallocated Ubuntu worker. A CPU-only worker is enough for the first Ready-node check. GPU software and models are separate steps. Do not run host preparation against a machine already allocated to another cluster.
 
@@ -24,9 +24,9 @@ Use normal public build-file permissions. A private `umask 077` makes the upstre
 ```bash
 set -euo pipefail
 umask 022
-export VMETAL_WORKSPACE="$HOME/public-vmetal"
-mkdir -p "$VMETAL_WORKSPACE"
-cd "$VMETAL_WORKSPACE"
+export VXANVIL_WORKSPACE="$HOME/public-vxanvil"
+mkdir -p "$VXANVIL_WORKSPACE"
+cd "$VXANVIL_WORKSPACE"
 mkdir -p downloads artifacts logs tools
 root=$PWD
 arch=$(dpkg --print-architecture)
@@ -81,7 +81,7 @@ export PATH="/usr/local/go/bin:$root/tools:$PATH"
 go version
 
 git clone --depth 1 --branch v0.0.1-rc.2 \
-  https://github.com/vmetal-lab/cluster-api-provider-vmetal.git provider
+  https://github.com/VXAnvil/cluster-api-provider-vxanvil.git provider
 git init nvke
 git -C nvke remote add origin https://github.com/dsx-ai-factory/nvke.git
 git -C nvke fetch --depth 1 origin 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049
@@ -125,21 +125,15 @@ install -m 0755 "downloads/linux-$arch/helm" tools/helm
 
 ## Obtain the Provider and build nvkectl
 
-The current installer takes a controller executable in its tools directory. Extract the architecture-matching executable from the public multi-platform Release image; no registry login is needed. The stopped extraction container is removed afterwards.
+The historical rc.2 installer takes a controller executable in its tools directory. Build it natively from the exact public checkout already verified above. This avoids relying on a GHCR namespace that changed when the repository was renamed.
 
 ```bash
-provider_image=ghcr.io/vmetal-lab/cluster-api-provider-vmetal:v0.0.1-rc.2
-docker pull "$provider_image" >logs/provider-pull.log 2>&1
-cid=$(docker create "$provider_image")
-trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
-docker cp "$cid:/usr/local/bin/vmetal-controller" tools/vmetal-controller
-docker rm "$cid" >/dev/null
-trap - EXIT
-chmod 0755 tools/vmetal-controller
-docker image inspect "$provider_image" >logs/provider-image.json
+(cd provider && go build -trimpath -o "$root/tools/vmetal-controller" ./cmd/vmetal-controller)
 make -C nvke/cli build
 install -m 0755 nvke/cli/bin/nvkectl tools/nvkectl
 ```
+
+The new source entrypoint is `cmd/vxanvil-controller`; this pinned rc.2 replay intentionally uses the command present in that historical commit. Do not mix the two source trees or install a different controller over an existing allocated site as part of this fresh-install guide.
 
 The NVKE controller image is built below from the exact public checkout, with the build context at the NVKE repository root. This path does not rely on permission to pull NVKE's published controller image.
 
@@ -150,14 +144,14 @@ The reference package builders download and verify the Kubernetes artifacts in t
 ```bash
 make -C nvke/os-image/packages/kubeadm-distro debs ARCH="$arch" K8S_VERSIONS=v1.36.3 DEB_REVISION=1 OUT_DIR="$root/artifacts" >logs/kubeadm-deb.log 2>&1
 BUNDLE_ARCH="$arch" bash nvke/controller/hack/ci/prepare-capd-bundles.sh "$root/artifacts" >logs/ovn-spire.log 2>&1
-CAPD_KINDEST_NODE_PLATFORM="linux/$arch" CAPD_KINDEST_NODE_TAG=v1.36.4 CAPD_KINDEST_NODE_IMAGE=vmetal-public-node-base:2f31480b \
+CAPD_KINDEST_NODE_PLATFORM="linux/$arch" CAPD_KINDEST_NODE_TAG=v1.36.4 CAPD_KINDEST_NODE_IMAGE=vxanvil-public-node-base:2f31480b \
  CAPD_NODE_AGENT_LOCAL_BUILD=true NODE_AGENT_VERSION=public-2f31480b CAPD_SPIRE_ATTESTATION_METHOD=joinToken \
  SPIRE_AGENT_BUNDLE_PATH="$root/artifacts/spire-agent.tgz" \
  CAPD_CNI_CHARTS_DEB_PATH="$root/artifacts/nvke-cni-ovn-charts-2.4.2_2.4.2_$arch.deb" \
  CAPD_CNI_IMAGES_DEB_PATH="$root/artifacts/nvke-cni-ovn-images-2.4.2_2.4.2_$arch.deb" \
  CAPD_HELM_DEB_PATH="$root/artifacts/nke-e2e-helm.deb" \
  bash nvke/controller/hack/capd-kindest-node/build-image.sh >logs/dependency-base.log 2>&1
-cid=$(docker create vmetal-public-node-base:2f31480b)
+cid=$(docker create vxanvil-public-node-base:2f31480b)
 trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
 for tool in nvke-agent spire-agent; do
  docker cp "$cid:/usr/local/bin/$tool" "artifacts/$tool"
@@ -176,20 +170,20 @@ The profile image uses NVKE's **public test fixtures and matching runbooks**, no
 
 ```bash
 docker build -f nvke/controller/Dockerfile --build-arg BUILD_VERSION=2f31480b \
-  -t vmetal-public-nvke-controller:2f31480b nvke
+  -t vxanvil-public-nvke-controller:2f31480b nvke
 docker build -f nvke/controller/test/fixtures/Dockerfile \
   -t docker.local/cwe-profiles:public-2f31480b nvke/controller/test/fixtures
 
 bash provider/scripts/build-nvke-control-plane.sh \
-  vmetal-public-node-base:2f31480b "$root/artifacts" \
-  vmetal-control-plane:public-1.36.3 "/boot/config-$(uname -r)"
+  vxanvil-public-node-base:2f31480b "$root/artifacts" \
+  vxanvil-control-plane:public-1.36.3 "/boot/config-$(uname -r)"
 
 export NVKE_CHECKOUT="$root/nvke"
 export LINUX_TOOL_DIR="$root/tools"
 export KIND_NODE_IMAGE=kindest/node:v1.36.4
-export NVKE_CONTROLLER_IMAGE=vmetal-public-nvke-controller:2f31480b
+export NVKE_CONTROLLER_IMAGE=vxanvil-public-nvke-controller:2f31480b
 export NVKE_PROFILE_IMAGE=docker.local/cwe-profiles:public-2f31480b
-export VMETAL_CONTROL_PLANE_IMAGE=vmetal-control-plane:public-1.36.3
+export VMETAL_CONTROL_PLANE_IMAGE=vxanvil-control-plane:public-1.36.3
 
 bash provider/scripts/package-nvke-management.sh \
   "$NVKE_CHECKOUT" "$LINUX_TOOL_DIR" "$KIND_NODE_IMAGE" \
@@ -205,6 +199,6 @@ The result is:
 - `artifacts/`: verified native worker packages, agents, units and their checksum manifest;
 - `provider/`: the public Provider source checkout.
 
-Continue with [management initialization and worker enrollment](nvke-quickstart.md#prepare-the-management-site). Use this bundle and `CP_IMAGE=vmetal-control-plane:public-1.36.3` for the Docker tenant. Do not repeat packaging into the same output directory.
+Continue with [management initialization and worker enrollment](nvke-quickstart.md#prepare-the-management-site). Use this bundle and `CP_IMAGE=vxanvil-control-plane:public-1.36.3` for the Docker tenant. Do not repeat packaging into the same output directory.
 
 All downloads and builds need outbound access to the public upstream hosts. Source-built image bytes can differ with package repository updates; the generated manifests identify the bytes you actually built. Keep those manifests and fixed source revisions for your installation.

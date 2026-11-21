@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan mixed VMetal/NVKE installations or read-only existing-cluster checks over trusted SSH."""
+"""Plan mixed VXAnvil/NVKE installations or read-only existing-cluster checks over trusted SSH."""
 import argparse
 import base64
 import fcntl
@@ -211,6 +211,11 @@ def runtime_hashes():
             for p in sorted(HERE.iterdir()) if p.suffix in ('.py', '.sh')}
 
 
+def workload_name(site):
+    prefix, suffix = site.split('-', 1)
+    return prefix + '-w-' + suffix
+
+
 def make_plan(config, get_facts=None):
     if set(config) - {'site', 'manager', 'workers', 'networks', 'mode', 'network_mode', 'existing', 'artifact_mode'}:
         raise ValueError('Unknown connection configuration fields')
@@ -226,7 +231,7 @@ def make_plan(config, get_facts=None):
         get_facts = lambda target: probe(target, require_root=mode == 'create')
     site = config.get('site', 'vmetal-lab')
     if not re.fullmatch(r'vmetal-[a-z0-9](?:[a-z0-9-]{0,18}[a-z0-9])?', site):
-        raise ValueError('Use a short vmetal-* site name')
+        raise ValueError('Pinned runtimes require a short vmetal-* site name')
     workers = config.get('workers', [])
     if not isinstance(workers, list) or not workers:
         raise ValueError('At least one worker is required')
@@ -290,7 +295,7 @@ def make_plan(config, get_facts=None):
             changes += ['Merge API/SPIRE route advertisements without SNAT; accept routes on workers',
                         'Require externally approved tailnet routes/grants; derive OVN MTU from all peer routes']
     return {'version': 3, 'created': int(time.time()), 'site': site, 'release': RELEASE,
-            'workload_cluster': 'vmetal-w-' + site.removeprefix('vmetal-') if mode == 'create' else existing['cluster'],
+            'workload_cluster': workload_name(site) if mode == 'create' else existing['cluster'],
             'manager': manager, 'workers': workers, 'networks': networks,
             'runtime': runtime_hashes(), 'execution': 'observe-existing' if mode == 'existing' else 'cpu-mixed-docker-control-plane',
             'mode': mode, 'network_mode': network_mode, 'artifact_mode': artifact_mode,
@@ -303,7 +308,7 @@ def checked_plan(path, expected=None):
         raise ValueError('Plan digest differs from the reviewed plan')
     if plan.get('version') != 3 or plan['release'] != RELEASE or plan['runtime'] != runtime_hashes():
         raise ValueError('Runtime/source changed; create and review a new plan')
-    if plan.get('mode') == 'create' and plan.get('workload_cluster') != 'vmetal-w-' + plan['site'].removeprefix('vmetal-'):
+    if plan.get('mode') == 'create' and plan.get('workload_cluster') != workload_name(plan['site']):
         raise ValueError('Workload cluster name must be distinct from the management site')
     return plan
 

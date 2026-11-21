@@ -42,7 +42,7 @@ ns=$("${k[@]}" create -f - -o jsonpath='{.metadata.name}' <<'YAML'
 apiVersion: v1
 kind: Namespace
 metadata:
-  generateName: vmetal-worker-check-
+  generateName: vxanvil-worker-check-
 YAML
 )
 for i in 0 1; do

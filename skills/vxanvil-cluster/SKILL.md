@@ -1,11 +1,11 @@
 ---
-name: vmetal-cluster
-description: Prepare or inspect NVKE Kubernetes clusters using VMetal on existing machines, including LANs with multiple AMD64/ARM64 machines, optional Tailscale and isolated bare-metal runtimes. Discover SSH targets, obtain native artifacts and verify results while preserving selected existing clusters. GPU workloads and allocation migration are separate tasks.
+name: vxanvil-cluster
+description: Prepare or inspect NVKE Kubernetes clusters using VXAnvil on existing machines, including LANs with multiple AMD64/ARM64 machines, optional Tailscale and isolated bare-metal runtimes. Discover SSH targets, obtain native artifacts and verify results while preserving selected existing clusters. GPU workloads and allocation migration are separate tasks.
 ---
 
-# VMetal cluster setup
+# VXAnvil cluster setup
 
-Turn explicitly supplied machine connections into a verified VMetal/NVKE cluster. Use the bundled executor instead of asking users to assemble source checkouts, packages, images and commands manually. Communicate in the user's language.
+Turn explicitly supplied machine connections into a verified VXAnvil/NVKE cluster. Use the bundled executor instead of asking users to assemble source checkouts, packages, images and commands manually. Communicate in the user's language.
 
 ## Inputs and supported path
 

@@ -63,7 +63,7 @@ install -d -o spire -g spire -m 0750 /var/lib/spire-agent
 install -m 0755 nvke-agent spire-agent /usr/local/bin/
 install -m 0644 nvke-agent.service spire-agent.service /etc/systemd/system/
 ln -sfn nvke-agent.service /etc/systemd/system/nke-agent.service
-install -o root -g root -m 0755 "$script_dir/vmetal-kubeadm" /usr/local/sbin/vmetal-kubeadm
+install -o root -g root -m 0755 "$script_dir/vxanvil-kubeadm" /usr/local/sbin/vmetal-kubeadm
 
 install -d -o "$ssh_user" -g "$group" -m 0700 "$home/.ssh"
 keys="$home/.ssh/authorized_keys"

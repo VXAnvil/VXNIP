@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	api "github.com/vmetal-lab/cluster-api-provider-vmetal/api/v1alpha1"
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/bootstrap"
+	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
 )
 
 func TestNVKEHandoffWithTwoHosts(t *testing.T) {
@@ -28,22 +28,22 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 		"apiVersion": capiVersion, "kind": "Cluster",
 		"metadata": map[string]any{"name": "lab", "namespace": "nvke-system"},
 	}}
-	nvkeMachine := &api.VMetalMachine{}
+	nvkeMachine := &api.VXAnvilMachine{}
 	nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VMetalMachine"))
 	c := fake.NewClientBuilder().WithScheme(scheme).
-		WithStatusSubresource(&api.VMetalHost{}, nvkeMachine).WithObjects(cluster).Build()
+		WithStatusSubresource(&api.VXAnvilHost{}, nvkeMachine).WithObjects(cluster).Build()
 	for index, tc := range []struct{ name, ip string }{
 		{"control-plane", "10.0.0.53"}, {"worker", "10.0.0.54"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			id := strings.Repeat(string(rune('a'+index)), 64)
 			now := metav1.Now()
-			host := &api.VMetalHost{
+			host := &api.VXAnvilHost{
 				ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32], Finalizers: []string{hostFinalizer}},
-				Spec: api.VMetalHostSpec{
+				Spec: api.VXAnvilHostSpec{
 					MachineID: id, NodeIP: tc.ip, SSHTarget: "ubuntu@" + tc.ip, AllowBootstrap: true,
 				},
-				Status: api.VMetalHostStatus{
+				Status: api.VXAnvilHostStatus{
 					DiscoveryReady: true, ObservedAt: &now,
 					Hardware: &apiextensionsv1.JSON{Raw: []byte(`{"interfaces":[{"addresses":["` + tc.ip + `/24"]}]}`)},
 				},
@@ -61,7 +61,7 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 				},
 			}}
 			must(t, c.Create(ctx, parent))
-			machine := &api.VMetalMachine{
+			machine := &api.VXAnvilMachine{
 				TypeMeta: metav1.TypeMeta{APIVersion: api.InfrastructureGroupVersion.String(), Kind: "VMetalMachine"},
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "nvke-system", Name: tc.name, UID: types.UID("infra-" + tc.name),
@@ -69,7 +69,7 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 						APIVersion: capiVersion, Kind: "Machine", Name: tc.name, UID: parent.GetUID(),
 					}},
 				},
-				Spec: api.VMetalMachineSpec{HostRef: host.Name, BootstrapMode: "NVKE"},
+				Spec: api.VXAnvilMachineSpec{HostRef: host.Name, BootstrapMode: "NVKE"},
 			}
 			must(t, c.Create(ctx, machine))
 			var operations []string

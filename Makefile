@@ -31,7 +31,7 @@ test:
 	mkdir -p .ci-output
 	PATH="$$KUBEBUILDER_ASSETS:$$PATH" bash -o pipefail -c '$(GO) test -race -count=1 -json -coverprofile=.ci-output/coverage.out ./... | tee .ci-output/go-test.jsonl'
 	$(PYTHON) .github/scripts/verify-go-tests.py .ci-output/go-test.jsonl
-	$(PYTHON) scripts/test_vmetal_kubeadm.py
+	$(PYTHON) scripts/test_vxanvil_kubeadm.py
 	$(PYTHON) scripts/test_management_tools.py
 	$(PYTHON) scripts/test_management_bundle.py
 	$(PYTHON) scripts/test_cluster_bootstrap.py
@@ -40,8 +40,8 @@ test:
 build:
 	$(GO) build ./...
 	@set -euo pipefail; output=$$(mktemp -d); trap 'rm -rf -- "$$output"' EXIT; for arch in amd64 arm64; do \
-	  CGO_ENABLED=0 GOOS=linux GOARCH=$$arch $(GO) build -trimpath -o "$$output/$$arch/vmetal" .; \
-	  CGO_ENABLED=0 GOOS=linux GOARCH=$$arch $(GO) build -trimpath -o "$$output/$$arch/vmetal-controller" ./cmd/vmetal-controller; \
+	  CGO_ENABLED=0 GOOS=linux GOARCH=$$arch $(GO) build -trimpath -o "$$output/$$arch/vxanvil" .; \
+	  CGO_ENABLED=0 GOOS=linux GOARCH=$$arch $(GO) build -trimpath -o "$$output/$$arch/vxanvil-controller" ./cmd/vxanvil-controller; \
 	  echo "Built Linux $$arch CLI and controller"; \
 	done
 

@@ -1,6 +1,6 @@
-# Set up VMetal with NVKE
+# Set up VXAnvil with NVKE
 
-VMetal can run alongside a dedicated NVKE management site using the generic `infra` contract from NVKE revision `2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049`. One Linux management host can also run a Docker workload control plane. The workload cluster can allocate separate bare-metal or virtual workers with verified NVKE artifacts for their architecture.
+VXAnvil can run alongside a dedicated NVKE management site using the generic `infra` contract from NVKE revision `2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049`. One Linux management host can also run a Docker workload control plane. The workload cluster can allocate separate bare-metal or virtual workers with verified NVKE artifacts for their architecture.
 
 The addresses and paths below are examples. Choose a routable private management address and non-overlapping LAN, Docker, Pod, and Service networks. Use dedicated workers with unique hostnames and machine IDs. Verify SSH host keys before registration.
 
@@ -10,10 +10,10 @@ Starting with a fresh Ubuntu host and no NVKE assets? First follow [Prepare publ
 
 If you followed the public-inputs guide, use its verified `management-bundle/` and proceed to the installer command below. The following build and packaging commands are alternatives for users preparing their own compatible inputs.
 
-Use the kubeconfig and tooling of an existing compatible management site, or create a new site below. Prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. The public-inputs guide extracts `vmetal-controller` from the Release image. Alternatively, build it for the management host's architecture into the same tools directory:
+Use the kubeconfig and tooling of an existing compatible management site, or create a new site below. Prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. The public-inputs guide extracts `vxanvil-controller` from the Release image. Alternatively, build it for the management host's architecture into the same tools directory:
 
 ```bash
-go build -o "$LINUX_TOOL_DIR/vmetal-controller" ./cmd/vmetal-controller
+go build -o "$LINUX_TOOL_DIR/vxanvil-controller" ./cmd/vxanvil-controller
 ```
 
 For a Docker control plane, build the four-image bundle using the [image workflow](operations.md#build-a-reproducible-control-plane-image). For a management-only bundle:
@@ -23,13 +23,13 @@ bash scripts/package-nvke-management.sh "$NVKE_CHECKOUT" "$LINUX_TOOL_DIR" \
   "$KIND_NODE_IMAGE" "$NVKE_CONTROLLER_IMAGE" "$NVKE_PROFILE_IMAGE" /path/to/management-bundle
 ```
 
-On the Linux management host, set `bundle` to the output directory and run the bundled installer. It verifies the bundle, creates a Kind cluster, and installs CAPI, NVKE, SPIRE and VMetal. The state directory contains credentials and generated configuration. Keep it on the management host with its original permissions.
+On the Linux management host, set `bundle` to the output directory and run the bundled installer. It verifies the bundle, creates a Kind cluster, and installs CAPI, NVKE, SPIRE and VXAnvil. The state directory contains credentials and generated configuration. Keep it on the management host with its original permissions.
 
 ```bash
 bundle=/path/to/management-bundle
 sudo bash "$bundle/provider/scripts/init-nvke-management.sh" \
   "$bundle" /var/lib/vmetal-nvke \
-  192.168.50.10 192.168.50.0/24 vmetal-site
+  192.168.50.10 192.168.50.0/24 vxanvil-site
 ```
 
 <a id="register-a-worker"></a>
@@ -70,14 +70,14 @@ export PATH="/path/to/management-bundle/bin:$PATH"
 export KUBECONFIG="$MGMT_STATE/management.kubeconfig"
 export XDG_CONFIG_HOME="$MGMT_STATE/nvkectl-config"
 export XDG_CACHE_HOME="$MGMT_STATE/nvkectl-cache"
-export NVKE_SITE=vmetal-site
+export NVKE_SITE=vxanvil-site
 # Use the verified image included by package-nvke-management.sh.
-export CP_IMAGE=vmetal-control-plane:1.36.3
+export CP_IMAGE=vxanvil-control-plane:1.36.3
 export PROVIDER_PUBLIC_KEY="$MGMT_STATE/ssh-key.pub"
 export PROVIDER_KNOWN_HOSTS="$MGMT_STATE/known-hosts"
 export PROVIDER_SSH="$MGMT_STATE/bin/ssh"
 
-install_dir="$HOME/vmetal-docker-gpu-install"
+install_dir="$HOME/vxanvil-docker-gpu-install"
 bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" check-control-plane layout.env "$install_dir"
 bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" control-plane layout.env "$install_dir"
 ```

@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 class PreflightTests(unittest.TestCase):
     def test_only_empty_package_placeholders_are_ignored(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vmetal-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
         has_files = helper["has_files"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -28,7 +28,7 @@ class PreflightTests(unittest.TestCase):
                 self.assertTrue(has_files(root))
 
     def test_nvke_reset_removes_generated_files_and_preserves_unknown_files(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vmetal-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
         reset_kubernetes = helper["reset_kubernetes"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -48,7 +48,7 @@ class PreflightTests(unittest.TestCase):
             self.assertTrue(unknown.is_file())
 
     def test_nvke_reset_uses_the_independent_cri_and_refuses_to_fall_back(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vmetal-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
         reset_kubernetes = helper["reset_kubernetes"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -73,7 +73,7 @@ class PreflightTests(unittest.TestCase):
             ])
 
     def test_nvke_plan_sets_identity_and_releases_owned_files(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vmetal-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
         apply, reset = helper["apply_nvke"], helper["reset"]
         uid = "fbeceea4-23c8-45cf-9972-c377d2f2a9b0"
         with tempfile.TemporaryDirectory() as directory:

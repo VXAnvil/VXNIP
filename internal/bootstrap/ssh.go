@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vmetal-lab/cluster-api-provider-vmetal/internal/discovery"
+	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
 )
 
 type Request struct {

@@ -1,6 +1,11 @@
 #!/bin/bash
 # Native public-source builds for the fixed, documented NVKE evaluation path.
 set -euo pipefail
+# This builder uses the pinned historical Provider checkout below.
+# Translate the new public options to the option names that checkout accepts.
+for canonical_key in ${!VXANVIL_@}; do
+    export "VMETAL_${canonical_key#VXANVIL_}=${!canonical_key}"
+done
 [[ ( $# == 1 || ( $# == 2 && $2 == --node-only ) ) && $EUID == 0 ]] || { echo 'Usage: sudo bash public-inputs.sh workspace [--node-only]' >&2; exit 2; }
 root=$1
 mode=${2:-manager}
@@ -50,7 +55,7 @@ checkout() {
     git -C "$directory" -c core.hooksPath=/dev/null checkout --detach FETCH_HEAD
     [[ $(git -C "$directory" rev-parse HEAD) == "$revision" ]]
 }
-checkout https://github.com/vmetal-lab/cluster-api-provider-vmetal.git \
+checkout https://github.com/VXAnvil/cluster-api-provider-vxanvil.git \
   633b2efb1d3b087376b995c906887a3d8c994ba7 provider
 checkout https://github.com/dsx-ai-factory/nvke.git \
   2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 nvke
@@ -106,10 +111,10 @@ fi
 make -C nvke/os-image/packages/kubeadm-distro debs ARCH="$arch" K8S_VERSIONS=v1.36.3 \
   DEB_REVISION=1 OUT_DIR="$root/artifacts" >logs/kubeadm-deb.log 2>&1
 BUNDLE_ARCH="$arch" bash nvke/controller/hack/ci/prepare-capd-bundles.sh "$root/artifacts" >logs/ovn-spire.log 2>&1
-base_image=vmetal-public-node-base:2f31480b
+base_image=vxanvil-public-node-base:2f31480b
 if [[ $mode == --node-only ]]; then
     [[ ${VMETAL_BUILD_LABEL:-} =~ ^[a-z0-9-]+$ ]]
-    base_image=vmetal-bootstrap-$VMETAL_BUILD_LABEL-$arch:2f31480b
+    base_image=vxanvil-bootstrap-$VMETAL_BUILD_LABEL-$arch:2f31480b
     if docker image inspect "$base_image" >/dev/null 2>&1; then
         echo 'Native builder image already exists; reconcile the prior build rather than overwrite it.' >&2
         exit 1
@@ -138,13 +143,13 @@ if [[ $mode == --node-only ]]; then
     exit 0
 fi
 docker build -f nvke/controller/Dockerfile --build-arg BUILD_VERSION=2f31480b \
-  -t vmetal-public-nvke-controller:2f31480b nvke >logs/controller-image.log 2>&1
+  -t vxanvil-public-nvke-controller:2f31480b nvke >logs/controller-image.log 2>&1
 docker build -f nvke/controller/test/fixtures/Dockerfile -t docker.local/cwe-profiles:public-2f31480b \
   nvke/controller/test/fixtures >logs/profile-image.log 2>&1
-bash provider/scripts/build-nvke-control-plane.sh vmetal-public-node-base:2f31480b \
-  "$root/artifacts" vmetal-control-plane:public-1.36.3 "/boot/config-$(uname -r)" >logs/control-plane-image.log 2>&1
+bash provider/scripts/build-nvke-control-plane.sh vxanvil-public-node-base:2f31480b \
+  "$root/artifacts" vxanvil-control-plane:public-1.36.3 "/boot/config-$(uname -r)" >logs/control-plane-image.log 2>&1
 docker pull kindest/node:v1.36.4
-VMETAL_CONTROL_PLANE_IMAGE=vmetal-control-plane:public-1.36.3 \
+VMETAL_CONTROL_PLANE_IMAGE=vxanvil-control-plane:public-1.36.3 \
   bash provider/scripts/package-nvke-management.sh "$root/nvke" "$root/tools" kindest/node:v1.36.4 \
-  vmetal-public-nvke-controller:2f31480b docker.local/cwe-profiles:public-2f31480b "$root/management-bundle"
+  vxanvil-public-nvke-controller:2f31480b docker.local/cwe-profiles:public-2f31480b "$root/management-bundle"
 (cd management-bundle && sha256sum --quiet -c SHA256SUMS)

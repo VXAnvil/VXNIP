@@ -1,5 +1,10 @@
 #!/bin/bash
 set -euo pipefail
+# Accept existing automation without changing the new variable's precedence.
+for legacy_key in ${!VMETAL_@}; do
+    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
+    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
+done
 umask 077
 
 if [[ $# != 5 || $EUID != 0 ]]; then
@@ -33,7 +38,7 @@ else
 fi
 
 (cd "$bundle" && sha256sum --quiet -c SHA256SUMS)
-for tool in kind kubectl clusterctl helm nvkectl vmetal-controller; do
+for tool in kind kubectl clusterctl helm nvkectl vxanvil-controller; do
     [[ -x $bundle/bin/$tool ]]
 done
 [[ $(cat "$bundle/nvke/revision") == 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 ]]
@@ -159,7 +164,7 @@ fi
 touch "$state/known-hosts"
 install -m 0644 "$state/ssh-key.pub" "$state/worker-bundle/provider.pub"
 install -m 0644 "$state/ca.crt" "$state/worker-bundle/ca.crt"
-for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh vmetal-kubeadm; do
+for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh vxanvil-kubeadm vmetal-kubeadm; do
     install -m 0755 "$repo/scripts/$file" "$state/worker-bundle/$file"
 done
 install -m 0644 "$repo/scripts/nvke-enrollment-server.py" "$state/nvke-enrollment-server.py"
@@ -173,14 +178,14 @@ chmod 0755 "$state/bin/ssh"
 
 cat >"/etc/systemd/system/vmetal-nvke-$site-provider.service" <<UNIT
 [Unit]
-Description=VMetal Provider for $site
+Description=VXAnvil Provider for $site
 After=docker.service
 Requires=docker.service
 [Service]
 Environment="PATH=$state/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="KUBECONFIG=$KUBECONFIG"
-Environment=VMETAL_ENABLE_NVKE_INFRA=1
-ExecStart=$bundle/bin/vmetal-controller
+Environment=VXANVIL_ENABLE_NVKE_INFRA=1
+ExecStart=$bundle/bin/vxanvil-controller
 Restart=always
 RestartSec=5
 [Install]
@@ -188,7 +193,7 @@ WantedBy=multi-user.target
 UNIT
 cat >"/etc/systemd/system/vmetal-nvke-$site-enrollment.service" <<UNIT
 [Unit]
-Description=VMetal enrollment for $site
+Description=VXAnvil enrollment for $site
 After=network-online.target docker.service
 Wants=network-online.target
 [Service]

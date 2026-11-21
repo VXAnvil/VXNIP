@@ -8,7 +8,7 @@ mode=$1
 layout=$(realpath "$2")
 source "$layout"
 : "${CLUSTER:?}" "${CP_IP:?}" "${MANAGER_IP:?}" "${WORKER_IP:?}"
-[[ $CLUSTER =~ ^vmetal-[a-z0-9-]+$ && $CLUSTER != *- ]]
+[[ $CLUSTER =~ ^(vxanvil|vmetal)-[a-z0-9-]+$ && $CLUSTER != *- ]]
 network_mode=${NETWORK_MODE:-lan}
 [[ $network_mode == lan || $network_mode == tailscale ]]
 python3 - "$CP_IP" "$MANAGER_IP" "$WORKER_IP" <<'PY'
@@ -71,7 +71,7 @@ if [[ $mode == --install ]]; then
     [[ $0 -ef $program ]] || install -D -m 0755 "$0" "$program"
     cat >"/etc/systemd/system/$unit" <<UNIT
 [Unit]
-Description=VMetal tenant network recovery for $CLUSTER
+Description=VXAnvil tenant network recovery for $CLUSTER
 Wants=network-online.target tailscaled.service
 Requires=docker.service
 After=network-online.target docker.service tailscaled.service

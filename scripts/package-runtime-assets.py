@@ -12,7 +12,7 @@ import sys
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'skills/vmetal-cluster/scripts'))
+sys.path.insert(0, str(ROOT / 'skills/vxanvil-cluster/scripts'))
 from cluster import RELEASE  # noqa: E402
 
 
@@ -46,7 +46,7 @@ def pack(directory, role, arch, output, tag):
             selected.append((path, Path(name)))
     metadata = json.dumps({'schema': 1, 'role': role, 'arch': arch, 'sources': RELEASE}, sort_keys=True).encode()
     total = len(metadata)
-    archive_path = output / f'vmetal-{role}-{arch}.tar.gz'
+    archive_path = output / f'vxanvil-{role}-{arch}.tar.gz'
     with tarfile.open(archive_path, 'x:gz', compresslevel=1) as tar:
         info = tarfile.TarInfo('asset.json')
         info.size, info.mode = len(metadata), 0o644
@@ -69,7 +69,7 @@ def pack(directory, role, arch, output, tag):
     archive_path.with_suffix('.gz.sha256').write_text(digest + '  ' + archive_path.name + '\n')
     return {'role': role, 'arch': arch, 'size': archive_path.stat().st_size,
             'unpacked_size': total, 'sha256': digest,
-            'url': 'https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/download/' + tag + '/' + archive_path.name}
+            'url': 'https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/' + tag + '/' + archive_path.name}
 
 
 def main():

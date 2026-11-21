@@ -1,5 +1,10 @@
 #!/bin/bash
 set -euo pipefail
+# Accept existing automation without changing the new variable's precedence.
+for legacy_key in ${!VMETAL_@}; do
+    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
+    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
+done
 umask 077
 [[ $# == 2 || $# == 3 ]] || {
     echo "Usage: sudo bash $0 management-state client-directory [workload-kubeconfig]" >&2
@@ -10,8 +15,8 @@ output=$(realpath -m "$2")
 [[ $output =~ ^/[a-zA-Z0-9_./-]+$ ]] || { echo "Use a client path without whitespace." >&2; exit 1; }
 mapfile -t site <"$state/site"
 [[ ${#site[@]} == 3 && -f $state/ready ]]
-if [[ -n ${VMETAL_MANAGEMENT_BUNDLE:-} ]]; then
-    bundle=$(realpath "$VMETAL_MANAGEMENT_BUNDLE")
+if [[ -n ${VXANVIL_MANAGEMENT_BUNDLE:-} ]]; then
+    bundle=$(realpath "$VXANVIL_MANAGEMENT_BUNDLE")
 else
     bundle=$(cat "$state/bundle")
 fi

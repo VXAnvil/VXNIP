@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ORIGIN = 'https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/download/'
+ORIGIN = 'https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/'
 
 
 class DownloadBlocked(RuntimeError):
@@ -35,9 +35,9 @@ def validate_asset(asset, role, arch):
     if not url.startswith(ORIGIN) or urllib.parse.urlsplit(url).query or urllib.parse.urlsplit(url).fragment:
         raise ValueError('Runtime assets must use the official public GitHub release')
     suffix = url.removeprefix(ORIGIN)
-    if not re.fullmatch(r'runtime-v[0-9A-Za-z.-]+/vmetal-(manager|node)-(amd64|arm64)\.tar\.gz', suffix):
+    if not re.fullmatch(r'runtime-v[0-9A-Za-z.-]+/(?:vxanvil|vmetal)-(manager|node)-(amd64|arm64)\.tar\.gz', suffix):
         raise ValueError('Invalid versioned runtime asset URL')
-    if suffix.split('/')[-1] != f'vmetal-{role}-{arch}.tar.gz':
+    if suffix.split('/')[-1] not in (f'vxanvil-{role}-{arch}.tar.gz', f'vmetal-{role}-{arch}.tar.gz'):
         raise ValueError('Runtime URL role/architecture differs')
     return asset
 
@@ -67,7 +67,7 @@ def download(asset, output):
     reported = time.monotonic()
     opener = urllib.request.build_opener(HTTPSRedirect())
     try:
-        request = urllib.request.Request(asset['url'], headers={'User-Agent': 'vmetal-cluster-skill'})
+        request = urllib.request.Request(asset['url'], headers={'User-Agent': 'vxanvil-cluster-skill'})
         with opener.open(request, timeout=60) as response, output.open('xb') as target:
             if urllib.parse.urlsplit(response.url).scheme != 'https':
                 raise DownloadBlocked('Runtime download requires HTTPS')

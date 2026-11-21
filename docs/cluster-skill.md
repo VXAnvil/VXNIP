@@ -1,6 +1,6 @@
-# Prepare or inspect VMetal clusters from SSH connections
+# Prepare or inspect VXAnvil clusters from SSH connections
 
-The portable [`vmetal-cluster` skill](../skills/vmetal-cluster/SKILL.md) includes a standard-library Python SSH executor and a pinned prebuilt-runtime downloader (plus explicit developer source builders). It supports AMD64/ARM64 mixtures, VM and bare-metal workers, and direct LAN or Tailscale networking.
+The portable [`vxanvil-cluster` skill](../skills/vxanvil-cluster/SKILL.md) includes a standard-library Python SSH executor and a pinned prebuilt-runtime downloader (plus explicit developer source builders). It supports AMD64/ARM64 mixtures, VM and bare-metal workers, and direct LAN or Tailscale networking.
 
 Choose the mode explicitly. `existing` inspects and preserves the named cluster: no remote uploads, sudo, builds, installations, route updates or new probe Pods. `create` prepares a new dedicated management site and unallocated workers. It cannot adopt existing allocations, add nodes to an existing site or upgrade an active cluster. This prevents an existing machine connection from implicitly authorizing reinstallation.
 
@@ -14,34 +14,36 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-Download the [skill preview release](https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/tag/skill-v0.1.0-rc.4). Its `vmetal-cluster.zip` asset contains a single `vmetal-cluster/` directory; `vmetal-cluster.zip.sha256` verifies the downloaded bytes.
+The current source skill is named `vxanvil-cluster`. Previously published [skill-v0.1.0-rc.4](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.1.0-rc.4) retains its historical asset and installed folder name, `vmetal-cluster`. To install that exact published version:
 
 ```bash
 release=skill-v0.1.0-rc.4
-base="https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/download/$release"
+base="https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/$release"
 curl --proto '=https' --proto-redir '=https' -fL "$base/vmetal-cluster.zip" -o vmetal-cluster.zip
 curl --proto '=https' --proto-redir '=https' -fL "$base/vmetal-cluster.zip.sha256" -o vmetal-cluster.zip.sha256
-python3 - <<'PY'
+python3 - <<'PY_VERIFY'
 from pathlib import Path
 import hashlib
 expected = Path('vmetal-cluster.zip.sha256').read_text().split()[0]
 assert hashlib.sha256(Path('vmetal-cluster.zip').read_bytes()).hexdigest() == expected, 'Checksum mismatch'
 print('ZIP checksum verified')
-PY
+PY_VERIFY
 ```
 
-Extract into **one** skill directory used by your agent. Back up an existing `vmetal-cluster` folder before upgrading.
+Extract into one agent skill directory. Back up its existing folder before upgrading.
 
-| Agent | Personal installation command | Invoke |
+| Version | Codex installation command | Invoke |
 | --- | --- | --- |
-| Codex, current local skill discovery | `python3 -m zipfile -e vmetal-cluster.zip "$HOME/.agents/skills"` | `$vmetal-cluster` |
-| Claude Code | `python3 -m zipfile -e vmetal-cluster.zip "$HOME/.claude/skills"` | `/vmetal-cluster` |
+| Historical rc.4 ZIP above | `python3 -m zipfile -e vmetal-cluster.zip "$HOME/.agents/skills"` | `$vmetal-cluster` |
+| Package built from the current source below | `python3 -m zipfile -e dist/vxanvil-cluster.zip "$HOME/.agents/skills"` | `$vxanvil-cluster` |
 
-For a Codex client configured with another skill directory, extract there instead. You can also ask its built-in installer to install `https://github.com/vmetal-lab/cluster-api-provider-vmetal/tree/skill-v0.1.0-rc.4/skills/vmetal-cluster`. The directory conventions are documented by [OpenAI](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) and [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+For Claude Code, extract into `$HOME/.claude/skills` and invoke `/vmetal-cluster` or `/vxanvil-cluster` to match the actual installed folder. Do not install a new folder next to an older skill and assume its interrupted plans can resume with different code. See [name compatibility](compatibility.md#vxanvil-name-compatibility).
+
+The current source skill pins the same published native runtimes and still uses `vmetal-*` site names. A newly named native-runtime release has not been published by this source rename.
 
 Then ask, for example:
 
-> Use vmetal-cluster to prepare a new NVKE cluster with SSH aliases `lab-manager` and `lab-worker`. Preserve other clusters and workloads.
+> Use vxanvil-cluster to prepare a new NVKE cluster with SSH aliases `lab-manager` and `lab-worker`. Preserve other clusters and workloads.
 
 For a home LAN, ask:
 
@@ -64,12 +66,12 @@ To build the same portable package from a checkout:
 
 ```bash
 mkdir -p dist
-python3 scripts/package-cluster-skill.py dist/vmetal-cluster.zip
+python3 scripts/package-cluster-skill.py dist/vxanvil-cluster.zip
 ```
 
 The ZIP includes instructions, references and runtime scripts. Site configuration, logs, credentials and private test evidence are excluded. This is a skill/executor package; a manifest pins the separately published AMD64/ARM64 manager and node runtimes downloaded during setup. Packaging a distributable skill fails unless that manifest is included. An offline installer is not yet available.
 
-For connection JSON examples, exact source pins, safety boundaries, creation and read-only result semantics, state and recovery, see the [executor reference](../skills/vmetal-cluster/references/executor.md).
+For connection JSON examples, exact source pins, safety boundaries, creation and read-only result semantics, state and recovery, see the [executor reference](../skills/vxanvil-cluster/references/executor.md).
 
 The release installer stops once the NVKE cluster is provisioned and network verification passes. Model bundles and acir-produced Helm charts are obtained and deployed separately by the user.
 

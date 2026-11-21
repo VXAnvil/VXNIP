@@ -19,7 +19,7 @@ spec:
 apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
 kind: VMetalCluster
 metadata:
-  name: vmetal-lab
+  name: vxanvil-lab
   namespace: default
 spec:
   controlPlaneEndpoint:
@@ -29,7 +29,7 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
-  name: vmetal-lab
+  name: vxanvil-lab
   namespace: default
 spec:
   clusterNetwork:
@@ -41,16 +41,16 @@ spec:
   infrastructureRef:
     apiGroup: vmetal.infrastructure.cluster.x-k8s.io
     kind: VMetalCluster
-    name: vmetal-lab
+    name: vxanvil-lab
   controlPlaneRef:
     apiGroup: controlplane.cluster.x-k8s.io
     kind: KubeadmControlPlane
-    name: vmetal-lab
+    name: vxanvil-lab
 ---
 apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
 kind: VMetalMachineTemplate
 metadata:
-  name: vmetal-lab-control-plane
+  name: vxanvil-lab-control-plane
   namespace: default
 spec:
   template:
@@ -60,7 +60,7 @@ spec:
 apiVersion: vmetal.infrastructure.cluster.x-k8s.io/v1alpha1
 kind: VMetalMachineTemplate
 metadata:
-  name: vmetal-lab-worker
+  name: vxanvil-lab-worker
   namespace: default
 spec:
   template:
@@ -70,7 +70,7 @@ spec:
 apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: KubeadmControlPlane
 metadata:
-  name: vmetal-lab
+  name: vxanvil-lab
   namespace: default
 spec:
   version: "${KUBERNETES_VERSION}"
@@ -80,7 +80,7 @@ spec:
       infrastructureRef:
         apiGroup: vmetal.infrastructure.cluster.x-k8s.io
         kind: VMetalMachineTemplate
-        name: vmetal-lab-control-plane
+        name: vxanvil-lab-control-plane
   kubeadmConfigSpec:
     initConfiguration:
       localAPIEndpoint:
@@ -91,7 +91,7 @@ spec:
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
-  name: vmetal-lab-worker
+  name: vxanvil-lab-worker
   namespace: default
 spec:
   template:
@@ -103,24 +103,24 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
-  name: vmetal-lab-worker
+  name: vxanvil-lab-worker
   namespace: default
 spec:
-  clusterName: vmetal-lab
+  clusterName: vxanvil-lab
   replicas: 1
   selector:
     matchLabels:
-      cluster.x-k8s.io/cluster-name: vmetal-lab
+      cluster.x-k8s.io/cluster-name: vxanvil-lab
   template:
     spec:
-      clusterName: vmetal-lab
+      clusterName: vxanvil-lab
       version: "${KUBERNETES_VERSION}"
       bootstrap:
         configRef:
           apiGroup: bootstrap.cluster.x-k8s.io
           kind: KubeadmConfigTemplate
-          name: vmetal-lab-worker
+          name: vxanvil-lab-worker
       infrastructureRef:
         apiGroup: vmetal.infrastructure.cluster.x-k8s.io
         kind: VMetalMachineTemplate
-        name: vmetal-lab-worker
+        name: vxanvil-lab-worker
