@@ -31,7 +31,20 @@ k() { kubectl --kubeconfig "$tenant/workload.kubeconfig" --request-timeout=20s "
 mgmt() { kubectl --kubeconfig "$KUBECONFIG" --request-timeout=20s "$@"; }
 
 case "$phase" in
+fetch-manager)
+    [[ $ARTIFACT_MODE == release ]]
+    python3 "$ROOT/runtime/artifacts.py" "$ROOT/settings.json" manager
+    ;;
+prepare-manager)
+    bash "$ROOT/runtime/prerequisites.sh" manager
+    ;;
+fetch-node)
+    [[ $ARTIFACT_MODE == release ]]
+    python3 "$ROOT/runtime/artifacts.py" "$ROOT/settings.json" node
+    cp -al "$work/artifacts" "$ROOT/input/artifacts"
+    ;;
 build)
+    [[ $ARTIFACT_MODE == source ]]
     bash "$ROOT/runtime/public-inputs.sh" "$work"
     ;;
 management)
@@ -83,6 +96,7 @@ check-protected)
     python3 "$ROOT/runtime/preserve.py" check "$ROOT/protected.json"
     ;;
 node-assets)
+    [[ $ARTIFACT_MODE == source ]]
     VMETAL_BUILD_LABEL=$SITE bash "$ROOT/runtime/public-inputs.sh" "$work" --node-only
     cp -al "$work/artifacts" "$ROOT/input/artifacts"
     ;;

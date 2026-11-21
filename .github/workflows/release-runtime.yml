@@ -1,0 +1,103 @@
+name: Release native cluster runtimes
+
+on:
+  push:
+    tags: ['runtime-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-ci:
+    if: github.event.deleted != true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require exact-commit CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^runtime-v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]
+          python3 .github/scripts/ci-policy.py release --commit "$(git rev-parse HEAD)"
+
+  build:
+    needs: verify-ci
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Reclaim unused tools on the ephemeral publisher
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache
+          df -h /
+      - name: Build on the native architecture and package verified outputs
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: sudo bash scripts/build-runtime-assets.sh "$RUNNER_TEMP/native-build" "$RUNNER_TEMP/runtime-assets" "$RELEASE_TAG"
+      - name: Upload public runtime outputs
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: runtime-${{ matrix.arch }}
+          path: ${{ runner.temp }}/runtime-assets/*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain publisher build logs
+        if: failure()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: build-logs-${{ matrix.arch }}
+          path: ${{ runner.temp }}/native-build/logs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify both architectures and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/verified-runtimes"
+          gh run download "$RUN_ID" --name runtime-amd64 --dir "$output"
+          gh run download "$RUN_ID" --name runtime-arm64 --dir "$output"
+          python3 scripts/verify-runtime-release.py "$output" --tag "$RELEASE_TAG"
+          prerelease=()
+          if [[ "${RELEASE_TAG#runtime-v}" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$RELEASE_TAG" --verify-tag --latest=false "${prerelease[@]}" \
+            --title "VMetal native runtimes ${RELEASE_TAG#runtime-}" \
+            --notes 'Native AMD64/ARM64 manager and node runtimes for the VMetal cluster skill. Install using the companion skill release, which pins these downloads and their SHA-256 hashes. No model bundles or machine credentials are included.' \
+            "$output"/*.tar.gz "$output"/*.sha256 "$output/runtime-artifacts.json"

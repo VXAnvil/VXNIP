@@ -8,7 +8,9 @@ A fresh manager needs Ubuntu 24.04, 6 CPUs, 16 GiB total/12 GiB available RAM an
 
 Bare-metal creation retains the shared Docker/containerd 2.x runtime, driver, existing containers and default route while preparing an isolated NVKE runtime and OVN local gateway. Unknown allocation/CNI state blocks creation. Architecture-specific artifacts are built natively; package removals/upgrades are rejected on native node builders. GPU configuration and model deployment are separate.
 
-Tailscale must already be authenticated. Creation merges explicit route advertisements, retains other preferences, enables worker route acceptance, preserves source addresses and derives OVN MTU from peer paths. Missing tailnet route/grant approval becomes a resumable gate before worker preparation. Existing mode only observes routes, preferences, endpoints and MTU; it never attempts a repair.
+LAN is the default: machines on the same directly connected subnet do not need Tailscale installed, an account or route approval. One manager can prepare multiple AMD64/ARM64 workers. Cross-VLAN routing is not yet supported by the LAN preflight.
+
+Only when explicitly selecting `network_mode: tailscale` must Tailscale already be authenticated. Creation merges explicit route advertisements, retains other preferences, enables worker route acceptance, preserves source addresses and derives OVN MTU from peer paths. Missing tailnet route/grant approval becomes a resumable gate before worker preparation. Existing mode only observes routes, preferences, endpoints and MTU; it never attempts a repair.
 
 ## Install and use
 
@@ -41,7 +43,22 @@ Then ask, for example:
 
 > Use vmetal-cluster to prepare a new NVKE cluster with SSH aliases `lab-manager` and `lab-worker`. Preserve other clusters and workloads.
 
-The caller needs macOS/Linux, Python 3.10+, OpenSSH and network access to those machines. A skill upload alone does not supply terminal/SSH access. Trusted SSH configuration supplies authentication; do not paste private keys/passwords into chat. Tailscale authentication and tailnet route/grant approval use the user's account. Native source builds download several GB and may take hours, especially under CPU emulation.
+For a home LAN, ask:
+
+> Prepare NVKE using `home-manager` and workers `home-pc-1`, `home-spark`, `home-pc-2` over the LAN. Do not use Tailscale. Preserve other clusters and workloads. Stop when the cluster is provisioned; I will deploy my own acir Helm chart later.
+
+The corresponding private connection file is:
+
+```json
+{
+  "manager": {"ssh": "home-manager"},
+  "workers": [{"ssh": "home-pc-1"}, {"ssh": "home-spark"}, {"ssh": "home-pc-2"}]
+}
+```
+
+Worker architecture and addresses are discovered; omitted `network_mode` means `lan`. Final acceptance still checks node identities, readiness, Pod connectivity and Service DNS/HTTP.
+
+The caller needs macOS/Linux, Python 3.10+, OpenSSH and network access to those machines. A skill upload alone does not supply terminal/SSH access. Trusted SSH configuration supplies authentication; do not paste private keys/passwords into chat. For optional Tailscale mode, device authentication and tailnet route/grant approval use the user's account. Native source builds download several GB and may take hours, especially under CPU emulation.
 
 To build the same portable package from a checkout:
 

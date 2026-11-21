@@ -49,15 +49,20 @@ for tool in nvke-agent spire-agent; do
     install -D -m 0755 "$artifacts/$tool" "$context/root/usr/local/bin/$tool"
     install -D -m 0644 "$artifacts/$tool.service" "$context/root/etc/systemd/system/$tool.service"
 done
-kernel_config=${4:-/boot/config-$(uname -r)}
-[[ -f $kernel_config ]] || { echo "Supply the running host kernel config." >&2; exit 1; }
-target_kernel=${VMETAL_TARGET_KERNEL:-$(uname -r)}
-if [[ $(basename "$kernel_config") == config-* ]]; then
-    target_kernel=$(basename "$kernel_config")
-    target_kernel=${target_kernel#config-}
+portable_kernel=${VMETAL_PORTABLE_KERNEL_CONFIG:-0}
+if [[ $portable_kernel == 1 ]]; then
+    target_kernel=host-bind-v1
+else
+    kernel_config=${4:-/boot/config-$(uname -r)}
+    [[ -f $kernel_config ]] || { echo "Supply the running host kernel config." >&2; exit 1; }
+    target_kernel=${VMETAL_TARGET_KERNEL:-$(uname -r)}
+    if [[ $(basename "$kernel_config") == config-* ]]; then
+        target_kernel=$(basename "$kernel_config")
+        target_kernel=${target_kernel#config-}
+    fi
+    [[ $target_kernel =~ ^[a-zA-Z0-9.+_-]+$ ]]
+    install -D -m 0644 "$kernel_config" "$context/root/boot/config-$target_kernel"
 fi
-[[ $target_kernel =~ ^[a-zA-Z0-9.+_-]+$ ]]
-install -D -m 0644 "$kernel_config" "$context/root/boot/config-$target_kernel"
 install -m 0755 "$repo/scripts/vmetal-kubeadm" "$context/scripts/"
 # The dependency image may be built online once. All node versions come from
 # the verified artifacts and the resulting image is shipped inside the bundle.

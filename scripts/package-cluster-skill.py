@@ -6,9 +6,14 @@ from pathlib import Path
 import zipfile
 
 
-def package(output):
+def package(output, development=False):
     source = Path(__file__).resolve().parents[1] / 'skills/vmetal-cluster'
     files = [source / 'SKILL.md', source / 'references/executor.md']
+    manifest = source / 'references/runtime-artifacts.json'
+    if manifest.is_file():
+        files.append(manifest)
+    elif not development:
+        raise ValueError('Publish verified native runtime assets and include their manifest before releasing the skill')
     files.extend(sorted(p for p in (source / 'scripts').iterdir() if p.suffix in ('.py', '.sh')))
     output = Path(output)
     with zipfile.ZipFile(output, 'x', zipfile.ZIP_DEFLATED) as archive:
@@ -24,4 +29,6 @@ def package(output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output')
-    print(package(parser.parse_args().output))
+    parser.add_argument('--development', action='store_true', help='Package an explicitly source-only development skill')
+    args = parser.parse_args()
+    print(package(args.output, development=args.development))

@@ -17,7 +17,10 @@ import tarfile
 import tempfile
 import time
 
+import artifacts as runtime_assets
+
 HERE = Path(__file__).resolve().parent
+BUNDLE_MANIFEST = HERE.parent / 'references/runtime-artifacts.json'
 RELEASE = {'provider': '5dfc1b0031d0963fc664f8463fcd16ab02a80a6c',
            'nvke': '2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049'}
 SSH_OPTIONS = ['-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
@@ -84,6 +87,8 @@ def remote(target, command, data=None, log=None, timeout=60, external_gate=False
                             stderr=log or subprocess.PIPE, timeout=timeout, check=False)
     if result.returncode:
         if external_gate and result.returncode == 75:
+            if external_gate == 'runtime-download':
+                raise ExternalGate('Pinned runtime download/verification is pending; no source-build fallback or node installation was started')
             raise ExternalGate('Tailscale route/grant approval or connectivity is pending; no worker installation was started')
         target = target['ssh'] if isinstance(target, dict) else target
         diagnostic = result.stderr.decode(errors='replace') if isinstance(result.stderr, bytes) else ''
@@ -132,7 +137,7 @@ def node_info(config, facts, role, mode='create', network_mode='lan'):
     if mode == 'create' and facts['containers'] and (role == 'manager' or kind == 'vm'):
         raise ValueError(role + ': dedicated manager/VM must not have existing containers')
     if mode == 'create' and role == 'manager' and facts.get('available_memory', facts['memory']) < 12 * 2**30:
-        raise ValueError('manager: at least 12 GiB available RAM required for a new build/management stack')
+        raise ValueError('manager: at least 12 GiB available RAM required for the management stack')
     if mode == 'create' and role == 'manager' and not facts['kernel_config']:
         raise ValueError('manager: matching /boot kernel config is required')
     if mode == 'create' and role == 'manager' and facts.get('seed_media'):
@@ -207,11 +212,16 @@ def runtime_hashes():
 
 
 def make_plan(config, get_facts=None):
-    if set(config) - {'site', 'manager', 'workers', 'networks', 'mode', 'network_mode', 'existing'}:
+    if set(config) - {'site', 'manager', 'workers', 'networks', 'mode', 'network_mode', 'existing', 'artifact_mode'}:
         raise ValueError('Unknown connection configuration fields')
     mode, network_mode = config.get('mode', 'create'), config.get('network_mode', 'lan')
     if mode not in ('create', 'existing') or network_mode not in ('lan', 'tailscale'):
         raise ValueError('Use mode create/existing and network_mode lan/tailscale')
+    artifact_mode = config.get('artifact_mode', 'release')
+    if artifact_mode not in ('release', 'source'):
+        raise ValueError('Use artifact_mode release or explicit developer source mode')
+    catalog = runtime_assets.catalog(BUNDLE_MANIFEST, RELEASE) if mode == 'create' and artifact_mode == 'release' else None
+    manager_asset = None
     if get_facts is None:
         get_facts = lambda target: probe(target, require_root=mode == 'create')
     site = config.get('site', 'vmetal-lab')
@@ -254,34 +264,43 @@ def make_plan(config, get_facts=None):
             raise ValueError('Existing site settings cannot authorize a new installation')
         existing = None
         networks = select_networks(nodes, config.get('networks', {}))
-        artifacts = {manager['facts']['arch']: {'builder': 'manager'}}
-        for i, node in enumerate(workers):
-            arch = node['facts']['arch']
-            if arch not in artifacts:
-                if node['facts'].get('available_memory', node['facts']['memory']) < 6 * 2**30 or node['facts']['free_disk'] < 80 * 2**30:
-                    raise ValueError('A foreign-architecture native artifact builder needs 6 GiB available RAM and 80 GiB free disk')
-                artifacts[arch] = {'builder': 'worker-' + str(i)}
-        changes = ['Install/build pinned public inputs on the dedicated manager',
-                   'Build each foreign worker architecture natively, rejecting package upgrades/removals',
-                   'Create new management and workload control plane; do not adopt existing allocations',
-                   'Prepare VM or isolated bare-metal runtime and append a scoped Provider SSH key',
-                   'Register/allocate only the planned hosts and verify network/identity',
-                   'Preserve existing worker Docker containers, shared runtime, driver and network interfaces']
+        if artifact_mode == 'source':
+            artifacts = {manager['facts']['arch']: {'builder': 'manager'}}
+            for i, node in enumerate(workers):
+                arch = node['facts']['arch']
+                if arch not in artifacts:
+                    if node['facts'].get('available_memory', node['facts']['memory']) < 6 * 2**30 or node['facts']['free_disk'] < 80 * 2**30:
+                        raise ValueError('A foreign-architecture native artifact builder needs 6 GiB available RAM and 80 GiB free disk')
+                    artifacts[arch] = {'builder': 'worker-' + str(i)}
+            changes = ['Developer source mode: compile pinned sources and build runtime images on the targets']
+        else:
+            manager_asset = catalog['assets']['manager-' + manager['facts']['arch']]
+            artifacts = {}
+            for i, node in enumerate(workers):
+                arch = node['facts']['arch']
+                artifacts.setdefault(arch, {'builder': 'worker-' + str(i), 'asset': catalog['assets']['node-' + arch]})
+            changes = ['Download and verify the pinned prebuilt manager/node runtimes; never fall back to a source build',
+                       'Install runtime prerequisites; no Go/compiler/image build on user machines']
+        changes += ['Create new management and workload control plane; do not adopt existing allocations',
+                    'Prepare VM or isolated bare-metal runtime and append a scoped Provider SSH key',
+                    'Register/allocate only the planned hosts and verify network/identity',
+                    'Preserve existing worker Docker containers, shared runtime, driver and network interfaces']
         if network_mode == 'tailscale':
             changes += ['Merge API/SPIRE route advertisements without SNAT; accept routes on workers',
                         'Require externally approved tailnet routes/grants; derive OVN MTU from all peer routes']
-    return {'version': 2, 'created': int(time.time()), 'site': site, 'release': RELEASE,
+    return {'version': 3, 'created': int(time.time()), 'site': site, 'release': RELEASE,
             'workload_cluster': 'vmetal-w-' + site.removeprefix('vmetal-') if mode == 'create' else existing['cluster'],
             'manager': manager, 'workers': workers, 'networks': networks,
             'runtime': runtime_hashes(), 'execution': 'observe-existing' if mode == 'existing' else 'cpu-mixed-docker-control-plane',
-            'mode': mode, 'network_mode': network_mode, 'artifacts': artifacts, 'existing': existing, 'changes': changes}
+            'mode': mode, 'network_mode': network_mode, 'artifact_mode': artifact_mode,
+            'manager_asset': manager_asset, 'artifacts': artifacts, 'existing': existing, 'changes': changes}
 
 
 def checked_plan(path, expected=None):
     plan = json.loads(Path(path).read_text())
     if expected and digest(plan) != expected:
         raise ValueError('Plan digest differs from the reviewed plan')
-    if plan.get('version') != 2 or plan['release'] != RELEASE or plan['runtime'] != runtime_hashes():
+    if plan.get('version') != 3 or plan['release'] != RELEASE or plan['runtime'] != runtime_hashes():
         raise ValueError('Runtime/source changed; create and review a new plan')
     if plan.get('mode') == 'create' and plan.get('workload_cluster') != 'vmetal-w-' + plan['site'].removeprefix('vmetal-'):
         raise ValueError('Workload cluster name must be distinct from the management site')
@@ -332,7 +351,7 @@ def upload_runtime(node, plan):
 def phase(node, plan, name, log):
     command = shlex.join(['sudo', '-n', 'bash', root_path(plan) + '/runtime/runtime.sh',
                          name, root_path(plan)])
-    remote(connection(node), command, log=log, timeout=8 * 3600, external_gate=name == 'tailscale-worker')
+    remote(connection(node), command, log=log, timeout=8 * 3600, external_gate='runtime-download' if name in ('fetch-manager', 'fetch-node') else name == 'tailscale-worker')
 
 
 def transfer(manager, worker, plan, log):
@@ -422,7 +441,7 @@ def apply(plan, state):
         current_nodes.append(current)
     journal_file = state / 'journal.json'
     journal = json.loads(journal_file.read_text()) if journal_file.exists() else {}
-    install_started = any(name in journal for name in ('build', 'management', 'control-plane', 'join'))
+    install_started = any(name in journal for name in ('fetch-manager', 'prepare-manager', 'build', 'management', 'control-plane', 'join'))
     if not install_started:
         if time.time() - plan['created'] > 3600:
             raise ValueError('Plan older than one hour; discover fresh facts before starting')
@@ -437,7 +456,8 @@ def apply(plan, state):
     with os.fdopen(fd, 'ab', buffering=0) as log:
         manager = plan['manager']
         run_step(state, 'upload-manager', lambda: upload_runtime(manager, plan))
-        for name in ('build', 'management', 'control-plane', 'handoff'):
+        manager_steps = ('fetch-manager', 'prepare-manager') if plan.get('artifact_mode', 'release') == 'release' else ('build',)
+        for name in (*manager_steps, 'management', 'control-plane', 'handoff'):
             run_step(state, name, lambda name=name: phase(manager, plan, name, log))
         for i, worker in enumerate(plan['workers']):
             run_step(state, f'upload-worker-{i}', lambda worker=worker: upload_runtime(worker, plan))
@@ -447,7 +467,10 @@ def apply(plan, state):
         for arch, source in plan.get('artifacts', {}).items():
             if source['builder'] != 'manager':
                 builder = plan['workers'][int(source['builder'].split('-')[1])]
-                run_step(state, 'build-arch-' + arch, lambda builder=builder: phase(builder, plan, 'node-assets', log))
+                source_mode = plan.get('artifact_mode', 'release') == 'source'
+                step = ('build-arch-' if source_mode else 'fetch-arch-') + arch
+                action = 'node-assets' if source_mode else 'fetch-node'
+                run_step(state, step, lambda builder=builder, action=action: phase(builder, plan, action, log))
         if plan.get('network_mode') == 'tailscale':
             for i, worker in enumerate(plan['workers']):
                 run_step(state, f'tailscale-worker-{i}', lambda worker=worker: phase(worker, plan, 'tailscale-worker', log))

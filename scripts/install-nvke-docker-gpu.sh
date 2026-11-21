@@ -150,7 +150,13 @@ check_manager() {
     local bridge= id= reserve=3072
     docker image inspect "${CP_IMAGE:-$CP_BASE_IMAGE}" >/dev/null || fail "Build or load the pinned NVKE node image first."
     if [[ -n ${CP_IMAGE:-} ]]; then
-        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kernel"}}') == $(uname -r) ]] || fail "CP_IMAGE kernel config differs from this Docker host. Rebuild with its /boot/config."
+        local kernel_mode
+        kernel_mode=$(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kernel"}}')
+        if [[ $kernel_mode == host-bind-v1 ]]; then
+            [[ -r /boot/config-$(uname -r) ]] || fail "The running host kernel config is required."
+        else
+            [[ $kernel_mode == $(uname -r) ]] || fail "CP_IMAGE kernel config differs from this Docker host."
+        fi
         [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]] || fail "CP_IMAGE must be a verified VMetal Kubernetes 1.36.3 image."
         [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == $(sha256sum "$repo/scripts/vmetal-kubeadm" | cut -d' ' -f1) ]] || fail "CP_IMAGE helper differs from this release."
     fi
@@ -243,6 +249,7 @@ control_plane() {
             --cpus 3 --memory 4g --memory-swap 4g \
             --mount "type=volume,source=$volume,target=/var" \
             --mount type=bind,source=/lib/modules,target=/lib/modules,readonly \
+            --mount "type=bind,source=/boot/config-$(uname -r),target=/boot/config-$(uname -r),readonly" \
             --tmpfs /run --tmpfs /tmp -p '0.0.0.0::6443/tcp' -p '0.0.0.0::15005/tcp' -p '0.0.0.0::6081/udp' "$image"
     fi
     if [[ -n ${CP_IMAGE:-} ]]; then

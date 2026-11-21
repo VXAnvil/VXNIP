@@ -22,8 +22,9 @@ if [[ $mode == --node-only ]]; then
 else
     apt-get install -y "${packages[@]}"
     systemctl enable --now docker
-    modprobe openvswitch
-    test -r "/boot/config-$(uname -r)"
+    if [[ ${VMETAL_PORTABLE_KERNEL_CONFIG:-0} != 1 ]]; then
+        test -r "/boot/config-$(uname -r)"
+    fi
 fi
 docker info >/dev/null
 arch=$(dpkg --print-architecture)

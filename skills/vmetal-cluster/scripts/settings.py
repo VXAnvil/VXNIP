@@ -17,6 +17,7 @@ def values(settings):
             'CP_IP': str(ipaddress.ip_network(networks['docker']).network_address + 20),
             'WORKER_IP': plan['workers'][0]['address'], 'NODE_IP': settings['node']['address'],
             'WORKER_IPS': ' '.join(w['address'] for w in plan['workers']),
+            'ARTIFACT_MODE': plan.get('artifact_mode', 'release'),
             'NETWORK_MODE': plan.get('network_mode', 'lan'), 'WORKER_KIND': settings['node'].get('kind', 'vm'),
             'WORKER_GATEWAY': plan['manager']['address'], 'WORKER_USER': settings['node']['user']}
 

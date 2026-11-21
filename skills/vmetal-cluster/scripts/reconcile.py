@@ -19,13 +19,13 @@ def reconcile(plan, state, step):
     if prefix:
         index = int(step.removeprefix(prefix))
         node, phase = plan['workers'][index], prefixes[prefix]
-    elif step.startswith('build-arch-'):
-        arch = step.removeprefix('build-arch-')
+    elif step.startswith(('build-arch-', 'fetch-arch-')):
+        arch = step.removeprefix('build-arch-').removeprefix('fetch-arch-')
         builder = plan['artifacts'][arch]['builder']
         if builder == 'manager':
             raise ValueError('Manager build uses the build receipt')
-        node, phase = plan['workers'][int(builder.split('-')[1])], 'node-assets'
-    elif step in ('build', 'management', 'control-plane', 'handoff', 'join'):
+        node, phase = plan['workers'][int(builder.split('-')[1])], 'fetch-node' if step.startswith('fetch-arch-') else 'node-assets'
+    elif step in ('fetch-manager', 'prepare-manager', 'build', 'management', 'control-plane', 'handoff', 'join'):
         node, phase = plan['manager'], step
     else:
         raise ValueError('Staging did not return success; inspect the private state before manual recovery')

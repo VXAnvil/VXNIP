@@ -7,7 +7,30 @@ The caller needs Python 3.10+ and OpenSSH on macOS/Linux. Runtime paths below ar
 - `mode: existing` only reads the named machines and selected cluster. It works without sudo, permits mixed AMD64/ARM64 and allocated VM/bare-metal hosts, and never calls the installer or changes Tailscale preferences. Provide the real kubeconfig/API/SPIRE endpoints; do not derive SPIRE from an old example or equate it with the SSH address.
 - `mode: create` prepares a new dedicated management site and unallocated workers. It requires non-interactive sudo and complete privileged preflight facts. It cannot adopt an existing allocation or add workers to an existing site. Keep existing clusters in `existing` mode until an explicit add-node workflow is implemented.
 
-Example for preserving an existing mixed-architecture cluster over Tailscale:
+## Default: several machines on the home LAN
+
+For a new cluster, machine connections are enough. Select one dedicated manager and any number of unallocated workers within their resource limits; architectures and VM/bare-metal type are discovered:
+
+```json
+{
+  "manager": {"ssh": "home-manager"},
+  "workers": [
+    {"ssh": "home-amd64-1"},
+    {"ssh": "home-arm64-1"},
+    {"ssh": "home-amd64-2"}
+  ]
+}
+```
+
+Omitted `mode`, `network_mode` and `artifact_mode` mean `create`, `lan` and `release`. LAN setup does not require the Tailscale binary, account, authentication, subnet advertisements or tailnet route approval. Existing Tailscale preferences, if present, are left alone. This is online installation: the runtime downloads and required package repositories still need outbound access.
+
+LAN workers must share the manager's directly connected IPv4 subnet. The executor plans a route to the workload API through the manager and configures scoped forwarding/firewall rules for each worker. SSH reachability alone does not prove that the cluster data plane works: final verification checks every worker, bidirectional Pod HTTP and Service DNS/HTTP. Routed VLANs are not currently supported by this LAN preflight; report the limitation instead of enabling Tailscale automatically.
+
+The endpoint is a provisioned NVKE management/workload cluster with fresh readiness and network checks and a kubeconfig location. Model bundles and acir-produced Helm charts belong to the user's subsequent deployment workflow.
+
+## Optional: Tailscale
+
+Only select `network_mode: tailscale` when requested for remote machines. Example for preserving an existing mixed-architecture cluster over Tailscale:
 
 ```json
 {
@@ -52,13 +75,15 @@ The manager must be a dedicated Ubuntu 24.04 AMD64/ARM64 host without existing c
 
 A VM uses the dedicated VM preparation script. A bare-metal worker requires a healthy existing Docker/shared containerd 2.x installation; preparation extracts the pinned node tools into an isolated runtime/socket/root, uses OVN local gateway without taking over the physical NIC, appends a restricted Provider public key, and preserves Docker, shared containerd, existing containers, the default route and the NVIDIA driver. The pinned bare-metal helper keeps its `vmetal.nvke.dev/experiment=true:NoSchedule` taint; ordinary workloads need the corresponding toleration, and this executor does not silently remove that scheduling restriction. Shared resources are snapshotted before building/preparation and checked both before allocation and after final verification. Changes stop the run; there is no automatic rollback or reinstall.
 
-Artifacts are selected by each worker's native architecture. Manager-native workers receive the manager's verified artifacts. Each other architecture builds natively on its first suitable worker (6 GiB available RAM and 80 GiB free disk required), and shares that verified artifact tree only with the same architecture. No AMD64 package is reused for ARM64 and no QEMU/binfmt changes are made. The native node-only builder rejects apt removals/upgrades, uses a unique build image name and does not restart shared Docker/containerd or build an extra management stack. An incompatible dependency transaction blocks and requires a separately prepared native build environment; it is not forced through.
+Default release mode downloads SHA-256-pinned manager and node runtimes for AMD64/ARM64, selects each worker's native architecture and shares the verified node assets only with workers of that architecture. No compiler, source checkout or image build runs on user machines. Download failure is a resumable gate and does not trigger a source-build fallback.
 
-The new manager installs build prerequisites and Docker, loads Open vSwitch, builds pinned assets, initializes Kind/CAPI/NVKE/SPIRE/VMetal, persists inotify/IPv4 forwarding and starts a privileged Docker workload control plane. The topology is an evaluation path, not HA/production-qualified. GPU drivers, GPU Operator and models are outside scope.
+Developer-only `artifact_mode: source` compiles on the targets. In that mode, manager-native workers receive the manager's verified artifacts. Each other architecture builds natively on its first suitable worker (6 GiB available RAM and 80 GiB free disk required), and shares that verified artifact tree only with the same architecture. No AMD64 package is reused for ARM64 and no QEMU/binfmt changes are made. The native node-only builder rejects apt removals/upgrades, uses a unique build image name and does not restart shared Docker/containerd or build an extra management stack. An incompatible dependency transaction blocks and requires a separately prepared native build environment; it is not forced through.
+
+The new manager installs runtime prerequisites and Docker, loads Open vSwitch, verifies downloaded runtime assets, initializes Kind/CAPI/NVKE/SPIRE/VMetal, persists inotify/IPv4 forwarding and starts a privileged Docker workload control plane. The topology is an evaluation path, not HA/production-qualified. GPU drivers, GPU Operator and models are outside scope.
 
 ## Tailscale create mode
 
-Tailscale must already be installed/authenticated on every target. The manager merges the API/SPIRE /32 routes with existing advertisements and disables subnet SNAT to preserve worker source identity. Each worker enables route acceptance without replacing other preferences. Scoped per-worker manager firewall recovery units are persisted; OVN MTU uses the minimum peer-route interface budget with 100 bytes reserved for the IPv4 overlay.
+These requirements apply only to explicit Tailscale mode. Tailscale must already be installed/authenticated on every target. The manager merges the API/SPIRE /32 routes with existing advertisements and disables subnet SNAT to preserve worker source identity. Each worker enables route acceptance without replacing other preferences. Scoped per-worker manager firewall recovery units are persisted; OVN MTU uses the minimum peer-route interface budget with 100 bytes reserved for the IPv4 overlay.
 
 Routes and grants may require approval by the tailnet administrator. The worker route gate verifies the API actually routes through `tailscale0` and API/SPIRE are reachable before preparation. Missing approval/connectivity returns a known resumable `blocked` gate (exit 75 from that fixed phase), not a generic retry permission. Resume the same plan/state after approval. No approval API, static-LAN fallback, global firewall flush, reset or overwrite of existing routes is used. Existing mode never changes these preferences.
 
@@ -69,7 +94,7 @@ Routes and grants may require approval by the tailnet administrator. The worker 
 - Go 1.27.4, Kind 0.32.0, kubectl 1.36.3, clusterctl 1.13.6 and Helm 4.2.4 from architecture-specific upstream downloads, verified against HTTPS publisher metadata/checksums before execution. Git checkouts are checked against full commit IDs.
 - Native node packages, OVN/SPIRE agents, unit files and images are built through the fixed public-source procedure; NVKE package builders use committed upstream locks. SHA256SUMS and image IDs are retained and checked before packaging/installation.
 
-Source builds can download several GB and take hours. They require public apt, GitHub, Go, Kubernetes, Helm and registry access. Package repository changes can alter source-built bytes: preserve generated manifests; do not claim byte-for-byte reproducibility. No private bundle service, registry login, prebuilt full release bundle or offline path is assumed.
+The default installer uses the published runtime manifest; a missing manifest blocks before remote installation. Only explicit developer source builds can download several GB and take hours. They require public apt, GitHub, Go, Kubernetes, Helm and registry access. Package repository changes can alter source-built bytes: preserve generated manifests; do not claim byte-for-byte reproducibility. No private bundle service or registry login is required. An offline path is not implemented.
 
 ## State and recovery
 

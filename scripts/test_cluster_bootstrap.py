@@ -34,9 +34,83 @@ def facts(ip='192.168.50.10', identity='a', user='ubuntu'):
             'routes': [{'dst': '192.168.50.0/24'}, {'dst': 'default', 'gateway': '192.168.50.1'}]}
 
 
+class RuntimeAssetTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        spec = importlib.util.spec_from_file_location('publisher', RUNTIME.parents[2] / 'scripts/package-runtime-assets.py')
+        self.publisher = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.publisher)
+        self.input = self.root / 'input'
+        self.input.mkdir()
+        (self.input / 'node-tool').write_bytes(b'verified tool')
+        digest = self.publisher.sha256(self.input / 'node-tool')
+        (self.input / 'SHA256SUMS').write_text(digest + '  node-tool\n')
+        (self.input / 'unused-build-output').write_text('not needed on user machines')
+
+    def test_native_publisher_archive_round_trips_without_build_intermediates(self):
+        asset = self.publisher.pack(self.input, 'node', 'amd64', self.root, 'runtime-v0.1.0-test')
+        cluster.runtime_assets.validate_asset(asset, 'node', 'amd64')
+        staging = self.root / 'staging'
+        staging.mkdir()
+        archive = self.root / 'vmetal-node-amd64.tar.gz'
+        result = cluster.runtime_assets.unpack(archive, staging, asset, cluster.RELEASE)
+        self.assertEqual((result / 'node-tool').read_bytes(), b'verified tool')
+        self.assertFalse((result / 'unused-build-output').exists())
+        self.assertEqual(self.publisher.sha256(archive), asset['sha256'])
+
+    def test_downloaded_bytes_must_match_before_installation(self):
+        import io
+        asset = self.publisher.pack(self.input, 'node', 'amd64', self.root, 'runtime-v0.1.0-test')
+        for data in (b'corrupt', b'X' * (asset['size'] + 1)):
+            with self.subTest(size=len(data)):
+                response = io.BytesIO(data)
+                response.url = asset['url']
+                with patch.object(cluster.runtime_assets.urllib.request, 'build_opener') as opener:
+                    opener.return_value.open.return_value = response
+                    output = self.root / 'download'
+                    with self.assertRaises(cluster.runtime_assets.DownloadBlocked):
+                        cluster.runtime_assets.download(asset, output)
+                    output.unlink(missing_ok=True)
+
+    def test_untrusted_archive_paths_and_links_are_rejected(self):
+        import io
+        import tarfile
+        for name, link in (('../escape', False), ('/escape', False), ('artifacts/link', True)):
+            with self.subTest(name=name):
+                archive = self.root / 'malicious.tar.gz'
+                with tarfile.open(archive, 'w:gz') as output:
+                    member = tarfile.TarInfo(name)
+                    if link:
+                        member.type, member.linkname = tarfile.SYMTYPE, '/etc/passwd'
+                    else:
+                        member.size = 1
+                    output.addfile(member, None if link else io.BytesIO(b'x'))
+                with self.assertRaises(cluster.runtime_assets.DownloadBlocked):
+                    cluster.runtime_assets.unpack(archive, self.root, {'role':'node', 'unpacked_size':100}, cluster.RELEASE)
+                self.assertFalse((self.root.parent / 'escape').exists())
+
+    def test_manager_archive_does_not_publish_site_credentials(self):
+        (self.input / 'tenant').mkdir()
+        (self.input / 'tenant/workload.kubeconfig').write_text('private fixture')
+        with self.assertRaisesRegex(ValueError, 'Private state'):
+            self.publisher.pack(self.input, 'manager', 'arm64', self.root, 'runtime-v0.1.0-test')
+
+    def test_prebuilt_manifest_is_required_without_source_fallback(self):
+        missing = self.root / 'missing.json'
+        with self.assertRaisesRegex(ValueError, 'manifest is missing'):
+            cluster.runtime_assets.catalog(missing, cluster.RELEASE)
+        config = {'manager':{'ssh':'manager'}, 'workers':[{'ssh':'worker'}]}
+        with patch.object(cluster, 'BUNDLE_MANIFEST', missing), patch.object(cluster, 'probe') as probe:
+            with self.assertRaisesRegex(ValueError, 'manifest is missing'):
+                cluster.make_plan(config)
+            probe.assert_not_called()
+
+
 class BootstrapTests(unittest.TestCase):
     def setUp(self):
-        self.config = {'manager': {'ssh': 'manager'}, 'workers': [{'ssh': 'worker'}]}
+        self.config = {'artifact_mode': 'source', 'manager': {'ssh': 'manager'}, 'workers': [{'ssh': 'worker'}]}
         self.machines = {'manager': facts(), 'worker': facts('192.168.50.20', 'b')}
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -51,6 +125,56 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(plan['workers'][0]['address'], '192.168.50.20')
         self.assertEqual(len(plan['networks']), 3)
         self.assertEqual(plan['release'], cluster.RELEASE)
+
+    def test_default_lan_release_prepares_every_mixed_worker_without_tailscale(self):
+        # No source-build override, Tailscale executable, prefs or interface.
+        self.config.pop('artifact_mode')
+        self.config['workers'] += [{'ssh': 'worker2'}, {'ssh': 'worker3'}]
+        self.machines['worker2'] = facts('192.168.50.30', 'c')
+        self.machines['worker3'] = facts('192.168.50.40', 'd')
+        self.machines['worker']['arch'] = 'amd64'
+        self.machines['worker3']['arch'] = 'amd64'
+        for alias, machine in self.machines.items():
+            machine['tailscale'] = None
+            machine['tailscale_state'] = None
+            if alias != 'manager':
+                machine.update(cpus=2, memory=4 * 2**30, free_disk=20 * 2**30)
+        assets = {role + '-' + arch: {'role': role, 'arch': arch}
+                  for role in ('manager', 'node') for arch in ('amd64', 'arm64')}
+        with patch.object(cluster.runtime_assets, 'catalog', return_value={'assets': assets}):
+            plan = self.plan()
+        self.assertEqual(plan['network_mode'], 'lan')
+        self.assertEqual(plan['artifact_mode'], 'release')
+        self.assertEqual(plan['manager_asset'], assets['manager-arm64'])
+        self.assertEqual(plan['artifacts']['amd64']['asset'], assets['node-amd64'])
+        self.assertEqual(plan['artifacts']['arm64']['asset'], assets['node-arm64'])
+        actions = []
+        result = json.dumps({'ready': True, 'plan_digest': cluster.digest(plan)}).encode()
+        with patch.object(cluster, 'probe', side_effect=lambda alias: copy.deepcopy(self.machines[alias])), \
+                patch.object(cluster, 'upload_runtime'), patch.object(cluster, 'transfer'), \
+                patch.object(cluster, 'transfer_artifacts') as transfers, \
+                patch.object(cluster, 'phase', side_effect=lambda node, plan, name, log: actions.append((node['ssh'], name))), \
+                patch.object(cluster, 'remote', return_value=result):
+            cluster.apply(plan, self.state)
+        self.assertEqual({alias for alias, phase in actions if phase == 'worker'}, {'worker', 'worker2', 'worker3'})
+        self.assertEqual({alias for alias, phase in actions if phase == 'fetch-node'}, {'worker', 'worker2'})
+        self.assertIn(('manager', 'fetch-manager'), actions)
+        self.assertIn(('manager', 'verify'), actions)
+        self.assertEqual(transfers.call_count, 1)
+        self.assertFalse(any(name in ('build', 'node-assets', 'tailscale-worker') for _, name in actions))
+
+    def test_lan_does_not_change_installed_but_unauthenticated_tailscale(self):
+        for machine in self.machines.values():
+            machine['tailscale_state'] = 'NeedsLogin'
+            machine['tailscale'] = {'AdvertiseRoutes': ['192.168.100.0/24'], 'RouteAll': False}
+        before = copy.deepcopy(self.machines)
+        self.assertEqual(self.plan()['network_mode'], 'lan')
+        self.assertEqual(self.machines, before)
+
+    def test_lan_rejects_a_different_subnet_before_installation(self):
+        self.machines['worker'] = facts('192.168.60.20', 'b')
+        with self.assertRaisesRegex(ValueError, 'same directly connected LAN'):
+            self.plan()
 
     def test_management_and_workload_containers_never_share_a_name(self):
         for site in ('vmetal-lab', 'vmetal-' + 'a' * 20):
@@ -264,7 +388,7 @@ class BootstrapTests(unittest.TestCase):
         package = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(package)
         output = self.state / 'skill.zip'
-        package.package(output)
+        package.package(output, development=True)
         with zipfile.ZipFile(output) as archive:
             self.assertIsNone(archive.testzip())
             self.assertIn('vmetal-cluster/SKILL.md', archive.namelist())
