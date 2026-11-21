@@ -25,7 +25,7 @@ def reconcile(plan, state, step):
         if builder == 'manager':
             raise ValueError('Manager build uses the build receipt')
         node, phase = plan['workers'][int(builder.split('-')[1])], 'fetch-node' if step.startswith('fetch-arch-') else 'node-assets'
-    elif step in ('fetch-manager', 'prepare-manager', 'build', 'management', 'control-plane', 'handoff', 'join'):
+    elif step in ('fetch-manager', 'prepare-manager', 'load-manager', 'build', 'management', 'control-plane', 'handoff', 'join'):
         node, phase = plan['manager'], step
     else:
         raise ValueError('Staging did not return success; inspect the private state before manual recovery')

@@ -456,7 +456,7 @@ def apply(plan, state):
     with os.fdopen(fd, 'ab', buffering=0) as log:
         manager = plan['manager']
         run_step(state, 'upload-manager', lambda: upload_runtime(manager, plan))
-        manager_steps = ('fetch-manager', 'prepare-manager') if plan.get('artifact_mode', 'release') == 'release' else ('build',)
+        manager_steps = ('fetch-manager', 'prepare-manager', 'load-manager') if plan.get('artifact_mode', 'release') == 'release' else ('build',)
         for name in (*manager_steps, 'management', 'control-plane', 'handoff'):
             run_step(state, name, lambda name=name: phase(manager, plan, name, log))
         for i, worker in enumerate(plan['workers']):

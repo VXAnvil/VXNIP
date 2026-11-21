@@ -96,6 +96,10 @@ Routes and grants may require approval by the tailnet administrator. The worker 
 
 The default installer uses the published runtime manifest; a missing manifest blocks before remote installation. Only explicit developer source builds can download several GB and take hours. They require public apt, GitHub, Go, Kubernetes, Helm and registry access. Package repository changes can alter source-built bytes: preserve generated manifests; do not claim byte-for-byte reproducibility. No private bundle service or registry login is required. An offline path is not implemented.
 
+## Portable image loading
+
+Docker versions/stores can rewrite an image config during `docker load`, so publisher `.Id` strings alone cannot verify loaded content portably. Release mode first verifies the immutable downloaded bundle and archive checksums, loads its images, and compares OS, architecture, ordered root filesystem layer digests and non-default runtime configuration against the archive's own configs. Changed layers, environment, labels or platform stop installation. It then derives a hard-linked `work/management-runtime` view containing this daemon's IDs and a new checksum manifest. The original `work/management-bundle` remains unchanged. No Dockerfile, compiler or image build is invoked. The fixed management helper checks the derived IDs before use.
+
 ## State and recovery
 
 New-install remote state is root-owned `/var/lib/vmetal-bootstrap/<site>/`, with runtime, sources/builds, site credentials, tenant configuration and handoff data. Existing mode writes no remote state. The caller uses a 0700 directory with private plan/journal/result/log/snapshot files. Logs can contain installer output; never paste them wholesale into chat or commit them.

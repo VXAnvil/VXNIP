@@ -145,6 +145,59 @@ class RuntimeAssetTests(unittest.TestCase):
             probe.assert_not_called()
 
 
+class ImagePortabilityTests(unittest.TestCase):
+    def setUp(self):
+        import hashlib,io,tarfile
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.source = self.root / 'management-bundle'
+        self.source.mkdir()
+        self.names = ['kindest/node:test', 'vmetal/controller:test', 'vmetal/profile:test']
+        (self.source / 'images').write_text('\n'.join(self.names)+'\n')
+        (self.source / 'image-ids').write_text(('sha256:'+'a'*64+'\n')*3)
+        self.actual = {}
+        manifests = []
+        with tarfile.open(self.source / 'images.tar','w') as archive:
+            for i,name in enumerate(self.names):
+                cfg = {'architecture':'arm64', 'os':'linux', 'rootfs':{'diff_ids':['sha256:'+str(i)*64]},
+                       'config':{'Env':['MODE=original'], 'Entrypoint':['/bin/run'], 'Labels':{'empty':''}, 'ArgsEscaped':False}}
+                data=json.dumps(cfg).encode(); filename=str(i)+'.json'
+                member=tarfile.TarInfo(filename);member.size=len(data);archive.addfile(member,io.BytesIO(data))
+                manifests.append({'RepoTags':[name], 'Config':filename})
+                self.actual[name]={'Id':'sha256:'+str(i+1)*64,'Architecture':'arm64','Os':'linux',
+                                   'RootFS':{'Layers':cfg['rootfs']['diff_ids']}, 'Config':dict(cfg['config'],Cmd=None)}
+            data=json.dumps(manifests).encode();member=tarfile.TarInfo('manifest.json');member.size=len(data);archive.addfile(member,io.BytesIO(data))
+        sums=[hashlib.sha256(f.read_bytes()).hexdigest()+'  '+f.name for f in self.source.iterdir()]
+        (self.source / 'SHA256SUMS').write_text('\n'.join(sums)+'\n')
+        import images
+        self.images=images
+
+    def test_local_ids_are_derived_without_changing_verified_source(self):
+        before={p.name:p.read_bytes() for p in self.source.iterdir()}
+        dest=self.root / 'management-runtime'
+        self.images.prepare(self.source,dest,'arm64',load=lambda:None,inspect=lambda name:self.actual[name])
+        self.assertEqual(before,{p.name:p.read_bytes() for p in self.source.iterdir()})
+        self.assertNotEqual((dest/'image-ids').read_bytes(),(self.source/'image-ids').read_bytes())
+        self.assertEqual((dest/'images.tar').stat().st_ino,(self.source/'images.tar').stat().st_ino)
+        with self.assertRaisesRegex(RuntimeError,'already exists'):
+            self.images.prepare(self.source,dest,'arm64',load=lambda:None,inspect=lambda name:self.actual[name])
+
+    def test_changed_layers_config_or_platform_are_not_accepted(self):
+        for field in ('env','label','layer','arch'):
+            with self.subTest(field=field):
+                actual=copy.deepcopy(self.actual)
+                image=actual[self.names[0]]
+                if field=='env':image['Config']['Env']=['MODE=changed']
+                elif field=='label':image['Config']['Labels']={'empty':'changed'}
+                elif field=='layer':image['RootFS']['Layers']=['sha256:'+'f'*64]
+                else:image['Architecture']='amd64'
+                dest=self.root / ('bad-'+field)
+                with self.assertRaisesRegex(ValueError,'differs'):
+                    self.images.prepare(self.source,dest,'arm64',load=lambda:None,inspect=lambda name:actual[name])
+                self.assertFalse(dest.exists())
+
+
 class BootstrapTests(unittest.TestCase):
     def setUp(self):
         self.config = {'artifact_mode': 'source', 'manager': {'ssh': 'manager'}, 'workers': [{'ssh': 'worker'}]}

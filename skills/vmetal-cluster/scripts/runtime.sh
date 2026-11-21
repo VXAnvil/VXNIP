@@ -17,6 +17,7 @@ ROOT=$root
 export CLUSTER WORKER_IP
 work=$ROOT/work
 bundle=$work/management-bundle
+if [[ $ARTIFACT_MODE == release ]]; then bundle=$work/management-runtime; fi
 provider=$bundle/provider
 site_state=$ROOT/site
 tenant=$ROOT/tenant
@@ -34,6 +35,9 @@ case "$phase" in
 fetch-manager)
     [[ $ARTIFACT_MODE == release ]]
     python3 "$ROOT/runtime/artifacts.py" "$ROOT/settings.json" manager
+    ;;
+load-manager)
+    python3 "$ROOT/runtime/images.py" "$ROOT/settings.json"
     ;;
 prepare-manager)
     bash "$ROOT/runtime/prerequisites.sh" manager
