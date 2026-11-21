@@ -4,6 +4,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import zipfile
+import sys
 
 
 def package(output, development=False):
@@ -11,6 +12,10 @@ def package(output, development=False):
     files = [source / 'SKILL.md', source / 'references/executor.md']
     manifest = source / 'references/runtime-artifacts.json'
     if manifest.is_file():
+        sys.path.insert(0, str(source / 'scripts'))
+        from cluster import RELEASE
+        from artifacts import catalog
+        catalog(manifest, RELEASE)
         files.append(manifest)
     elif not development:
         raise ValueError('Publish verified native runtime assets and include their manifest before releasing the skill')

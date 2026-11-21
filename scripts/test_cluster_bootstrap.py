@@ -60,6 +60,43 @@ class RuntimeAssetTests(unittest.TestCase):
         self.assertFalse((result / 'unused-build-output').exists())
         self.assertEqual(self.publisher.sha256(archive), asset['sha256'])
 
+    def test_publication_requires_all_four_archives_with_matching_hashes(self):
+        spec = importlib.util.spec_from_file_location('release_verify', RUNTIME.parents[2] / 'scripts/verify-runtime-release.py')
+        verifier = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(verifier)
+        tag = 'runtime-v0.1.0-test'
+        for arch in ('amd64', 'arm64'):
+            assets = {}
+            for role in ('manager', 'node'):
+                assets[role + '-' + arch] = self.publisher.pack(self.input, role, arch, self.root, tag)
+            (self.root / ('manifest-' + arch + '.json')).write_text(json.dumps({'schema':1, 'sources':cluster.RELEASE, 'assets':assets}))
+        self.assertEqual(len(verifier.verify(self.root, tag)['assets']), 4)
+        with self.assertRaisesRegex(ValueError, 'release tag differs'):
+            verifier.verify(self.root, 'runtime-v0.1.0-other')
+        with (self.root / 'vmetal-manager-amd64.tar.gz').open('ab') as stream:
+            stream.write(b'changed')
+        with self.assertRaisesRegex(ValueError, 'bytes differ'):
+            verifier.verify(self.root, tag)
+
+    def test_install_uses_verified_staging_and_matching_receipt(self):
+        import shutil
+        asset = self.publisher.pack(self.input, 'node', 'amd64', self.root, 'runtime-v0.1.0-test')
+        settings = {'root':str(self.root / 'state'), 'node':{'facts':{'arch':'amd64'}},
+                    'plan':{'release':cluster.RELEASE, 'artifacts':{'amd64':{'asset':asset}}}}
+        Path(settings['root']).mkdir()
+        archive = self.root / 'vmetal-node-amd64.tar.gz'
+        with patch.object(cluster.runtime_assets, 'download', side_effect=lambda asset, target:shutil.copyfile(archive,target)) as download:
+            cluster.runtime_assets.install(settings, 'node')
+            cluster.runtime_assets.install(settings, 'node')
+            self.assertEqual(download.call_count, 1)
+        work = Path(settings['root']) / 'work'
+        self.assertEqual((work / 'artifacts/node-tool').read_bytes(), b'verified tool')
+        self.assertEqual(json.loads((work / '.installed-node.json').read_text()), asset)
+        self.assertFalse(list(work.glob('.runtime-*')))
+        (work / '.installed-node.json').unlink()
+        with self.assertRaisesRegex(RuntimeError, 'matching receipt'):
+            cluster.runtime_assets.install(settings, 'node')
+
     def test_downloaded_bytes_must_match_before_installation(self):
         import io
         asset = self.publisher.pack(self.input, 'node', 'amd64', self.root, 'runtime-v0.1.0-test')

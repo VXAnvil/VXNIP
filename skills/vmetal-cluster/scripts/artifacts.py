@@ -8,6 +8,7 @@ import re
 import shutil
 import tarfile
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -63,6 +64,7 @@ class HTTPSRedirect(urllib.request.HTTPRedirectHandler):
 def download(asset, output):
     digest = hashlib.sha256()
     size = 0
+    reported = time.monotonic()
     opener = urllib.request.build_opener(HTTPSRedirect())
     try:
         request = urllib.request.Request(asset['url'], headers={'User-Agent': 'vmetal-cluster-skill'})
@@ -78,6 +80,9 @@ def download(asset, output):
                     raise DownloadBlocked('Runtime asset exceeds its pinned size')
                 digest.update(block)
                 target.write(block)
+                if time.monotonic() - reported >= 15:
+                    print(f"Downloaded {size // 2**20}/{asset['size'] // 2**20} MiB", flush=True)
+                    reported = time.monotonic()
     except (OSError, urllib.error.URLError) as error:
         raise DownloadBlocked('Runtime download incomplete; retry the same plan after connectivity recovers') from error
     if size != asset['size'] or digest.hexdigest() != asset['sha256']:

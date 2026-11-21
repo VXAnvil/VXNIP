@@ -1,22 +1,12 @@
-## VMetal cluster setup skill — preview
+## VMetal cluster skill: prebuilt runtime preview
 
-Download **vmetal-cluster.zip** and **vmetal-cluster.zip.sha256**. Verify the checksum, then extract the skill folder into your Codex or Claude Code skills directory. See the [installation guide](https://github.com/vmetal-lab/cluster-api-provider-vmetal/blob/skill-v0.1.0-rc.1/docs/cluster-skill.md) for commands and examples.
+Download **vmetal-cluster.zip** and its **.sha256** file, verify the checksum and extract into your agent's skills directory. See the [installation guide](https://github.com/vmetal-lab/cluster-api-provider-vmetal/blob/skill-v0.1.0-rc.2/docs/cluster-skill.md).
 
-### Included
+- Provide one manager and one or more worker SSH connections. Runtime assets are selected automatically for AMD64/ARM64 and verified against the included manifest. No source compilation or image build runs on user machines; failed downloads do not silently fall back to source builds.
+- Home LAN is the default. Several mixed-architecture workers can share the manager's directly connected subnet without Tailscale installed, device authentication or route approval. Tailscale is optional for remote hosts.
+- Existing-mode inspection remains read-only. Creation uses a dedicated manager and unallocated workers; it does not adopt/reset allocated machines. Bare-metal preparation uses an isolated runtime while preserving shared services.
+- Success requires current Node/provider identities, Node Ready, bidirectional Pod HTTP and Service DNS/HTTP for every worker. The skill stops there; model bundles and acir-produced Helm charts are separate.
 
-- Portable Agent Skills instructions plus a Python/OpenSSH installer; no repository checkout is needed on the caller.
-- Per-architecture public-source acquisition/builds for AMD64/ARM64, LAN or Tailscale networking, and isolated bare-metal runtime support.
-- Read-only `existing` mode for allocated clusters, explicit `create` mode for dedicated managers and unallocated workers, strict identity/state binding, and resumable Tailscale route gates.
-- Distinct management/workload names, HTTP-ready Pod probes, Service DNS/HTTP verification, private failure logs and credential-free packaging.
+Caller: macOS/Linux, Python 3.10+, OpenSSH and trusted connections. Targets: Ubuntu 24.04 with non-interactive sudo. Manager: 6 CPUs, 16 GiB RAM (12 GiB available), 100 GiB free disk and matching host kernel config. Workers: 2 CPUs, 4 GiB RAM, 20 GiB free disk. LAN currently requires a shared subnet. Optional Tailscale mode requires authenticated devices and any necessary administrator route/grant approvals. Runtime/package downloads require internet access.
 
-### Verified
-
-48 behavioral tests passed. Live ARM64 management + AMD64 worker VM installation finished with both Nodes Ready, bidirectional Pod HTTP and Service DNS/HTTP passing, and test namespaces cleaned. The existing cluster's protected snapshot remained unchanged (4 Hosts, 4 Machines, 2 Nodes, 60 controllers, 76 Pods; 35/35 Deployments available).
-
-The live run included documented, audited repairs for the naming collision and probe startup race. Physical bare-metal fresh installation is not yet live-tested. This preview is an evaluation setup, with GPU configuration, allocation migration and HA/production qualification outside scope. See the [validation record](https://github.com/vmetal-lab/cluster-api-provider-vmetal/blob/skill-v0.1.0-rc.1/docs/cluster-skill-validation.md).
-
-### Requirements
-
-Caller: macOS/Linux, Python 3.10+, OpenSSH and trusted machine connections. New targets: Ubuntu 24.04 with non-interactive sudo. Manager: 6 CPUs, 16 GiB RAM and 100 GiB free disk; workers: 2 CPUs, 4 GiB RAM and 20 GiB disk (foreign-architecture builder: 6 GiB available RAM and 80 GiB free disk). Tailscale targets must be authenticated; routes/grants may need administrator approval. Builds may take hours and download several GB.
-
-This release distributes the skill and executor. Node artifacts are obtained/built during installation from fixed public revisions; a prebuilt/offline NVKE bundle and SSH credentials are not included. The existing controller release remains independently versioned.
+58 bootstrap behavioral tests and exact-commit CI passed before native publishing. Fresh public-release LAN VM acceptance is being recorded separately; historical source-path acceptance is not evidence that this prebuilt release has passed. Physical bare-metal fresh installation remains untested. This is an evaluation setup; HA/production qualification, GPU configuration and model deployment are outside scope.

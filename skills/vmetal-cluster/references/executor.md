@@ -91,8 +91,8 @@ Routes and grants may require approval by the tailnet administrator. The worker 
 
 - VMetal: `https://github.com/vmetal-lab/cluster-api-provider-vmetal.git`, revision `633b2efb1d3b087376b995c906887a3d8c994ba7`.
 - NVKE: `https://github.com/dsx-ai-factory/nvke.git`, revision `2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049`.
-- Go 1.27.4, Kind 0.32.0, kubectl 1.36.3, clusterctl 1.13.6 and Helm 4.2.4 from architecture-specific upstream downloads, verified against HTTPS publisher metadata/checksums before execution. Git checkouts are checked against full commit IDs.
-- Native node packages, OVN/SPIRE agents, unit files and images are built through the fixed public-source procedure; NVKE package builders use committed upstream locks. SHA256SUMS and image IDs are retained and checked before packaging/installation.
+- Publisher/developer build tools: Go 1.27.4, Kind 0.32.0, kubectl 1.36.3, clusterctl 1.13.6 and Helm 4.2.4 from architecture-specific upstream downloads, verified against HTTPS publisher metadata/checksums before execution. Git checkouts are checked against full commit IDs.
+- Native node packages, OVN/SPIRE agents, unit files and images are built once by the native publisher through the fixed public-source procedure; NVKE package builders use committed upstream locks. SHA256SUMS and image IDs are retained and checked before packaging/installation.
 
 The default installer uses the published runtime manifest; a missing manifest blocks before remote installation. Only explicit developer source builds can download several GB and take hours. They require public apt, GitHub, Go, Kubernetes, Helm and registry access. Package repository changes can alter source-built bytes: preserve generated manifests; do not claim byte-for-byte reproducibility. No private bundle service or registry login is required. An offline path is not implemented.
 

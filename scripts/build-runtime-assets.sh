@@ -7,3 +7,7 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 export VMETAL_PORTABLE_KERNEL_CONFIG=1 VMETAL_USE_EXISTING_BUILD_DOCKER=1
 bash "$repo/skills/vmetal-cluster/scripts/public-inputs.sh" "$1"
 python3 "$repo/scripts/package-runtime-assets.py" "$1" "$2" --arch "$(dpkg --print-architecture)" --tag "$3"
+
+# These outputs contain only public runtime files; the unprivileged CI uploader must read them.
+chmod 0755 "$2"
+chmod 0644 "$2"/*
