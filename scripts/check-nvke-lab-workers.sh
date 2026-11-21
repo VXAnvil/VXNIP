@@ -15,6 +15,7 @@ api=$("${k[@]}" config view --minify -o jsonpath='{.clusters[0].cluster.server}'
 
 dir=$(mktemp -d)
 ns=
+# shellcheck disable=SC2329 # Invoked indirectly by the EXIT trap.
 cleanup() {
     if [[ -n $ns ]]; then
         "${k[@]}" delete namespace "$ns" --wait=false >/dev/null || true
@@ -63,12 +64,17 @@ spec:
     - name: http
       image: docker.io/library/busybox:1.36.1
       command: ["sh", "-ec", "mkdir -p /tmp/http; echo $name > /tmp/http/index.html; exec httpd -f -p 8080 -h /tmp/http"]
+      readinessProbe:
+        httpGet: {path: /, port: 8080}
+        periodSeconds: 1
+        timeoutSeconds: 5
+        failureThreshold: 90
       resources:
         requests: {cpu: 5m, memory: 1Mi}
         limits: {cpu: 100m, memory: 16Mi}
 YAML
 done
-if ! "${k[@]}" -n "$ns" wait --for=condition=Ready pods --all --timeout=55s; then
+if ! "${k[@]}" -n "$ns" wait --for=condition=Ready pods --all --timeout=120s; then
     "${k[@]}" -n "$ns" get pods -o wide
     "${k[@]}" -n "$ns" get events --sort-by=.lastTimestamp | tail -20
     exit 1

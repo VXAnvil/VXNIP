@@ -1,0 +1,61 @@
+name: Release cluster skill
+
+on:
+  push:
+    tags: ['skill-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skill-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-ci:
+    if: github.event.deleted != true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require exact-commit CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^skill-v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]
+          python3 .github/scripts/ci-policy.py release --commit "$(git rev-parse HEAD)"
+
+  publish:
+    needs: verify-ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Package and publish the portable skill
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/skill-release"
+          mkdir -p "$output"
+          python3 scripts/package-cluster-skill.py "$output/vmetal-cluster.zip"
+          (cd "$output" && sha256sum -c vmetal-cluster.zip.sha256)
+          prerelease=()
+          if [[ "${RELEASE_TAG#skill-v}" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$RELEASE_TAG" --verify-tag --latest=false "${prerelease[@]}" \
+            --title "VMetal cluster skill ${RELEASE_TAG#skill-}" \
+            --notes-file docs/cluster-skill-release-notes.md \
+            "$output/vmetal-cluster.zip" "$output/vmetal-cluster.zip.sha256"

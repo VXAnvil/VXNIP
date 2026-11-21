@@ -34,6 +34,7 @@ These commands record local inventory and read host information; they do not joi
 
 | Guide | Contents |
 | --- | --- |
+| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/vmetal-lab/cluster-api-provider-vmetal/releases/tag/skill-v0.1.0-rc.1): Codex/Claude Code setup, mixed architectures, Tailscale and read-only cluster inspection |
 | [Prepare public inputs](docs/public-inputs.md) | Fresh Ubuntu: fixed source, verified tools, node artifacts and management bundle |
 | [NVKE setup](docs/nvke-quickstart.md) | Management site, worker enrollment, Docker control plane and GPU worker example |
 | [Operations](docs/operations.md) | Images and bundles, terminal configuration, diagnostics and recovery |

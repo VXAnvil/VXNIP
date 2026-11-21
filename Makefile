@@ -23,8 +23,8 @@ lint:
 	"$(BIN)/golangci-lint" config verify
 	"$(BIN)/golangci-lint" run --timeout=5m
 	"$(BIN)/actionlint" -shellcheck="$(BIN)/shellcheck"
-	@set -euo pipefail; while IFS= read -r -d '' file; do bash -n "$$file"; done < <(find scripts .github -type f -name '*.sh' -print0)
-	$(PYTHON) -c 'import ast; from pathlib import Path; [ast.parse(p.read_text(),filename=str(p)) for d in ("scripts", ".github") for p in Path(d).rglob("*.py")]'
+	@set -euo pipefail; while IFS= read -r -d '' file; do bash -n "$$file"; done < <(find scripts .github skills -type f -name '*.sh' -print0)
+	$(PYTHON) -c 'import ast; from pathlib import Path; [ast.parse(p.read_text(),filename=str(p)) for d in ("scripts", ".github", "skills") for p in Path(d).rglob("*.py")]'
 
 test:
 	$(PYTHON) .github/scripts/verify-go-tests.py --check-tools
@@ -34,6 +34,7 @@ test:
 	$(PYTHON) scripts/test_vmetal_kubeadm.py
 	$(PYTHON) scripts/test_management_tools.py
 	$(PYTHON) scripts/test_management_bundle.py
+	$(PYTHON) scripts/test_cluster_bootstrap.py
 	$(PYTHON) -m unittest discover -s .github/tests -p 'test_*.py' -v
 
 build:
