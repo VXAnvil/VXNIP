@@ -1,5 +1,5 @@
-apiVersion: vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: VXAnvilHost
+apiVersion: vxnip.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VXNIPHost
 metadata:
   name: ${CONTROL_PLANE_HOST}
 spec:
@@ -7,8 +7,8 @@ spec:
   sshTarget: "${CONTROL_PLANE_SSH}"
   allowBootstrap: true
 ---
-apiVersion: vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: VXAnvilHost
+apiVersion: vxnip.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VXNIPHost
 metadata:
   name: ${WORKER_HOST}
 spec:
@@ -16,10 +16,10 @@ spec:
   sshTarget: "${WORKER_SSH}"
   allowBootstrap: true
 ---
-apiVersion: vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: VXAnvilCluster
+apiVersion: vxnip.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VXNIPCluster
 metadata:
-  name: vxanvil-lab
+  name: vxnip-lab
   namespace: default
 spec:
   controlPlaneEndpoint:
@@ -29,7 +29,7 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
-  name: vxanvil-lab
+  name: vxnip-lab
   namespace: default
 spec:
   clusterNetwork:
@@ -39,28 +39,28 @@ spec:
       cidrBlocks: ["10.96.0.0/12"]
     serviceDomain: cluster.local
   infrastructureRef:
-    apiGroup: vxanvil.infrastructure.cluster.x-k8s.io
-    kind: VXAnvilCluster
-    name: vxanvil-lab
+    apiGroup: vxnip.infrastructure.cluster.x-k8s.io
+    kind: VXNIPCluster
+    name: vxnip-lab
   controlPlaneRef:
     apiGroup: controlplane.cluster.x-k8s.io
     kind: KubeadmControlPlane
-    name: vxanvil-lab
+    name: vxnip-lab
 ---
-apiVersion: vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: VXAnvilMachineTemplate
+apiVersion: vxnip.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VXNIPMachineTemplate
 metadata:
-  name: vxanvil-lab-control-plane
+  name: vxnip-lab-control-plane
   namespace: default
 spec:
   template:
     spec:
       hostRef: ${CONTROL_PLANE_HOST}
 ---
-apiVersion: vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1
-kind: VXAnvilMachineTemplate
+apiVersion: vxnip.infrastructure.cluster.x-k8s.io/v1alpha1
+kind: VXNIPMachineTemplate
 metadata:
-  name: vxanvil-lab-worker
+  name: vxnip-lab-worker
   namespace: default
 spec:
   template:
@@ -70,7 +70,7 @@ spec:
 apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: KubeadmControlPlane
 metadata:
-  name: vxanvil-lab
+  name: vxnip-lab
   namespace: default
 spec:
   version: "${KUBERNETES_VERSION}"
@@ -78,9 +78,9 @@ spec:
   machineTemplate:
     spec:
       infrastructureRef:
-        apiGroup: vxanvil.infrastructure.cluster.x-k8s.io
-        kind: VXAnvilMachineTemplate
-        name: vxanvil-lab-control-plane
+        apiGroup: vxnip.infrastructure.cluster.x-k8s.io
+        kind: VXNIPMachineTemplate
+        name: vxnip-lab-control-plane
   kubeadmConfigSpec:
     initConfiguration:
       localAPIEndpoint:
@@ -91,7 +91,7 @@ spec:
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
-  name: vxanvil-lab-worker
+  name: vxnip-lab-worker
   namespace: default
 spec:
   template:
@@ -103,24 +103,24 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
-  name: vxanvil-lab-worker
+  name: vxnip-lab-worker
   namespace: default
 spec:
-  clusterName: vxanvil-lab
+  clusterName: vxnip-lab
   replicas: 1
   selector:
     matchLabels:
-      cluster.x-k8s.io/cluster-name: vxanvil-lab
+      cluster.x-k8s.io/cluster-name: vxnip-lab
   template:
     spec:
-      clusterName: vxanvil-lab
+      clusterName: vxnip-lab
       version: "${KUBERNETES_VERSION}"
       bootstrap:
         configRef:
           apiGroup: bootstrap.cluster.x-k8s.io
           kind: KubeadmConfigTemplate
-          name: vxanvil-lab-worker
+          name: vxnip-lab-worker
       infrastructureRef:
-        apiGroup: vxanvil.infrastructure.cluster.x-k8s.io
-        kind: VXAnvilMachineTemplate
-        name: vxanvil-lab-worker
+        apiGroup: vxnip.infrastructure.cluster.x-k8s.io
+        kind: VXNIPMachineTemplate
+        name: vxnip-lab-worker

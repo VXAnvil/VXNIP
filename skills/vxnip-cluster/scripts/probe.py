@@ -63,7 +63,7 @@ def facts():
         return [d['name'] for d in devices if (d.get('label') or '').lower() in ('cidata', 'config-2', 'configdrive')] + [n for d in devices for n in seeds(d.get('children', []))]
 
     allocations = [present(p) for p in ('/etc/kubernetes/kubelet.conf', '/etc/kubernetes/bootstrap-kubelet.conf',
-                   '/var/lib/vxanvil-kubeadm/current.json', '/var/lib/homelab-kubeadm/current.json', '/etc/vxanvil-nvke-enrollment')]
+                   '/var/lib/vxnip-kubeadm/current.json', '/var/lib/homelab-kubeadm/current.json', '/etc/vxnip-nvke-enrollment')]
     try:
         cni = any(p.is_file() for p in Path('/etc/cni/net.d').iterdir() if p.name != '.kubernetes-cni-keep')
     except FileNotFoundError:
@@ -85,7 +85,7 @@ def facts():
     services = {unit: command(['systemctl', 'show', unit, '-p', 'MainPID', '-p', 'ActiveState', '-p', 'NRestarts'], optional=True)
                 for unit in ('docker.service', 'containerd.service', 'spire-agent.service', 'nvke-agent.service', 'kubelet.service')}
     driver = Path('/proc/driver/nvidia/version')
-    return {'machine_id': hashlib.sha256(('vxanvil:' + mid).encode()).hexdigest(), 'hostname': os.uname().nodename,
+    return {'machine_id': hashlib.sha256(('vxnip:' + mid).encode()).hexdigest(), 'hostname': os.uname().nodename,
             'os': release.get('ID', '').strip('"'), 'version': release.get('VERSION_ID', '').strip('"'),
             'arch': command(['dpkg', '--print-architecture']), 'cpus': os.cpu_count(), 'memory': mem['MemTotal'],
             'available_memory': mem['MemAvailable'], 'free_disk': shutil.disk_usage('/var/lib').free,
@@ -105,7 +105,7 @@ def facts():
             'services': services, 'containerd_version': command(['/usr/bin/containerd', '--version'], optional=True),
             'shared_cri': present('/run/containerd/containerd.sock'), 'privileged': os.geteuid() == 0,
             'missing_baremetal_tools': [tool for tool in ('ctr', 'visudo', 'ss') if not shutil.which(tool)],
-            'prepared_runtime': present('/etc/systemd/system/vxanvil-nvke-containerd.service'),
+            'prepared_runtime': present('/etc/systemd/system/vxnip-nvke-containerd.service'),
             'unknown': unknown}
 
 

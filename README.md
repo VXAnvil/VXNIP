@@ -1,10 +1,12 @@
-# VXAnvil
+# VXNIP
 
-[![CI](https://github.com/VXAnvil/cluster-api-provider-vxanvil/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/VXAnvil/cluster-api-provider-vxanvil/actions/workflows/ci.yml?query=branch%3Amain)
+**Virtualized eXecution Node Infrastructure Provider**
+
+[![CI](https://github.com/VXAnvil/VXNIP/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/VXAnvil/VXNIP/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Release: v0.0.2-rc.1](https://img.shields.io/badge/release-v0.0.2--rc.1-orange)](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/v0.0.2-rc.1)
+[![Release: v0.0.3-rc.1](https://img.shields.io/badge/release-v0.0.3--rc.1-orange)](https://github.com/VXAnvil/VXNIP/releases/tag/v0.0.3-rc.1)
 
-A Cluster API infrastructure provider for existing Linux machines. VXAnvil discovers hosts over SSH, allocates them to Kubernetes clusters, and supports kubeadm bootstrap and NVIDIA NVKE's generic `infra` contract.
+A Cluster API infrastructure provider for existing Linux machines. VXNIP discovers hosts over SSH, allocates them to Kubernetes clusters, and supports kubeadm bootstrap and NVIDIA NVKE's generic `infra` contract.
 
 **Status:** experimental NVKE integration, tested against revision `2f31480`. Current focus is stability, compatibility and reproducible setup.
 
@@ -22,10 +24,10 @@ The core Provider manages host lifecycle. GPU runtime configuration and model de
 Build on macOS or Linux with Go 1.24+ and OpenSSH. The target needs Ubuntu, Python 3, a unique `/etc/machine-id`, and key-based SSH with a verified host key.
 
 ```sh
-go build -o vxanvil .
-./vxanvil register desktop ubuntu@desktop.local
-./vxanvil list
-./vxanvil inspect desktop
+go build -o vxnip .
+./vxnip register desktop ubuntu@desktop.local
+./vxnip list
+./vxnip inspect desktop
 ```
 
 These commands record local inventory and read host information; they do not join a machine to Kubernetes. For cluster provisioning, follow the guides below. Local CLI reservations and Kubernetes host claims are separate; keep each host under one allocation system.
@@ -34,7 +36,7 @@ These commands record local inventory and read host information; they do not joi
 
 | Guide | Contents |
 | --- | --- |
-| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.2.0-rc.1): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
+| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/VXAnvil/VXNIP/releases/tag/skill-v0.3.0-rc.1): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
 | [Prepare public inputs](docs/public-inputs.md) | Fresh Ubuntu: fixed source, verified tools, node artifacts and management bundle |
 | [NVKE setup](docs/nvke-quickstart.md) | Management site, worker enrollment, Docker control plane and GPU worker example |
 | [Operations](docs/operations.md) | Images and bundles, terminal configuration, diagnostics and recovery |
@@ -44,9 +46,9 @@ These commands record local inventory and read host information; they do not joi
 
 Use a fresh site and unallocated hosts for this API release. See [installation and allocation identity](docs/compatibility.md#fresh-install-requirement).
 
-The inventory API is `vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1`, with `VXAnvilHost`, `VXAnvilCluster`, `VXAnvilMachine` and `VXAnvilMachineTemplate`. The NVKE adapter exposes the three infrastructure kinds in `infrastructure.cluster.x-k8s.io/v1alpha1` and shares the host inventory.
+The inventory API is `vxnip.infrastructure.cluster.x-k8s.io/v1alpha1`, with `VXNIPHost`, `VXNIPCluster`, `VXNIPMachine` and `VXNIPMachineTemplate`. The NVKE adapter exposes the three infrastructure kinds in `infrastructure.cluster.x-k8s.io/v1alpha1` and shares the host inventory.
 
-Provider IDs use `vxanvil://<machine-uid>`. A reboot preserves the current allocation's ID; releasing and allocating again creates a new Machine and ID.
+Provider IDs use `vxnip://<machine-uid>`. A reboot preserves the current allocation's ID; releasing and allocating again creates a new Machine and ID.
 
 For new installations, start with a fresh management site and hosts that are not allocated to another cluster.
 

@@ -41,9 +41,9 @@ for arg in sys.argv[1:]:
         sys.exit(f"Expected a private host IPv4 address: {arg}")
 ' "$node_ip" "$api_ip" "$spire_ip" ${peer:+"$peer"}
 
-unit="vxanvil-nvke-lab-$role-recovery.service"
+unit="vxnip-nvke-lab-$role-recovery.service"
 timer="${unit%.service}.timer"
-program=/usr/local/libexec/vxanvil-nvke-lab-host-recovery
+program=/usr/local/libexec/vxnip-nvke-lab-host-recovery
 if [[ $action == --install ]]; then
     [[ $EUID == 0 ]] || fail "Install requires sudo."
     if [[ ! $0 -ef $program ]]; then
@@ -114,7 +114,7 @@ if [[ $role == gateway ]]; then
         iptables -w 5 -C DOCKER-USER "${rule[@]}" ||
             iptables -w 5 -I DOCKER-USER 1 "${rule[@]}"
         [[ $nft_rules == *"ip saddr $api_ip ip daddr $peer return"* ]] ||
-            nft insert rule inet lxd "$chain" ip saddr "$api_ip" ip daddr "$peer" return comment "\"vxanvil-nvke-lab:$api_ip:$peer\""
+            nft insert rule inet lxd "$chain" ip saddr "$api_ip" ip daddr "$peer" return comment "\"vxnip-nvke-lab:$api_ip:$peer\""
         echo "Scoped forwarding and return path OK ($peer ↔ $api_ip)"
     fi
     ip -4 route get "$api_ip"
@@ -135,9 +135,9 @@ api_forwarding() {
     local bridge=$1 source=$2
     local -a to_api from_api
     to_api=(-i "$bridge" -o "$iface" -s "$source" -d "$api_ip/32" -p tcp --dport 6443
-        -m conntrack --ctstate NEW,ESTABLISHED -m comment --comment vxanvil-nvke-pod-api -j ACCEPT)
+        -m conntrack --ctstate NEW,ESTABLISHED -m comment --comment vxnip-nvke-pod-api -j ACCEPT)
     from_api=(-i "$iface" -o "$bridge" -s "$api_ip/32" -d "$source" -p tcp --sport 6443
-        -m conntrack --ctstate ESTABLISHED -m comment --comment vxanvil-nvke-pod-api -j ACCEPT)
+        -m conntrack --ctstate ESTABLISHED -m comment --comment vxnip-nvke-pod-api -j ACCEPT)
     if [[ $action == --recover ]]; then
         iptables -w 5 -C DOCKER-USER "${to_api[@]}" 2>/dev/null ||
             iptables -w 5 -I DOCKER-USER 1 "${to_api[@]}"
@@ -161,7 +161,7 @@ if [[ -n $pod_cidr && $EUID == 0 ]]; then
     fi
 fi
 if [[ $action == --recover ]]; then
-    state=/var/lib/vxanvil-kubeadm
+    state=/var/lib/vxnip-kubeadm
     [[ -d $state ]] || exit 0
     exec 9>>"$state/lock"
     flock -w 10 9 || fail "Provider allocation is being updated."
@@ -184,9 +184,9 @@ probe "$api_ip" 6443
 probe "$spire_ip" 30441
 runtime=containerd.service
 socket=/run/containerd/containerd.sock
-if [[ $node_ip == "$spire_ip" || -f /etc/systemd/system/vxanvil-nvke-containerd.service ]]; then
-    runtime=vxanvil-nvke-containerd.service
-    socket=/run/vxanvil-nvke-containerd/containerd.sock
+if [[ $node_ip == "$spire_ip" || -f /etc/systemd/system/vxnip-nvke-containerd.service ]]; then
+    runtime=vxnip-nvke-containerd.service
+    socket=/run/vxnip-nvke-containerd/containerd.sock
 fi
 if [[ $action == --recover ]]; then
     systemctl start "$runtime"

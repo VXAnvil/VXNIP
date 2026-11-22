@@ -16,7 +16,7 @@ def load(name):
 
 class MigrationTests(unittest.TestCase):
     def setUp(self):
-        self.tool = load("migrate-vxanvil-hosts")
+        self.tool = load("migrate-vxnip-hosts")
         self.host = {
             "metadata": {"name": "host-old", "uid": "old-uid", "resourceVersion": "9"},
             "spec": {"machineID": "a" * 64, "sshTarget": "ubuntu@worker", "allowBootstrap": True},
@@ -92,7 +92,7 @@ class MigrationTests(unittest.TestCase):
 
 class NetworkTests(unittest.TestCase):
     def test_tailscale_route_drives_mtu(self):
-        network = load("vxanvil-network")
+        network = load("vxnip-network")
         responses = [
             b'[{"dev":"tailscale0","prefsrc":"100.100.0.1"}]',
             b'[{"mtu":1280}]',

@@ -15,11 +15,11 @@ type APIEndpoint struct {
 	Port int32 `json:"port"`
 }
 
-type VXAnvilClusterSpec struct {
+type VXNIPClusterSpec struct {
 	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint"`
 }
 
-type VXAnvilClusterStatus struct {
+type VXNIPClusterStatus struct {
 	Initialization *InfrastructureInitialization `json:"initialization,omitempty"`
 }
 
@@ -27,40 +27,40 @@ type VXAnvilClusterStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 // +kubebuilder:validation:XValidation:rule="self.spec == oldSelf.spec",message="the control plane endpoint is immutable"
-type VXAnvilCluster struct {
+type VXNIPCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              VXAnvilClusterSpec   `json:"spec"`
-	Status            VXAnvilClusterStatus `json:"status,omitempty"`
+	Spec              VXNIPClusterSpec   `json:"spec"`
+	Status            VXNIPClusterStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-type VXAnvilClusterList struct {
+type VXNIPClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VXAnvilCluster `json:"items"`
+	Items           []VXNIPCluster `json:"items"`
 }
 
-type VXAnvilMachineTemplateSpec struct {
-	Template VXAnvilMachineTemplateResource `json:"template"`
+type VXNIPMachineTemplateSpec struct {
+	Template VXNIPMachineTemplateResource `json:"template"`
 }
 
-type VXAnvilMachineTemplateResource struct {
-	Spec VXAnvilMachineSpec `json:"spec"`
+type VXNIPMachineTemplateResource struct {
+	Spec VXNIPMachineSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:metadata:labels="cluster.x-k8s.io/v1beta2=v1alpha1"
 // +kubebuilder:validation:XValidation:rule="self.spec == oldSelf.spec",message="machine template is immutable"
-type VXAnvilMachineTemplate struct {
+type VXNIPMachineTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              VXAnvilMachineTemplateSpec `json:"spec"`
+	Spec              VXNIPMachineTemplateSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
-type VXAnvilMachineTemplateList struct {
+type VXNIPMachineTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VXAnvilMachineTemplate `json:"items"`
+	Items           []VXNIPMachineTemplate `json:"items"`
 }

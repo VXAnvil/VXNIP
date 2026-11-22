@@ -12,10 +12,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/controllers"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/bootstrap"
+	"github.com/VXAnvil/VXNIP/internal/controllers"
+	"github.com/VXAnvil/VXNIP/internal/discovery"
 )
 
 func run() error {
@@ -27,14 +27,14 @@ func run() error {
 	if err := api.SchemeBuilder.AddToScheme(scheme); err != nil {
 		return err
 	}
-	standaloneMachine := &api.VXAnvilMachine{}
-	standaloneMachine.SetGroupVersionKind(api.GroupVersion.WithKind("VXAnvilMachine"))
-	directReads := []client.Object{&api.VXAnvilHost{}, standaloneMachine, &corev1.Secret{}}
+	standaloneMachine := &api.VXNIPMachine{}
+	standaloneMachine.SetGroupVersionKind(api.GroupVersion.WithKind("VXNIPMachine"))
+	directReads := []client.Object{&api.VXNIPHost{}, standaloneMachine, &corev1.Secret{}}
 	enableNVKE := nvkeEnabled()
 	if enableNVKE {
 		api.AddInfrastructureToScheme(scheme)
-		nvkeMachine := &api.VXAnvilMachine{}
-		nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VXAnvilMachine"))
+		nvkeMachine := &api.VXNIPMachine{}
+		nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VXNIPMachine"))
 		directReads = append(directReads, nvkeMachine)
 	}
 	config, err := ctrl.GetConfig()
@@ -46,7 +46,7 @@ func run() error {
 		Scheme:                  scheme,
 		Metrics:                 metricsserver.Options{BindAddress: "0"},
 		LeaderElection:          true,
-		LeaderElectionID:        "vxanvil-controller",
+		LeaderElectionID:        "vxnip-controller",
 		LeaderElectionNamespace: "kube-system",
 		// A finalizer must never be removed based on an old host claim from
 		// a cache that has yet to observe the reservation write.
@@ -83,12 +83,12 @@ func run() error {
 }
 
 func nvkeEnabled() bool {
-	return os.Getenv("VXANVIL_ENABLE_NVKE_INFRA") == "1"
+	return os.Getenv("VXNIP_ENABLE_NVKE_INFRA") == "1"
 }
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "vxanvil-controller:", err)
+		fmt.Fprintln(os.Stderr, "vxnip-controller:", err)
 		os.Exit(1)
 	}
 }

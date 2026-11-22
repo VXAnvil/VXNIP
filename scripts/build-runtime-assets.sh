@@ -7,10 +7,10 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 # A publisher builds its exact checked-out revision. Consumer pins are updated
 # only after these native outputs have been published and verified.
 [[ -z $(git -C "$repo" status --porcelain --untracked-files=no) ]] || { echo 'Publisher checkout is dirty.' >&2; exit 1; }
-VXANVIL_PROVIDER_REVISION=$(git -C "$repo" rev-parse HEAD)
-export VXANVIL_PROVIDER_REVISION
-export VXANVIL_PORTABLE_KERNEL_CONFIG=1 VXANVIL_USE_EXISTING_BUILD_DOCKER=1
-bash "$repo/skills/vxanvil-cluster/scripts/public-inputs.sh" "$1"
+VXNIP_PROVIDER_REVISION=$(git -C "$repo" rev-parse HEAD)
+export VXNIP_PROVIDER_REVISION
+export VXNIP_PORTABLE_KERNEL_CONFIG=1 VXNIP_USE_EXISTING_BUILD_DOCKER=1
+bash "$repo/skills/vxnip-cluster/scripts/public-inputs.sh" "$1"
 python3 "$repo/scripts/package-runtime-assets.py" "$1" "$2" --arch "$(dpkg --print-architecture)" --tag "$3"
 
 # These outputs contain only public runtime files; the unprivileged CI uploader must read them.

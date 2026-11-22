@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 class PreflightTests(unittest.TestCase):
     def test_only_empty_package_placeholders_are_ignored(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxnip-kubeadm")))
         has_files = helper["has_files"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -28,7 +28,7 @@ class PreflightTests(unittest.TestCase):
                 self.assertTrue(has_files(root))
 
     def test_nvke_reset_removes_generated_files_and_preserves_unknown_files(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxnip-kubeadm")))
         reset_kubernetes = helper["reset_kubernetes"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -48,7 +48,7 @@ class PreflightTests(unittest.TestCase):
             self.assertTrue(unknown.is_file())
 
     def test_nvke_reset_uses_the_independent_cri_and_refuses_to_fall_back(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxnip-kubeadm")))
         reset_kubernetes = helper["reset_kubernetes"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -73,7 +73,7 @@ class PreflightTests(unittest.TestCase):
             ])
 
     def test_nvke_plan_sets_identity_and_releases_owned_files(self):
-        helper = runpy.run_path(str(Path(__file__).with_name("vxanvil-kubeadm")))
+        helper = runpy.run_path(str(Path(__file__).with_name("vxnip-kubeadm")))
         apply, reset = helper["apply_nvke"], helper["reset"]
         uid = "fbeceea4-23c8-45cf-9972-c377d2f2a9b0"
         with tempfile.TemporaryDirectory() as directory:
@@ -92,7 +92,7 @@ class PreflightTests(unittest.TestCase):
                 "SPIRE_CONFIG": spire / "spire.conf", "SPIRE_BUNDLE": spire / "bundle.pem",
                 "NVKE_STATE": root / "agent-state", "NVKE_TEMP": (),
                 "RECOVERY_SERVICE": recovery_service, "RECOVERY_TIMER": recovery_timer,
-                "NVKE_WORKER_RUNTIME_UNIT": root / "vxanvil-nvke-containerd.service",
+                "NVKE_WORKER_RUNTIME_UNIT": root / "vxnip-nvke-containerd.service",
                 "AGENT_ENV": {"nke-agent.service": env},
                 "AGENT_CA": {"nke-agent.service": root / "controller-ca.crt"},
                 "systemctl": lambda *args: operations.append(args),
@@ -102,7 +102,7 @@ class PreflightTests(unittest.TestCase):
                 "os": SimpleNamespace(chown=lambda *args: None),
             }):
                 plan = {
-                    "unit": "nke-agent.service", "providerID": f"vxanvil://{uid}", "nodeIP": "10.0.0.54",
+                    "unit": "nke-agent.service", "providerID": f"vxnip://{uid}", "nodeIP": "10.0.0.54",
                     "files": [{
                         "path": str(env), "mode": "0600",
                         "content": 'AGENT_ARGS="--secure-server-port 15005"\n',
@@ -126,7 +126,7 @@ class PreflightTests(unittest.TestCase):
                 finally:
                     os.umask(previous_umask)
                 self.assertEqual(spire.stat().st_mode & 0o777, 0o750)
-                self.assertIn(f"--provider-id=vxanvil://{uid}", kubelet_env.read_text())
+                self.assertIn(f"--provider-id=vxnip://{uid}", kubelet_env.read_text())
                 self.assertIn("--node-ip=10.0.0.54", kubelet_env.read_text())
                 self.assertIn(str(kubelet_env), dropin.read_text())
                 current = json.loads(state.read_text())

@@ -1,5 +1,5 @@
-// Package v1alpha1 contains the VXAnvil inventory and allocation API.
-// +groupName=vxanvil.infrastructure.cluster.x-k8s.io
+// Package v1alpha1 contains the VXNIP inventory and allocation API.
+// +groupName=vxnip.infrastructure.cluster.x-k8s.io
 // +kubebuilder:object:generate=true
 package v1alpha1
 
@@ -13,7 +13,7 @@ import (
 )
 
 var GroupVersion = schema.GroupVersion{
-	Group: "vxanvil.infrastructure.cluster.x-k8s.io", Version: "v1alpha1",
+	Group: "vxnip.infrastructure.cluster.x-k8s.io", Version: "v1alpha1",
 }
 
 var SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
@@ -26,23 +26,23 @@ var InfrastructureGroupVersion = schema.GroupVersion{
 // kinds. Hosts remain in one inventory across both API groups.
 func AddInfrastructureToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(InfrastructureGroupVersion,
-		&VXAnvilMachine{}, &VXAnvilMachineList{},
-		&VXAnvilCluster{}, &VXAnvilClusterList{},
-		&VXAnvilMachineTemplate{}, &VXAnvilMachineTemplateList{},
+		&VXNIPMachine{}, &VXNIPMachineList{},
+		&VXNIPCluster{}, &VXNIPClusterList{},
+		&VXNIPMachineTemplate{}, &VXNIPMachineTemplateList{},
 	)
 	metav1.AddToGroupVersion(scheme, InfrastructureGroupVersion)
 }
 
 func init() {
 	SchemeBuilder.Register(
-		&VXAnvilHost{}, &VXAnvilHostList{},
-		&VXAnvilMachine{}, &VXAnvilMachineList{},
-		&VXAnvilCluster{}, &VXAnvilClusterList{},
-		&VXAnvilMachineTemplate{}, &VXAnvilMachineTemplateList{},
+		&VXNIPHost{}, &VXNIPHostList{},
+		&VXNIPMachine{}, &VXNIPMachineList{},
+		&VXNIPCluster{}, &VXNIPClusterList{},
+		&VXNIPMachineTemplate{}, &VXNIPMachineTemplateList{},
 	)
 }
 
-type VXAnvilHostSpec struct {
+type VXNIPHostSpec struct {
 	// MachineID is the full machine ID hash reported by the SSH probe.
 	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
 	MachineID string `json:"machineID"`
@@ -69,7 +69,7 @@ type HostClaim struct {
 	UID       types.UID `json:"uid"`
 }
 
-type VXAnvilHostStatus struct {
+type VXNIPHostStatus struct {
 	Hardware           *apiextensionsv1.JSON `json:"hardware,omitempty"`
 	ObservedAt         *metav1.Time          `json:"observedAt,omitempty"`
 	ObservedGeneration int64                 `json:"observedGeneration,omitempty"`
@@ -93,21 +93,21 @@ type VXAnvilHostStatus struct {
 // +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=`.status.discoveryReason`
 // +kubebuilder:printcolumn:name="Verified",type=boolean,JSONPath=`.status.discoveryReady`
 // +kubebuilder:printcolumn:name="Claim",type=string,JSONPath=`.status.claim.name`
-type VXAnvilHost struct {
+type VXNIPHost struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              VXAnvilHostSpec   `json:"spec"`
-	Status            VXAnvilHostStatus `json:"status,omitempty"`
+	Spec              VXNIPHostSpec   `json:"spec"`
+	Status            VXNIPHostStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-type VXAnvilHostList struct {
+type VXNIPHostList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VXAnvilHost `json:"items"`
+	Items           []VXNIPHost `json:"items"`
 }
 
-type VXAnvilMachineSpec struct {
+type VXNIPMachineSpec struct {
 	// BootstrapMode defaults to the existing Cluster API kubeadm path.
 	// +kubebuilder:validation:Enum=Kubeadm;NVKE
 	BootstrapMode string `json:"bootstrapMode,omitempty"`
@@ -117,12 +117,12 @@ type VXAnvilMachineSpec struct {
 	// +kubebuilder:validation:MaxLength=512
 	ProviderID string `json:"providerID,omitempty"`
 
-	// HostRef is the name of a cluster-scoped VXAnvilHost.
+	// HostRef is the name of a cluster-scoped VXNIPHost.
 	// +kubebuilder:validation:Pattern=`^host-[a-f0-9]{32}$`
 	HostRef string `json:"hostRef"`
 }
 
-type VXAnvilMachineStatus struct {
+type VXNIPMachineStatus struct {
 	// +kubebuilder:validation:Enum=Pending;Reserved;Provisioned
 	Phase string `json:"phase,omitempty"`
 	// +kubebuilder:validation:Enum=HostMissing;HostDeleting;HostUnverified;HostClaimed;HostReserved;BootstrapDisabled;WaitingForBootstrap;BootstrapRunning;BootstrapComplete;NodeIPUnverified;BootstrapFailed;ResetFailed
@@ -150,16 +150,16 @@ type MachineAddress struct {
 // +kubebuilder:printcolumn:name="Host",type=string,JSONPath=`.spec.hostRef`
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=`.status.reason`
-type VXAnvilMachine struct {
+type VXNIPMachine struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              VXAnvilMachineSpec   `json:"spec"`
-	Status            VXAnvilMachineStatus `json:"status,omitempty"`
+	Spec              VXNIPMachineSpec   `json:"spec"`
+	Status            VXNIPMachineStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-type VXAnvilMachineList struct {
+type VXNIPMachineList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VXAnvilMachine `json:"items"`
+	Items           []VXNIPMachine `json:"items"`
 }

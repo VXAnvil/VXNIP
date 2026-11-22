@@ -17,7 +17,7 @@ if ! systemd-detect-virt --vm --quiet || systemd-detect-virt --container --quiet
     echo "Use this script inside a dedicated VM." >&2
     exit 1
 fi
-[[ ! -e /var/lib/vxanvil-kubeadm/current.json && ! -e /etc/kubernetes/kubelet.conf ]] ||
+[[ ! -e /var/lib/vxnip-kubeadm/current.json && ! -e /etc/kubernetes/kubelet.conf ]] ||
     { echo "The node is already claimed or joined." >&2; exit 1; }
 if [[ -n $(swapon --noheadings --show) ]]; then
     echo "Disable swap on the dedicated VM before preparing it." >&2
@@ -63,7 +63,7 @@ install -d -o spire -g spire -m 0750 /var/lib/spire-agent
 install -m 0755 nvke-agent spire-agent /usr/local/bin/
 install -m 0644 nvke-agent.service spire-agent.service /etc/systemd/system/
 ln -sfn nvke-agent.service /etc/systemd/system/nke-agent.service
-install -o root -g root -m 0755 "$script_dir/vxanvil-kubeadm" /usr/local/sbin/vxanvil-kubeadm
+install -o root -g root -m 0755 "$script_dir/vxnip-kubeadm" /usr/local/sbin/vxnip-kubeadm
 
 install -d -o "$ssh_user" -g "$group" -m 0700 "$home/.ssh"
 keys="$home/.ssh/authorized_keys"
@@ -73,9 +73,9 @@ chown "$ssh_user:$group" "$keys"
 chmod 0600 "$keys"
 sudoers=$(mktemp)
 trap 'rm -f "$sudoers"' EXIT
-printf '%s ALL=(root) NOPASSWD: /usr/local/sbin/vxanvil-kubeadm ""\n' "$ssh_user" >"$sudoers"
+printf '%s ALL=(root) NOPASSWD: /usr/local/sbin/vxnip-kubeadm ""\n' "$ssh_user" >"$sudoers"
 visudo -cf "$sudoers"
-install -m 0440 "$sudoers" /etc/sudoers.d/vxanvil-kubeadm
+install -m 0440 "$sudoers" /etc/sudoers.d/vxnip-kubeadm
 systemctl daemon-reload
 systemctl enable --now ssh.service containerd.service openvswitch-switch.service
 kubeadm version -o short

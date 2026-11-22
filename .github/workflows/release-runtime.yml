@@ -99,6 +99,6 @@ jobs:
           prerelease=()
           if [[ "${RELEASE_TAG#runtime-v}" == *-* ]]; then prerelease=(--prerelease); fi
           gh release create "$RELEASE_TAG" --verify-tag --latest=false "${prerelease[@]}" \
-            --title "VXAnvil native runtimes ${RELEASE_TAG#runtime-}" \
-            --notes 'Native AMD64/ARM64 manager and node runtimes for the VXAnvil cluster skill. Install using the companion skill release, which pins these downloads and their SHA-256 hashes. No model bundles or machine credentials are included.' \
+            --title "VXNIP native runtimes ${RELEASE_TAG#runtime-}" \
+            --notes 'Native AMD64/ARM64 manager and node runtimes for the VXNIP cluster skill. Install using the companion skill release, which pins these downloads and their SHA-256 hashes. No model bundles or machine credentials are included.' \
             "$output"/*.tar.gz "$output"/*.sha256 "$output/runtime-artifacts.json"

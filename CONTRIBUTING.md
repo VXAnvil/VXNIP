@@ -1,4 +1,4 @@
-# Contributing to VXAnvil
+# Contributing to VXNIP
 
 Open a pull request against `main`. CI checks formatting, lint, tests and Linux AMD64/ARM64 builds. The final check is named **`gate`**; failed, cancelled, skipped or missing required jobs cannot pass it. CI uses GitHub-hosted runners and does not connect to real hosts or GPUs.
 
@@ -21,7 +21,7 @@ Keep changes focused. Include the problem, resulting behavior and relevant verif
 
 ## Publishing images
 
-The image repository is `ghcr.io/vxanvil/cluster-api-provider-vxanvil`. Workflows derive the registry path from the GitHub repository identity.
+The image repository is `ghcr.io/vxanvil/vxnip`. Workflows derive the registry path from the GitHub repository identity.
 
 Existing tags retain their historical source and module path. Use a new tested tag when releasing the module under the organization path.
 
@@ -36,7 +36,7 @@ The tag workflow also accepts a manual run with an existing Git tag and `dry_run
 Workflow checks and branch protection are separate. An administrator must enable protection after `gate` has reported once. For a new, unprotected `main`, the owner can run:
 
 ```bash
-gh api --method PUT repos/VXAnvil/cluster-api-provider-vxanvil/branches/main/protection \
+gh api --method PUT repos/VXAnvil/VXNIP/branches/main/protection \
   --input .github/main-protection.json
 ```
 

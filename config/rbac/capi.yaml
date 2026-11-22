@@ -1,17 +1,17 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: vxanvil-infrastructure-capi
+  name: vxnip-infrastructure-capi
   labels:
     cluster.x-k8s.io/aggregate-to-manager: "true"
     kubeadm.controlplane.cluster.x-k8s.io/aggregate-to-manager: "true"
 rules:
   - apiGroups:
-      - vxanvil.infrastructure.cluster.x-k8s.io
+      - vxnip.infrastructure.cluster.x-k8s.io
     resources:
-      - vxanvilclusters
-      - vxanvilmachines
-      - vxanvilmachinetemplates
+      - vxnipclusters
+      - vxnipmachines
+      - vxnipmachinetemplates
     verbs:
       - create
       - delete

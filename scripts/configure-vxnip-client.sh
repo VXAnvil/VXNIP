@@ -10,8 +10,8 @@ output=$(realpath -m "$2")
 [[ $output =~ ^/[a-zA-Z0-9_./-]+$ ]] || { echo "Use a client path without whitespace." >&2; exit 1; }
 mapfile -t site <"$state/site"
 [[ ${#site[@]} == 3 && -f $state/ready ]]
-if [[ -n ${VXANVIL_MANAGEMENT_BUNDLE:-} ]]; then
-    bundle=$(realpath "$VXANVIL_MANAGEMENT_BUNDLE")
+if [[ -n ${VXNIP_MANAGEMENT_BUNDLE:-} ]]; then
+    bundle=$(realpath "$VXNIP_MANAGEMENT_BUNDLE")
 else
     bundle=$(cat "$state/bundle")
 fi
@@ -49,7 +49,7 @@ if [[ $EUID == 0 && -n ${SUDO_UID:-} && $SUDO_UID != 0 ]]; then
 fi
 printf '\nLoad this site in any new terminal:\nsource %q\n' "$output/env.sh"
 printf 'Commands:\nnvkectl --site "$NVKE_SITE" get clusters\n'
-printf 'kubectl --kubeconfig %q get vxanvilhosts\n' "$output/management.kubeconfig"
+printf 'kubectl --kubeconfig %q get vxniphosts\n' "$output/management.kubeconfig"
 if [[ -f $output/workload.kubeconfig ]]; then
     printf 'kubectl --kubeconfig %q get nodes\n' "$output/workload.kubeconfig"
 fi

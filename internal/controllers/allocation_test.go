@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/discovery"
 )
 
 type probeFunc func(context.Context, string) (discovery.Hardware, error)
@@ -45,13 +45,13 @@ type interruptedStatus struct {
 
 func (s interruptedStatus) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 	switch obj := obj.(type) {
-	case *api.VXAnvilHost:
+	case *api.VXNIPHost:
 		if obj.Status.Claim != nil {
 			if err := s.beforeClaim(ctx); err != nil {
 				return err
 			}
 		}
-	case *api.VXAnvilMachine:
+	case *api.VXNIPMachine:
 		if obj.Status.Phase == "Reserved" {
 			return errInterrupted
 		}
@@ -80,9 +80,9 @@ func TestAllocationWithAPIServer(t *testing.T) {
 	must(t, err)
 
 	id := strings.Repeat("a", 64)
-	host := &api.VXAnvilHost{
+	host := &api.VXNIPHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32]},
-		Spec:       api.VXAnvilHostSpec{MachineID: id, SSHTarget: "ubuntu@worker", ManagedAddress: true},
+		Spec:       api.VXNIPHostSpec{MachineID: id, SSHTarget: "ubuntu@worker", ManagedAddress: true},
 	}
 	alias := host.DeepCopy()
 	alias.Name = "host-" + strings.Repeat("b", 32)
@@ -98,12 +98,12 @@ func TestAllocationWithAPIServer(t *testing.T) {
 	_, err = hostController.Reconcile(ctx, hostReq)
 	must(t, err)
 
-	machines := make([]*api.VXAnvilMachine, 0, 2)
+	machines := make([]*api.VXNIPMachine, 0, 2)
 	for _, namespace := range []string{"pool-a", "pool-b"} {
 		must(t, c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}))
-		machine := &api.VXAnvilMachine{
+		machine := &api.VXNIPMachine{
 			ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: namespace},
-			Spec:       api.VXAnvilMachineSpec{HostRef: host.Name},
+			Spec:       api.VXNIPMachineSpec{HostRef: host.Name},
 		}
 		must(t, c.Create(ctx, machine))
 		machines = append(machines, machine)

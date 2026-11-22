@@ -42,7 +42,7 @@ ns=$("${k[@]}" create -f - -o jsonpath='{.metadata.name}' <<'YAML'
 apiVersion: v1
 kind: Namespace
 metadata:
-  generateName: vxanvil-worker-check-
+  generateName: vxnip-worker-check-
 YAML
 )
 for i in 0 1; do
@@ -59,7 +59,7 @@ spec:
   restartPolicy: Never
   terminationGracePeriodSeconds: 1
   tolerations:
-    - {key: vxanvil.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
+    - {key: vxnip.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
   containers:
     - name: http
       image: docker.io/library/busybox:1.36.1

@@ -1,11 +1,11 @@
 ---
-name: vxanvil-cluster
-description: Prepare or inspect NVKE Kubernetes clusters using VXAnvil on existing machines, including LANs with multiple AMD64/ARM64 machines, optional Tailscale and isolated bare-metal runtimes. Discover SSH targets, obtain native artifacts and verify results while preserving selected existing clusters. GPU workloads and allocation migration are separate tasks.
+name: vxnip-cluster
+description: Prepare or inspect NVKE Kubernetes clusters using VXNIP on existing machines, including LANs with multiple AMD64/ARM64 machines, optional Tailscale and isolated bare-metal runtimes. Discover SSH targets, obtain native artifacts and verify results while preserving selected existing clusters. GPU workloads and allocation migration are separate tasks.
 ---
 
-# VXAnvil cluster setup
+# VXNIP cluster setup
 
-Turn explicitly supplied machine connections into a verified VXAnvil/NVKE cluster. Use the bundled executor instead of asking users to assemble source checkouts, packages, images and commands manually. Communicate in the user's language.
+Turn explicitly supplied machine connections into a verified VXNIP/NVKE cluster. Use the bundled executor instead of asking users to assemble source checkouts, packages, images and commands manually. Communicate in the user's language.
 
 ## Inputs and supported path
 

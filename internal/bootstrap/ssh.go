@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
+	"github.com/VXAnvil/VXNIP/internal/discovery"
 )
 
 type Request struct {
@@ -27,7 +27,7 @@ type SSH struct{}
 func (SSH) Run(ctx context.Context, target string, request Request) error {
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer cancel()
-	cmd, err := discovery.SSHCommand(ctx, target, "sudo -n /usr/local/sbin/vxanvil-kubeadm")
+	cmd, err := discovery.SSHCommand(ctx, target, "sudo -n /usr/local/sbin/vxnip-kubeadm")
 	if err != nil {
 		return err
 	}

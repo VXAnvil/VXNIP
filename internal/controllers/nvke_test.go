@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/bootstrap"
 )
 
 func TestNVKEHandoffWithTwoHosts(t *testing.T) {
@@ -28,22 +28,22 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 		"apiVersion": capiVersion, "kind": "Cluster",
 		"metadata": map[string]any{"name": "lab", "namespace": "nvke-system"},
 	}}
-	nvkeMachine := &api.VXAnvilMachine{}
-	nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VXAnvilMachine"))
+	nvkeMachine := &api.VXNIPMachine{}
+	nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VXNIPMachine"))
 	c := fake.NewClientBuilder().WithScheme(scheme).
-		WithStatusSubresource(&api.VXAnvilHost{}, nvkeMachine).WithObjects(cluster).Build()
+		WithStatusSubresource(&api.VXNIPHost{}, nvkeMachine).WithObjects(cluster).Build()
 	for index, tc := range []struct{ name, ip string }{
 		{"control-plane", "10.0.0.53"}, {"worker", "10.0.0.54"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			id := strings.Repeat(string(rune('a'+index)), 64)
 			now := metav1.Now()
-			host := &api.VXAnvilHost{
+			host := &api.VXNIPHost{
 				ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32], Finalizers: []string{hostFinalizer}},
-				Spec: api.VXAnvilHostSpec{
+				Spec: api.VXNIPHostSpec{
 					MachineID: id, NodeIP: tc.ip, SSHTarget: "ubuntu@" + tc.ip, AllowBootstrap: true,
 				},
-				Status: api.VXAnvilHostStatus{
+				Status: api.VXNIPHostStatus{
 					DiscoveryReady: true, ObservedAt: &now,
 					Hardware: &apiextensionsv1.JSON{Raw: []byte(`{"interfaces":[{"addresses":["` + tc.ip + `/24"]}]}`)},
 				},
@@ -56,24 +56,24 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 					"clusterName": "lab",
 					"infrastructureRef": map[string]any{
 						"apiGroup": api.InfrastructureGroupVersion.Group,
-						"kind":     "VXAnvilMachine", "name": tc.name,
+						"kind":     "VXNIPMachine", "name": tc.name,
 					},
 				},
 			}}
 			must(t, c.Create(ctx, parent))
-			machine := &api.VXAnvilMachine{
-				TypeMeta: metav1.TypeMeta{APIVersion: api.InfrastructureGroupVersion.String(), Kind: "VXAnvilMachine"},
+			machine := &api.VXNIPMachine{
+				TypeMeta: metav1.TypeMeta{APIVersion: api.InfrastructureGroupVersion.String(), Kind: "VXNIPMachine"},
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "nvke-system", Name: tc.name, UID: types.UID("infra-" + tc.name),
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: capiVersion, Kind: "Machine", Name: tc.name, UID: parent.GetUID(),
 					}},
 				},
-				Spec: api.VXAnvilMachineSpec{HostRef: host.Name, BootstrapMode: "NVKE"},
+				Spec: api.VXNIPMachineSpec{HostRef: host.Name, BootstrapMode: "NVKE"},
 			}
 			must(t, c.Create(ctx, machine))
 			var operations []string
-			providerID := "vxanvil://" + string(machine.UID)
+			providerID := "vxnip://" + string(machine.UID)
 			r := MachineReconciler{Client: c, InfrastructureGroup: api.InfrastructureGroupVersion,
 				Bootstrap: kubeadmFunc(func(_ context.Context, target string, req bootstrap.Request) error {
 					operations = append(operations, req.Action)
@@ -88,7 +88,7 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 				}),
 			}
 			machineKey := client.ObjectKeyFromObject(machine)
-			machineGVK := api.InfrastructureGroupVersion.WithKind("VXAnvilMachine")
+			machineGVK := api.InfrastructureGroupVersion.WithKind("VXNIPMachine")
 			getMachine := func() {
 				t.Helper()
 				machine.SetGroupVersionKind(machineGVK)

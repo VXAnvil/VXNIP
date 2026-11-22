@@ -10,7 +10,7 @@ ns=$("${k[@]}" create -f - -o jsonpath='{.metadata.name}' <<'YAML'
 apiVersion: v1
 kind: Namespace
 metadata:
-  generateName: vxanvil-service-check-
+  generateName: vxnip-service-check-
 YAML
 )
 "${k[@]}" -n "$ns" create -f - <<YAML
@@ -28,7 +28,7 @@ spec:
   containers:
     - name: http
       image: docker.io/library/busybox:1.36.1
-      command: [sh, -ec, "mkdir -p /tmp/http; echo vxanvil-ok >/tmp/http/index.html; exec httpd -f -p 8080 -h /tmp/http"]
+      command: [sh, -ec, "mkdir -p /tmp/http; echo vxnip-ok >/tmp/http/index.html; exec httpd -f -p 8080 -h /tmp/http"]
       resources:
         requests: {cpu: 5m, memory: 2Mi}
         limits: {cpu: 100m, memory: 16Mi}
@@ -60,7 +60,7 @@ YAML
 "${k[@]}" -n "$ns" wait --for=condition=Ready pods --all --timeout=120s
 # EndpointSlice propagation and DNS programming can lag behind Pod Ready.
 for attempt in $(seq 1 20); do
-    if reply=$("${k[@]}" -n "$ns" exec client -- wget -T 5 -qO- "http://http.$ns.svc.cluster.local:8080/") && [[ $reply == vxanvil-ok ]]; then
+    if reply=$("${k[@]}" -n "$ns" exec client -- wget -T 5 -qO- "http://http.$ns.svc.cluster.local:8080/") && [[ $reply == vxnip-ok ]]; then
         printf 'Service DNS and HTTP: OK\n'
         exit 0
     fi

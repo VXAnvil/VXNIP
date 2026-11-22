@@ -40,7 +40,7 @@ fi
     fail "This procedure expects host containerd 2.x."
 
 shared_socket=/run/containerd/containerd.sock
-worker_socket=/run/vxanvil-nvke-containerd/containerd.sock
+worker_socket=/run/vxnip-nvke-containerd/containerd.sock
 [[ -S $shared_socket ]] || fail "The Quickstart containerd socket is absent."
 docker_pid=$(systemctl show docker.service -p MainPID --value)
 shared_pid=$(systemctl show containerd.service -p MainPID --value)
@@ -53,11 +53,11 @@ default_route=$(ip -4 route show default)
 kubelet_listener=$(ss -H -ltn 'sport = :10250')
 [[ -z $kubelet_listener ]] ||
     fail "TCP 10250 is in use by an existing kubelet or service. Use a dedicated worker."
-[[ ! -e /var/lib/vxanvil-kubeadm/current.json ]] || fail "The bootstrap helper already owns this node."
+[[ ! -e /var/lib/vxnip-kubeadm/current.json ]] || fail "The bootstrap helper already owns this node."
 [[ -z $(find /etc/cni/net.d -maxdepth 1 -type f ! -name .kubernetes-cni-keep -print -quit 2>/dev/null || true) ]] ||
     fail "An existing CNI configuration is present."
 
-runtime_root=/var/lib/vxanvil-nvke-containerd
+runtime_root=/var/lib/vxnip-nvke-containerd
 if [[ -n $storage_dir ]]; then
     [[ $storage_dir =~ ^/[a-zA-Z0-9_./-]+$ && $(realpath -m -- "$storage_dir") == "$storage_dir" ]] ||
         fail "Use a canonical absolute storage directory without symlinks or spaces."
@@ -74,7 +74,7 @@ if [[ -n $storage_dir ]]; then
     runtime_root=$storage_dir/containerd
     if [[ -e $runtime_root || -L $runtime_root ]]; then
         [[ -d $runtime_root && ! -L $runtime_root && $(stat -c %u -- "$runtime_root") == 0 ]] &&
-            grep -Fq -- "--root $runtime_root --state " /etc/systemd/system/vxanvil-nvke-containerd.service ||
+            grep -Fq -- "--root $runtime_root --state " /etc/systemd/system/vxnip-nvke-containerd.service ||
             fail "The storage directory already contains an unrelated containerd root: $runtime_root"
     fi
 fi
@@ -159,10 +159,10 @@ else
 fi
 install_checked 0644 "$dir/lib/systemd/system/kubelet.service" /etc/systemd/system/kubelet.service
 install_checked 0644 "$dir/lib/systemd/system/kubelet.service.d/10-kubeadm.conf" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-install_checked 0755 "$repo/scripts/vxanvil-kubeadm" /usr/local/sbin/vxanvil-kubeadm
-printf '%s ALL=(root) NOPASSWD: /usr/local/sbin/vxanvil-kubeadm ""\n' "$ssh_user" >"$dir/sudoers"
+install_checked 0755 "$repo/scripts/vxnip-kubeadm" /usr/local/sbin/vxnip-kubeadm
+printf '%s ALL=(root) NOPASSWD: /usr/local/sbin/vxnip-kubeadm ""\n' "$ssh_user" >"$dir/sudoers"
 visudo -cf "$dir/sudoers"
-install_checked 0440 "$dir/sudoers" /etc/sudoers.d/vxanvil-nvke-worker
+install_checked 0440 "$dir/sudoers" /etc/sudoers.d/vxnip-nvke-worker
 
 cat >"$dir/containerd.toml" <<'CONFIG'
 version = 3
@@ -180,10 +180,10 @@ if [[ -n $nvidia_runtime ]]; then
   SystemdCgroup = true
 CONFIG
 fi
-install_checked 0644 "$dir/containerd.toml" /etc/vxanvil-nvke/containerd.toml
+install_checked 0644 "$dir/containerd.toml" /etc/vxnip-nvke/containerd.toml
 cat >"$dir/containerd.service" <<'UNIT'
 [Unit]
-Description=Container runtime for the NVKE VXAnvil worker
+Description=Container runtime for the NVKE VXNIP worker
 After=network-online.target
 UNIT
 if [[ -n $storage_dir ]]; then
@@ -192,35 +192,35 @@ fi
 cat >>"$dir/containerd.service" <<UNIT
 
 [Service]
-RuntimeDirectory=vxanvil-nvke-containerd
-ExecStart=/usr/bin/containerd --config /etc/vxanvil-nvke/containerd.toml --address /run/vxanvil-nvke-containerd/containerd.sock --root $runtime_root --state /run/vxanvil-nvke-containerd/state
+RuntimeDirectory=vxnip-nvke-containerd
+ExecStart=/usr/bin/containerd --config /etc/vxnip-nvke/containerd.toml --address /run/vxnip-nvke-containerd/containerd.sock --root $runtime_root --state /run/vxnip-nvke-containerd/state
 Delegate=yes
 KillMode=process
 Restart=on-failure
 UNIT
-install_checked 0644 "$dir/containerd.service" /etc/systemd/system/vxanvil-nvke-containerd.service
+install_checked 0644 "$dir/containerd.service" /etc/systemd/system/vxnip-nvke-containerd.service
 cat >"$dir/agent.conf" <<'UNIT'
 [Unit]
-Requires=vxanvil-nvke-containerd.service
-After=vxanvil-nvke-containerd.service
+Requires=vxnip-nvke-containerd.service
+After=vxnip-nvke-containerd.service
 
 [Service]
-BindPaths=/run/vxanvil-nvke-containerd/containerd.sock:/run/containerd/containerd.sock
+BindPaths=/run/vxnip-nvke-containerd/containerd.sock:/run/containerd/containerd.sock
 Environment=NKE_OVS_DATAPATH_TYPE=system
 UNIT
-install_checked 0644 "$dir/agent.conf" /etc/systemd/system/nvke-agent.service.d/80-vxanvil-runtime.conf
+install_checked 0644 "$dir/agent.conf" /etc/systemd/system/nvke-agent.service.d/80-vxnip-runtime.conf
 cat >"$dir/kubelet.conf" <<'UNIT'
 [Unit]
-Requires=vxanvil-nvke-containerd.service
-After=vxanvil-nvke-containerd.service
+Requires=vxnip-nvke-containerd.service
+After=vxnip-nvke-containerd.service
 
 [Service]
 ExecStart=
-ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS --fail-swap-on=false --node-labels=vxanvil.nvke.dev/gateway=local --register-with-taints=vxanvil.nvke.dev/experiment=true:NoSchedule --container-runtime-endpoint=unix:///run/vxanvil-nvke-containerd/containerd.sock
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS --fail-swap-on=false --node-labels=vxnip.nvke.dev/gateway=local --register-with-taints=vxnip.nvke.dev/experiment=true:NoSchedule --container-runtime-endpoint=unix:///run/vxnip-nvke-containerd/containerd.sock
 UNIT
-install_checked 0644 "$dir/kubelet.conf" /etc/systemd/system/kubelet.service.d/99-vxanvil-worker.conf
+install_checked 0644 "$dir/kubelet.conf" /etc/systemd/system/kubelet.service.d/99-vxnip-worker.conf
 systemctl daemon-reload
-systemctl start vxanvil-nvke-containerd.service
+systemctl start vxnip-nvke-containerd.service
 for attempt in {1..12}; do
     if crictl --config=/dev/null --runtime-endpoint "unix://$worker_socket" --timeout 2s ps -q; then break; fi
     sleep 1

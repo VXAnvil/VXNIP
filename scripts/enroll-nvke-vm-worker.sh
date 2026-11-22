@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-config=/etc/vxanvil-nvke-enrollment
+config=/etc/vxnip-nvke-enrollment
 if [[ ${1:-} == --check-in && $# == 1 ]]; then
     exec python3 - "$config" <<'PY'
 import hashlib
@@ -17,10 +17,10 @@ config = Path(sys.argv[1])
 settings = json.loads((config / "settings.json").read_text())
 ticket = config / "invitation"
 host_key = Path("/etc/ssh/ssh_host_ed25519_key.pub").read_text().split()
-# Protocol v1 identity namespace is fixed across branding changes.
+# The vxnip: namespace is part of the VXNIP host identity contract.
 identity = Path("/etc/machine-id").read_text().strip()
 payload = json.dumps({
-    "machineID": hashlib.sha256(("vxanvil:" + identity).encode()).hexdigest(),
+    "machineID": hashlib.sha256(("vxnip:" + identity).encode()).hexdigest(),
     "user": settings["user"],
     "hostKey": " ".join(host_key[:2]),
     "credential": (config / "credential").read_text().strip(),
@@ -78,9 +78,9 @@ if [[ ! -f $config/credential ]]; then
     python3 -c 'import secrets; print(secrets.token_hex(32))' >"$config/credential"
 fi
 printf '{"url":"%s","user":"ubuntu"}\n' "$url" >"$config/settings.json"
-program=/usr/local/libexec/vxanvil-nvke-enrollment
+program=/usr/local/libexec/vxnip-nvke-enrollment
 install -D -o root -g root -m 0755 "$0" "$program"
-cat >/etc/systemd/system/vxanvil-nvke-enrollment.service <<UNIT
+cat >/etc/systemd/system/vxnip-nvke-enrollment.service <<UNIT
 [Unit]
 Description=Check in with the NVKE lab enrollment service
 Wants=network-online.target
@@ -90,7 +90,7 @@ After=network-online.target ssh.service
 Type=oneshot
 ExecStart=$program --check-in
 UNIT
-cat >/etc/systemd/system/vxanvil-nvke-enrollment.timer <<'UNIT'
+cat >/etc/systemd/system/vxnip-nvke-enrollment.timer <<'UNIT'
 [Unit]
 Description=Refresh the NVKE lab host address
 
@@ -103,6 +103,6 @@ AccuracySec=2s
 WantedBy=timers.target
 UNIT
 systemctl daemon-reload
-systemctl enable --now vxanvil-nvke-enrollment.timer
-systemctl start vxanvil-nvke-enrollment.service
-journalctl -u vxanvil-nvke-enrollment.service -n 3 -o cat --no-pager
+systemctl enable --now vxnip-nvke-enrollment.timer
+systemctl start vxnip-nvke-enrollment.service
+journalctl -u vxnip-nvke-enrollment.service -n 3 -o cat --no-pager

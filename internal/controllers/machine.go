@@ -12,12 +12,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/bootstrap"
 )
 
 const (
-	machineFinalizer = "vxanvil.infrastructure.cluster.x-k8s.io/claim"
+	machineFinalizer = "vxnip.infrastructure.cluster.x-k8s.io/claim"
 	allocationPoll   = 10 * time.Second
 )
 
@@ -28,8 +28,8 @@ type MachineReconciler struct {
 }
 
 func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var machine api.VXAnvilMachine
-	gvk := infraGroup(r.InfrastructureGroup).WithKind("VXAnvilMachine")
+	var machine api.VXNIPMachine
+	gvk := infraGroup(r.InfrastructureGroup).WithKind("VXNIPMachine")
 	machine.SetGroupVersionKind(gvk)
 	if err := r.Get(ctx, req.NamespacedName, &machine); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -47,7 +47,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	var host api.VXAnvilHost
+	var host api.VXNIPHost
 	err := r.Get(ctx, client.ObjectKey{Name: machine.Spec.HostRef}, &host)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return ctrl.Result{}, err
@@ -108,7 +108,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return r.reconcileBootstrap(ctx, &machine, &host)
 }
 
-func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VXAnvilMachine, phase, reason string) (ctrl.Result, error) {
+func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VXNIPMachine, phase, reason string) (ctrl.Result, error) {
 	// Poll for changes to the requested host. This also repairs status from
 	// the authoritative claim after a restart between the two writes.
 	result := ctrl.Result{RequeueAfter: allocationPoll}
@@ -120,10 +120,10 @@ func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VXAnvilM
 	return result, r.updateMachine(ctx, machine, true)
 }
 
-func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VXAnvilMachine, status bool) error {
+func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VXNIPMachine, status bool) error {
 	// API decoding can discard TypeMeta for typed objects. Preserve it across
 	// writes because this Go type is registered under two API groups.
-	gvk := infraGroup(r.InfrastructureGroup).WithKind("VXAnvilMachine")
+	gvk := infraGroup(r.InfrastructureGroup).WithKind("VXNIPMachine")
 	machine.SetGroupVersionKind(gvk)
 	defer machine.SetGroupVersionKind(gvk)
 	if status {
@@ -133,11 +133,11 @@ func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VXAn
 }
 
 func (r *MachineReconciler) SetupWithManager(manager ctrl.Manager) error {
-	machine := &api.VXAnvilMachine{}
-	machine.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilMachine"))
+	machine := &api.VXNIPMachine{}
+	machine.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXNIPMachine"))
 	builder := ctrl.NewControllerManagedBy(manager).For(machine)
 	if r.InfrastructureGroup == api.InfrastructureGroupVersion {
-		builder.Named("vxanvilmachine-nvke")
+		builder.Named("vxnipmachine-nvke")
 	}
 	return builder.
 		WithOptions(controller.Options{MaxConcurrentReconciles: 2}).Complete(r)

@@ -1,6 +1,6 @@
-# VXAnvil cluster skill release notes
+# VXNIP cluster skill release notes
 
-This release uses native VXAnvil APIs and node state. Start a fresh site with unallocated Ubuntu 24.04 hosts. The skill downloads pinned AMD64/ARM64 native runtimes and verifies their size, checksum and source metadata before installation.
+VXNIP means Virtualized eXecution Node Infrastructure Provider. This release uses native VXNIP APIs and node state. Start a fresh site with unallocated Ubuntu 24.04 hosts. The skill downloads pinned AMD64/ARM64 native runtimes and verifies their size, checksum and source metadata before installation.
 
 The Provider core, native runtime and skill are versioned separately. The bundled catalog identifies the exact core commit and NVKE source used by the downloaded runtime. CI requires tests, generated CRDs and both architecture builds before publishing.
 

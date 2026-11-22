@@ -15,12 +15,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/discovery"
 )
 
 const (
-	hostFinalizer = "vxanvil.infrastructure.cluster.x-k8s.io/host"
+	hostFinalizer = "vxnip.infrastructure.cluster.x-k8s.io/host"
 	probeInterval = time.Minute
 )
 
@@ -30,7 +30,7 @@ type HostReconciler struct {
 }
 
 func (r *HostReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var host api.VXAnvilHost
+	var host api.VXNIPHost
 	if err := r.Get(ctx, req.NamespacedName, &host); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -89,6 +89,6 @@ func (r *HostReconciler) SetupWithManager(manager ctrl.Manager) error {
 			return e.ObjectOld.GetDeletionTimestamp().IsZero() != e.ObjectNew.GetDeletionTimestamp().IsZero()
 		},
 	})
-	return ctrl.NewControllerManagedBy(manager).For(&api.VXAnvilHost{}).
+	return ctrl.NewControllerManagedBy(manager).For(&api.VXNIPHost{}).
 		WithEventFilter(changes).Complete(r)
 }

@@ -2,7 +2,7 @@
 
 Use this page when you have no existing NVKE checkout, management bundle or node artifacts. It prepares the inputs for [NVKE setup](nvke-quickstart.md) using public source repositories and upstream downloads. No GitHub or NVIDIA account is required for this pinned evaluation path. Use the fixed release source and matching node packages below.
 
-This is an evaluation setup for Ubuntu 24.04 on AMD64 or ARM64. The complete public-input replay was verified with ARM64 management and worker VMs; the commands select native AMD64 or ARM64 tools and packages. Use a fresh management host with sudo, at least 6 CPUs, 16 GiB RAM and 100 GiB free disk, plus a separate unallocated Ubuntu worker. A CPU-only worker is enough for the first Ready-node check. GPU software and models are separate steps. Do not run host preparation against a machine already allocated to another cluster.
+This is an evaluation setup for Ubuntu 24.04 on AMD64 or ARM64. The commands select native AMD64 or ARM64 tools and packages. Validate each installation using the readiness and network checks in the setup guide. Use a fresh management host with sudo, at least 6 CPUs, 16 GiB RAM and 100 GiB free disk, plus a separate unallocated Ubuntu worker. A CPU-only worker is enough for the first Ready-node check. GPU software and models are separate steps. Do not run host preparation against a machine already allocated to another cluster.
 
 Run the build sections as your regular user, in one Bash session on the management host. Build natively for that host architecture. Source builds download several GB and can take time. Keep the generated bundle and its checksum manifest together.
 
@@ -24,9 +24,9 @@ Use normal public build-file permissions. A private `umask 077` makes the upstre
 ```bash
 set -euo pipefail
 umask 022
-export VXANVIL_WORKSPACE="$HOME/public-vxanvil"
-mkdir -p "$VXANVIL_WORKSPACE"
-cd "$VXANVIL_WORKSPACE"
+export VXNIP_WORKSPACE="$HOME/public-vxnip"
+mkdir -p "$VXNIP_WORKSPACE"
+cd "$VXNIP_WORKSPACE"
 mkdir -p downloads artifacts logs tools
 root=$PWD
 arch=$(dpkg --print-architecture)
@@ -53,7 +53,7 @@ For the CPU worker path, use a dedicated Ubuntu Server VM with cloud-init's firs
 cloud-init status --wait
 ```
 
-The preparation script requires `status: done`. Give the VM a unique hostname and machine ID, usable SSH and a reachable private address. The clean replay used a 2-CPU, 4-GiB ARM64 worker VM.
+The preparation script requires `status: done`. Give the VM a unique hostname and machine ID, usable SSH and a reachable private address. A CPU worker VM needs at least 2 CPUs and 4 GiB RAM.
 
 For a management VM provisioned with a NoCloud seed CD, preserve that VM's own seed/metadata for subsequent boots and detach the virtual seed CD after cloud-init completes, using the hypervisor's controls. Do this before starting the privileged Docker tenant: it can see the VM's block devices and must not consume the management VM's seed instead of its own. Follow the hypervisor's procedure for its configuration drive; boot/config-drive handling varies by platform.
 
@@ -80,8 +80,8 @@ sudo tar -C /usr/local -xzf "$go_archive"
 export PATH="/usr/local/go/bin:$root/tools:$PATH"
 go version
 
-git clone --depth 1 --branch v0.0.2-rc.1 \
-  https://github.com/VXAnvil/cluster-api-provider-vxanvil.git provider
+git clone --depth 1 --branch v0.0.3-rc.1 \
+  https://github.com/VXAnvil/VXNIP.git provider
 git init nvke
 git -C nvke remote add origin https://github.com/dsx-ai-factory/nvke.git
 git -C nvke fetch --depth 1 origin 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049
@@ -129,7 +129,7 @@ install -m 0755 "downloads/linux-$arch/helm" tools/helm
 The installer takes a native controller executable. Build it from the fixed public release checkout:
 
 ```bash
-(cd provider && go build -trimpath -o "$root/tools/vxanvil-controller" ./cmd/vxanvil-controller)
+(cd provider && go build -trimpath -o "$root/tools/vxnip-controller" ./cmd/vxnip-controller)
 make -C nvke/cli build
 install -m 0755 nvke/cli/bin/nvkectl tools/nvkectl
 ```
@@ -143,14 +143,14 @@ The reference package builders download and verify the Kubernetes artifacts in t
 ```bash
 make -C nvke/os-image/packages/kubeadm-distro debs ARCH="$arch" K8S_VERSIONS=v1.36.3 DEB_REVISION=1 OUT_DIR="$root/artifacts" >logs/kubeadm-deb.log 2>&1
 BUNDLE_ARCH="$arch" bash nvke/controller/hack/ci/prepare-capd-bundles.sh "$root/artifacts" >logs/ovn-spire.log 2>&1
-CAPD_KINDEST_NODE_PLATFORM="linux/$arch" CAPD_KINDEST_NODE_TAG=v1.36.4 CAPD_KINDEST_NODE_IMAGE=vxanvil-public-node-base:2f31480b \
+CAPD_KINDEST_NODE_PLATFORM="linux/$arch" CAPD_KINDEST_NODE_TAG=v1.36.4 CAPD_KINDEST_NODE_IMAGE=vxnip-public-node-base:2f31480b \
  CAPD_NODE_AGENT_LOCAL_BUILD=true NODE_AGENT_VERSION=public-2f31480b CAPD_SPIRE_ATTESTATION_METHOD=joinToken \
  SPIRE_AGENT_BUNDLE_PATH="$root/artifacts/spire-agent.tgz" \
  CAPD_CNI_CHARTS_DEB_PATH="$root/artifacts/nvke-cni-ovn-charts-2.4.2_2.4.2_$arch.deb" \
  CAPD_CNI_IMAGES_DEB_PATH="$root/artifacts/nvke-cni-ovn-images-2.4.2_2.4.2_$arch.deb" \
  CAPD_HELM_DEB_PATH="$root/artifacts/nke-e2e-helm.deb" \
  bash nvke/controller/hack/capd-kindest-node/build-image.sh >logs/dependency-base.log 2>&1
-cid=$(docker create vxanvil-public-node-base:2f31480b)
+cid=$(docker create vxnip-public-node-base:2f31480b)
 trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
 for tool in nvke-agent spire-agent; do
  docker cp "$cid:/usr/local/bin/$tool" "artifacts/$tool"
@@ -169,20 +169,20 @@ The profile image uses NVKE's **public test fixtures and matching runbooks**, no
 
 ```bash
 docker build -f nvke/controller/Dockerfile --build-arg BUILD_VERSION=2f31480b \
-  -t vxanvil-public-nvke-controller:2f31480b nvke
+  -t vxnip-public-nvke-controller:2f31480b nvke
 docker build -f nvke/controller/test/fixtures/Dockerfile \
   -t docker.local/cwe-profiles:public-2f31480b nvke/controller/test/fixtures
 
 bash provider/scripts/build-nvke-control-plane.sh \
-  vxanvil-public-node-base:2f31480b "$root/artifacts" \
-  vxanvil-control-plane:public-1.36.3 "/boot/config-$(uname -r)"
+  vxnip-public-node-base:2f31480b "$root/artifacts" \
+  vxnip-control-plane:public-1.36.3 "/boot/config-$(uname -r)"
 
 export NVKE_CHECKOUT="$root/nvke"
 export LINUX_TOOL_DIR="$root/tools"
 export KIND_NODE_IMAGE=kindest/node:v1.36.4
-export NVKE_CONTROLLER_IMAGE=vxanvil-public-nvke-controller:2f31480b
+export NVKE_CONTROLLER_IMAGE=vxnip-public-nvke-controller:2f31480b
 export NVKE_PROFILE_IMAGE=docker.local/cwe-profiles:public-2f31480b
-export VXANVIL_CONTROL_PLANE_IMAGE=vxanvil-control-plane:public-1.36.3
+export VXNIP_CONTROL_PLANE_IMAGE=vxnip-control-plane:public-1.36.3
 
 bash provider/scripts/package-nvke-management.sh \
   "$NVKE_CHECKOUT" "$LINUX_TOOL_DIR" "$KIND_NODE_IMAGE" \
@@ -198,6 +198,6 @@ The result is:
 - `artifacts/`: verified native worker packages, agents, units and their checksum manifest;
 - `provider/`: the public Provider source checkout.
 
-Continue with [management initialization and worker enrollment](nvke-quickstart.md#prepare-the-management-site). Use this bundle and `CP_IMAGE=vxanvil-control-plane:public-1.36.3` for the Docker tenant. Do not repeat packaging into the same output directory.
+Continue with [management initialization and worker enrollment](nvke-quickstart.md#prepare-the-management-site). Use this bundle and `CP_IMAGE=vxnip-control-plane:public-1.36.3` for the Docker tenant. Do not repeat packaging into the same output directory.
 
 All downloads and builds need outbound access to the public upstream hosts. Source-built image bytes can differ with package repository updates; the generated manifests identify the bytes you actually built. Keep those manifests and fixed source revisions for your installation.

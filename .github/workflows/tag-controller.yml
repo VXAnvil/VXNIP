@@ -1,4 +1,4 @@
-name: Tag VXAnvil controller image
+name: Tag VXNIP controller image
 
 on:
   push:

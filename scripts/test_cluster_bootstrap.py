@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-RUNTIME = Path(__file__).resolve().parents[1] / 'skills/vxanvil-cluster/scripts'
+RUNTIME = Path(__file__).resolve().parents[1] / 'skills/vxnip-cluster/scripts'
 sys.path.insert(0, str(RUNTIME))
 import cluster  # noqa: E402
 import reconcile  # noqa: E402
@@ -38,11 +38,11 @@ class NativeNamingTests(unittest.TestCase):
     def test_runtime_manifest_ships_canonical_helper(self):
         root = RUNTIME.parents[2]
         files = (root/'config/management-bundle-files.txt').read_text().splitlines()
-        self.assertIn('scripts/vxanvil-kubeadm', files)
+        self.assertIn('scripts/vxnip-kubeadm', files)
         self.assertEqual(len(files), len(set(files)))
-        helper = (root/'scripts/vxanvil-kubeadm').read_text()
-        self.assertIn('/var/lib/vxanvil-kubeadm', helper)
-        self.assertIn('vxanvil://', helper)
+        helper = (root/'scripts/vxnip-kubeadm').read_text()
+        self.assertIn('/var/lib/vxnip-kubeadm', helper)
+        self.assertIn('vxnip://', helper)
 
 
 class RuntimeAssetTests(unittest.TestCase):
@@ -65,7 +65,7 @@ class RuntimeAssetTests(unittest.TestCase):
         cluster.runtime_assets.validate_asset(asset, 'node', 'amd64')
         staging = self.root / 'staging'
         staging.mkdir()
-        archive = self.root / 'vxanvil-node-amd64.tar.gz'
+        archive = self.root / 'vxnip-node-amd64.tar.gz'
         result = cluster.runtime_assets.unpack(archive, staging, asset, cluster.RELEASE)
         self.assertEqual((result / 'node-tool').read_bytes(), b'verified tool')
         self.assertFalse((result / 'unused-build-output').exists())
@@ -76,7 +76,7 @@ class RuntimeAssetTests(unittest.TestCase):
         asset = self.publisher.pack(self.input, 'node', 'amd64', self.root, 'runtime-v0.2.0-test', sources=sources)
         staging = self.root / 'staging'
         staging.mkdir()
-        archive = self.root / 'vxanvil-node-amd64.tar.gz'
+        archive = self.root / 'vxnip-node-amd64.tar.gz'
         result = cluster.runtime_assets.unpack(archive, staging, asset, sources)
         self.assertTrue((result / 'node-tool').is_file())
         wrong = self.root / 'wrong'
@@ -97,7 +97,7 @@ class RuntimeAssetTests(unittest.TestCase):
         self.assertEqual(len(verifier.verify(self.root, tag)['assets']), 4)
         with self.assertRaisesRegex(ValueError, 'release tag differs'):
             verifier.verify(self.root, 'runtime-v0.1.0-other')
-        with (self.root / 'vxanvil-manager-amd64.tar.gz').open('ab') as stream:
+        with (self.root / 'vxnip-manager-amd64.tar.gz').open('ab') as stream:
             stream.write(b'changed')
         with self.assertRaisesRegex(ValueError, 'bytes differ'):
             verifier.verify(self.root, tag)
@@ -108,7 +108,7 @@ class RuntimeAssetTests(unittest.TestCase):
         settings = {'root':str(self.root / 'state'), 'node':{'facts':{'arch':'amd64'}},
                     'plan':{'release':cluster.RELEASE, 'artifacts':{'amd64':{'asset':asset}}}}
         Path(settings['root']).mkdir()
-        archive = self.root / 'vxanvil-node-amd64.tar.gz'
+        archive = self.root / 'vxnip-node-amd64.tar.gz'
         with patch.object(cluster.runtime_assets, 'download', side_effect=lambda asset, target:shutil.copyfile(archive,target)) as download:
             cluster.runtime_assets.install(settings, 'node')
             cluster.runtime_assets.install(settings, 'node')
@@ -177,7 +177,7 @@ class ImagePortabilityTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.source = self.root / 'management-bundle'
         self.source.mkdir()
-        self.names = ['kindest/node:test', 'vxanvil/controller:test', 'vxanvil/profile:test']
+        self.names = ['kindest/node:test', 'vxnip/controller:test', 'vxnip/profile:test']
         (self.source / 'images').write_text('\n'.join(self.names)+'\n')
         (self.source / 'image-ids').write_text(('sha256:'+'a'*64+'\n')*3)
         self.actual = {}
@@ -338,13 +338,13 @@ class BootstrapTests(unittest.TestCase):
             self.plan()
 
     def test_management_and_workload_containers_never_share_a_name(self):
-        for site in ('vxanvil-lab', 'vxanvil-' + 'a' * 20):
+        for site in ('vxnip-lab', 'vxnip-' + 'a' * 20):
             self.config['site'] = site
             plan = self.plan()
             shell = settings.values({'plan': plan, 'root': '/fixture', 'node': plan['manager']})
             self.assertNotEqual(shell['CLUSTER'] + '-control-plane', site + '-control-plane')
             self.assertEqual(shell['CLUSTER'], plan['workload_cluster'])
-            self.assertRegex(shell['CLUSTER'], r'^vxanvil-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$')
+            self.assertRegex(shell['CLUSTER'], r'^vxnip-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$')
 
     def test_reviewed_plan_cannot_reuse_the_management_name_for_workloads(self):
         plan = self.plan()
@@ -552,9 +552,9 @@ class BootstrapTests(unittest.TestCase):
         package.package(output, development=True)
         with zipfile.ZipFile(output) as archive:
             self.assertIsNone(archive.testzip())
-            self.assertIn('vxanvil-cluster/SKILL.md', archive.namelist())
-            self.assertIn('vxanvil-cluster/scripts/public-inputs.sh', archive.namelist())
-            self.assertTrue(all(name.startswith('vxanvil-cluster/') for name in archive.namelist()))
+            self.assertIn('vxnip-cluster/SKILL.md', archive.namelist())
+            self.assertIn('vxnip-cluster/scripts/public-inputs.sh', archive.namelist())
+            self.assertTrue(all(name.startswith('vxnip-cluster/') for name in archive.namelist()))
             self.assertFalse(any('__pycache__' in name or 'settings.json' in name for name in archive.namelist()))
 
     def test_service_probe_cleans_up_only_its_namespace_on_success_and_failure(self):
@@ -568,10 +568,10 @@ with open(os.environ['CALLS'], 'a') as f: f.write(json.dumps(sys.argv[1:])+'\\n'
 args=sys.argv[1:]
 if 'create' in args:
     sys.stdin.read()
-    if '-o' in args: print('vxanvil-service-check-fixture',end='')
+    if '-o' in args: print('vxnip-service-check-fixture',end='')
 elif 'exec' in args:
     if os.environ['PROBE_FAIL']=='1': sys.exit(1)
-    print('vxanvil-ok')
+    print('vxnip-ok')
 ''')
         kubectl.chmod(0o755)
         sleep = fake / 'sleep'
@@ -588,7 +588,7 @@ elif 'exec' in args:
                 calls = [json.loads(line) for line in records.read_text().splitlines()]
                 deleted = [call for call in calls if 'delete' in call]
                 self.assertEqual(len(deleted), 1)
-                self.assertIn('vxanvil-service-check-fixture', deleted[0])
+                self.assertIn('vxnip-service-check-fixture', deleted[0])
 
 
     def test_pod_probe_waits_for_http_before_testing_both_directions(self):
@@ -604,7 +604,7 @@ s=json.loads(p.read_text()) if p.exists() else {'probes':[], 'serving':False}
 with open(os.environ['CALLS'],'a') as f:f.write(json.dumps(a)+'\\n')
 if 'config' in a: print('https://192.168.50.10:6443',end='')
 elif 'create' in a:
-    sys.stdin.read(); print('vxanvil-worker-check-fixture',end='')
+    sys.stdin.read(); print('vxnip-worker-check-fixture',end='')
 elif 'apply' in a:
     manifest=sys.stdin.read()
     s['probes'].append('readinessProbe:' in manifest and 'httpGet:' in manifest)
@@ -640,7 +640,7 @@ p.write_text(json.dumps(s))
                     self.assertEqual(len([c for c in calls if 'exec' in c]), 2)
                     deleted = [c for c in calls if 'delete' in c]
                     self.assertEqual(len(deleted), 1)
-                    self.assertIn('vxanvil-worker-check-fixture', deleted[0])
+                    self.assertIn('vxnip-worker-check-fixture', deleted[0])
 
     def test_probe_failure_keeps_private_diagnostics_without_echoing_them(self):
         log = self.state / 'probe.log'
@@ -676,7 +676,7 @@ class MixedEnvironmentTests(unittest.TestCase):
             self.config.update(mode='existing',existing={
                 'management_kubeconfig':'/private/management.kubeconfig',
                 'workload_kubeconfig':'/private/workload.kubeconfig',
-                'api':'https://172.30.91.20:6443','cluster':'vxanvil-lab','spire_address':'192.168.50.10'})
+                'api':'https://172.30.91.20:6443','cluster':'vxnip-lab','spire_address':'192.168.50.10'})
         return self.plan()
 
     def test_mixed_tailscale_baremetal_plan_uses_native_artifacts(self):
@@ -807,13 +807,13 @@ class VerificationTests(unittest.TestCase):
         self.machine = {'metadata': {'name': 'worker', 'namespace': 'nvke-system', 'uid': 'infra',
                                     'ownerReferences': [{'apiVersion': 'cluster.x-k8s.io/v1beta2',
                                                         'kind': 'Machine', 'name': 'parent', 'uid': 'capi'}]},
-                        'spec': {'hostRef': 'host-a', 'providerID': 'vxanvil://infra'}}
+                        'spec': {'hostRef': 'host-a', 'providerID': 'vxnip://infra'}}
         self.parent = {'metadata': {'name': 'parent', 'uid': 'capi'},
                        'spec': {'infrastructureRef': {'apiGroup': 'infrastructure.cluster.x-k8s.io',
-                                                     'kind': 'VXAnvilMachine', 'name': 'worker'}},
+                                                     'kind': 'VXNIPMachine', 'name': 'worker'}},
                        'status': {'nodeRef': {'name': 'worker', 'uid': 'node-uid'}}}
         self.node = {'metadata': {'name': 'worker', 'uid': 'node-uid'},
-                     'spec': {'providerID': 'vxanvil://infra'},
+                     'spec': {'providerID': 'vxnip://infra'},
                      'status': {'conditions': [{'type': 'Ready', 'status': 'True'}],
                                 'addresses': [{'type': 'InternalIP', 'address': '192.168.50.20'}]}}
 
@@ -822,10 +822,10 @@ class VerificationTests(unittest.TestCase):
                                        '192.168.50.20', 'physical')
 
     def test_complete_identity_chain_is_accepted(self):
-        self.assertEqual(self.check()['provider_id'], 'vxanvil://infra')
+        self.assertEqual(self.check()['provider_id'], 'vxnip://infra')
 
     def test_ready_node_with_wrong_allocation_is_rejected(self):
-        self.node['spec']['providerID'] = 'vxanvil://unrelated'
+        self.node['spec']['providerID'] = 'vxnip://unrelated'
         with self.assertRaisesRegex(ValueError, 'providerID'):
             self.check()
 
@@ -844,7 +844,7 @@ class VerificationTests(unittest.TestCase):
         result = self.check()
         self.assertFalse(result['node_ref_uid_verified'])
         self.assertEqual(result['node_uid'], 'node-uid')
-        self.node['spec']['providerID'] = 'vxanvil://wrong-allocation'
+        self.node['spec']['providerID'] = 'vxnip://wrong-allocation'
         with self.assertRaisesRegex(ValueError, 'providerID'):
             self.check()
 

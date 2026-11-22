@@ -1,4 +1,4 @@
-module github.com/VXAnvil/cluster-api-provider-vxanvil
+module github.com/VXAnvil/VXNIP
 
 go 1.24.0
 

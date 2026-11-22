@@ -33,7 +33,7 @@ else
 fi
 
 (cd "$bundle" && sha256sum --quiet -c SHA256SUMS)
-for tool in kind kubectl clusterctl helm nvkectl vxanvil-controller; do
+for tool in kind kubectl clusterctl helm nvkectl vxnip-controller; do
     [[ -x $bundle/bin/$tool ]]
 done
 [[ $(cat "$bundle/nvke/revision") == 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 ]]
@@ -64,8 +64,8 @@ watches=$(sysctl -n fs.inotify.max_user_watches)
 (( instances >= 2048 )) || instances=2048
 (( watches >= 1048576 )) || watches=1048576
 printf 'fs.inotify.max_user_instances=%s\nfs.inotify.max_user_watches=%s\n' \
-  "$instances" "$watches" >/etc/sysctl.d/90-vxanvil-inotify.conf
-sysctl -p /etc/sysctl.d/90-vxanvil-inotify.conf >/dev/null
+  "$instances" "$watches" >/etc/sysctl.d/90-vxnip-inotify.conf
+sysctl -p /etc/sysctl.d/90-vxnip-inotify.conf >/dev/null
 systemctl enable --now docker.service
 export PATH="$bundle/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export KUBECONFIG="$state/management.kubeconfig"
@@ -120,7 +120,7 @@ clusterctl init --kubeconfig "$KUBECONFIG" --core cluster-api:v1.13.6 \
 if [[ ! -e $state/db-password ]]; then
     openssl rand -hex 24 >"$state/db-password"
 fi
-export DGXC_TENANT_USER=vxanvil
+export DGXC_TENANT_USER=vxnip
 DGXC_TENANT_PASSWORD=$(cat "$state/db-password")
 export DGXC_TENANT_PASSWORD
 export CNPG_SUPERUSER_PASSWORD="$DGXC_TENANT_PASSWORD"
@@ -159,7 +159,7 @@ fi
 touch "$state/known-hosts"
 install -m 0644 "$state/ssh-key.pub" "$state/worker-bundle/provider.pub"
 install -m 0644 "$state/ca.crt" "$state/worker-bundle/ca.crt"
-for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh vxanvil-kubeadm; do
+for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh vxnip-kubeadm; do
     install -m 0755 "$repo/scripts/$file" "$state/worker-bundle/$file"
 done
 install -m 0644 "$repo/scripts/nvke-enrollment-server.py" "$state/nvke-enrollment-server.py"
@@ -171,24 +171,24 @@ exec /usr/bin/ssh -F /dev/null -i "$state/ssh-key" -o IdentitiesOnly=yes -o User
 EOF
 chmod 0755 "$state/bin/ssh"
 
-cat >"/etc/systemd/system/vxanvil-nvke-$site-provider.service" <<UNIT
+cat >"/etc/systemd/system/vxnip-nvke-$site-provider.service" <<UNIT
 [Unit]
-Description=VXAnvil Provider for $site
+Description=VXNIP Provider for $site
 After=docker.service
 Requires=docker.service
 [Service]
 Environment="PATH=$state/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="KUBECONFIG=$KUBECONFIG"
-Environment=VXANVIL_ENABLE_NVKE_INFRA=1
-ExecStart=$bundle/bin/vxanvil-controller
+Environment=VXNIP_ENABLE_NVKE_INFRA=1
+ExecStart=$bundle/bin/vxnip-controller
 Restart=always
 RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNIT
-cat >"/etc/systemd/system/vxanvil-nvke-$site-enrollment.service" <<UNIT
+cat >"/etc/systemd/system/vxnip-nvke-$site-enrollment.service" <<UNIT
 [Unit]
-Description=VXAnvil enrollment for $site
+Description=VXNIP enrollment for $site
 After=network-online.target docker.service
 Wants=network-online.target
 [Service]
@@ -199,7 +199,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNIT
-cat >"/etc/systemd/system/vxanvil-nvke-$site-api.service" <<UNIT
+cat >"/etc/systemd/system/vxnip-nvke-$site-api.service" <<UNIT
 [Unit]
 Description=Local NVKE API for $site
 After=docker.service
@@ -213,7 +213,7 @@ WantedBy=multi-user.target
 UNIT
 docker update --restart=unless-stopped "$site-control-plane" >/dev/null
 systemctl daemon-reload
-systemctl enable --now "vxanvil-nvke-$site-provider" "vxanvil-nvke-$site-enrollment" "vxanvil-nvke-$site-api"
+systemctl enable --now "vxnip-nvke-$site-provider" "vxnip-nvke-$site-enrollment" "vxnip-nvke-$site-api"
 wait_port() {
     local ip=$1 port=$2
     for attempt in $(seq 1 12); do

@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
+	"github.com/VXAnvil/VXNIP/internal/discovery"
 )
 
-const usage = `Usage: vxanvil [-state PATH] COMMAND [ARGS]
+const usage = `Usage: vxnip [-state PATH] COMMAND [ARGS]
 
   register NAME [USER@]HOST   Discover and register a Linux machine
   list                        Show all registered machines
@@ -28,7 +28,7 @@ Commands return JSON. SSH aliases from your OpenSSH config are supported.
 `
 
 func run(ctx context.Context, args []string, out io.Writer, backend discovery.Discoverer) error {
-	flags := flag.NewFlagSet("vxanvil", flag.ContinueOnError)
+	flags := flag.NewFlagSet("vxnip", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	path := flags.String("state", "", "inventory path")
 	if err := flags.Parse(args); err != nil {
@@ -58,7 +58,7 @@ func run(ctx context.Context, args []string, out io.Writer, backend discovery.Di
 		if err != nil {
 			return err
 		}
-		*path = filepath.Join(dir, "vxanvil", "inventory.json")
+		*path = filepath.Join(dir, "vxnip", "inventory.json")
 	}
 	state := store{path: filepath.Clean(*path)}
 	result, err := execute(ctx, state, backend, command, args)
@@ -117,8 +117,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := run(ctx, os.Args[1:], os.Stdout, discovery.SSH{}); err != nil {
-		fmt.Fprintln(os.Stderr, "vxanvil:", err)
-		fmt.Fprintln(os.Stderr, "See vxanvil -h for usage.")
+		fmt.Fprintln(os.Stderr, "vxnip:", err)
+		fmt.Fprintln(os.Stderr, "See vxnip -h for usage.")
 		os.Exit(1)
 	}
 }

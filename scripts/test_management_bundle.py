@@ -13,7 +13,7 @@ import unittest
 @unittest.skipUnless(sys.platform == "linux", "management bundles are built on Linux")
 class ManagementBundleTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix="vxanvil-bundle-test-")
+        self.temporary = tempfile.TemporaryDirectory(prefix="vxnip-bundle-test-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.repo = self.root / "provider-source"
@@ -35,7 +35,7 @@ class ManagementBundleTests(unittest.TestCase):
                  "commit", "-qm", "fixture")
         self.tools = self.root / "tools"
         self.tools.mkdir()
-        for name in ("kind", "kubectl", "clusterctl", "helm", "nvkectl", "vxanvil-controller"):
+        for name in ("kind", "kubectl", "clusterctl", "helm", "nvkectl", "vxnip-controller"):
             self.executable(self.tools / name, "#!/bin/sh\nexit 0\n")
         self.fakebin = self.root / "fakebin"
         self.fakebin.mkdir()
@@ -67,8 +67,8 @@ else:
 """)
         self.env = dict(os.environ, PATH=str(self.fakebin) + os.pathsep + os.environ["PATH"],
                         REAL_GIT=self.real_git,
-                        HELPER_HASH=hashlib.sha256((self.repo / "scripts/vxanvil-kubeadm").read_bytes()).hexdigest())
-        self.env.pop("VXANVIL_CONTROL_PLANE_IMAGE", None)
+                        HELPER_HASH=hashlib.sha256((self.repo / "scripts/vxnip-kubeadm").read_bytes()).hexdigest())
+        self.env.pop("VXNIP_CONTROL_PLANE_IMAGE", None)
         self.output = self.root / "bundle"
 
     def git(self, *args):
@@ -83,7 +83,7 @@ else:
     def package(self, extra_image=False):
         env = dict(self.env)
         if extra_image:
-            env["VXANVIL_CONTROL_PLANE_IMAGE"] = "vxanvil-control-plane:fixture"
+            env["VXNIP_CONTROL_PLANE_IMAGE"] = "vxnip-control-plane:fixture"
         return subprocess.run(
             ["bash", str(self.repo / "scripts/package-nvke-management.sh"),
              str(self.upstream), str(self.tools), "kindest/node:fixture",
@@ -134,7 +134,7 @@ else:
                 self.assertEqual(file.stat().st_mode & 0o777, original.stat().st_mode & 0o777)
         excluded = ("scripts/local-secret.env", "config/local-secret.env",
                     "scripts/generate-crds.sh", "scripts/test_management_tools.py",
-                    "scripts/test_vxanvil_kubeadm.py", "scripts/test_management_bundle.py",
+                    "scripts/test_vxnip_kubeadm.py", "scripts/test_management_bundle.py",
                     "scripts/build-nvke-control-plane.sh", "scripts/package-nvke-management.sh",
                     "internal/discovery/ssh.go", "hack/lab/create-nvke-lima-vm.py")
         for name in excluded:
@@ -148,7 +148,7 @@ else:
         subprocess.run(["sha256sum", "--quiet", "-c", "SHA256SUMS"],
                        cwd=self.output, check=True, capture_output=True)
         self.assertEqual((self.output / "control-plane-image").read_text(),
-                         "vxanvil-control-plane:fixture\n")
+                         "vxnip-control-plane:fixture\n")
         self.assertEqual(len((self.output / "image-ids").read_text().splitlines()), 4)
         self.check_runtime_dependencies(self.output / "provider")
 

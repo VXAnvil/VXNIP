@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/bootstrap"
 )
 
 type kubeadmFunc func(context.Context, string, bootstrap.Request) error
@@ -41,25 +41,25 @@ func TestCABPKBootstrapAndCleanup(t *testing.T) {
 			"clusterName": "lab",
 			"infrastructureRef": map[string]any{
 				"apiGroup": api.GroupVersion.Group,
-				"kind":     "VXAnvilMachine", "name": "worker",
+				"kind":     "VXNIPMachine", "name": "worker",
 			},
 		},
 	}}
-	host := &api.VXAnvilHost{
+	host := &api.VXNIPHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + strings.Repeat("a", 32), Finalizers: []string{hostFinalizer}},
-		Spec:       api.VXAnvilHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker", AllowBootstrap: true},
-		Status: api.VXAnvilHostStatus{
+		Spec:       api.VXNIPHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker", AllowBootstrap: true},
+		Status: api.VXNIPHostStatus{
 			DiscoveryReady: true, ObservedAt: &metav1.Time{Time: metav1.Now().Time},
 		},
 	}
-	machine := &api.VXAnvilMachine{
+	machine := &api.VXNIPMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "worker", Namespace: "default", UID: types.UID("infra-worker"),
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: capiVersion, Kind: "Machine", Name: "worker", UID: capiMachine.GetUID(),
 			}},
 		},
-		Spec: api.VXAnvilMachineSpec{HostRef: host.Name},
+		Spec: api.VXNIPMachineSpec{HostRef: host.Name},
 	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -94,9 +94,9 @@ runcmd:
 		}
 		switch op.Action {
 		case "apply":
-			var stored api.VXAnvilMachine
+			var stored api.VXNIPMachine
 			must(t, c.Get(ctx, req.NamespacedName, &stored))
-			if !stored.Status.BootstrapStarted || !strings.Contains(op.Plan.Config, "vxanvil://infra-worker") {
+			if !stored.Status.BootstrapStarted || !strings.Contains(op.Plan.Config, "vxnip://infra-worker") {
 				t.Fatal("bootstrap started without persisting the intent or setting the kubelet identity")
 			}
 		case "reset":
@@ -120,7 +120,7 @@ runcmd:
 	_, err = controller.Reconcile(ctx, req)
 	must(t, err)
 	must(t, c.Get(ctx, req.NamespacedName, machine))
-	if machine.Spec.ProviderID != "vxanvil://infra-worker" ||
+	if machine.Spec.ProviderID != "vxnip://infra-worker" ||
 		machine.Status.Initialization == nil || !machine.Status.Initialization.Provisioned {
 		t.Fatalf("bootstrap completion was not published: %+v %+v", machine.Spec, machine.Status)
 	}

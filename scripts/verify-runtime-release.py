@@ -8,7 +8,7 @@ import sys
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'skills/vxanvil-cluster/scripts'))
+sys.path.insert(0, str(ROOT / 'skills/vxnip-cluster/scripts'))
 import artifacts  # noqa: E402
 from cluster import RELEASE  # noqa: E402
 spec = importlib.util.spec_from_file_location('publisher', ROOT / 'scripts/package-runtime-assets.py')
@@ -26,7 +26,7 @@ def verify(directory, tag, expected_sources=None):
         for role in ('manager', 'node'):
             key = role + '-' + arch
             asset = artifacts.validate_asset(manifest['assets'][key], role, arch)
-            name = 'vxanvil-' + key + '.tar.gz'
+            name = 'vxnip-' + key + '.tar.gz'
             path = directory / name
             if asset['url'] != artifacts.ORIGIN + tag + '/' + name:
                 raise ValueError('Runtime release tag differs')

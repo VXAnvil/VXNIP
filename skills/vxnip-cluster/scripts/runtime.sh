@@ -5,7 +5,7 @@ umask 077
 [[ $# == 2 && $EUID == 0 ]] || { echo 'Usage: sudo bash runtime.sh phase root' >&2; exit 2; }
 phase=$1
 root=$2
-[[ $root =~ ^/var/lib/vxanvil-bootstrap/vxanvil-[a-z0-9-]+$ ]]
+[[ $root =~ ^/var/lib/vxnip-bootstrap/vxnip-[a-z0-9-]+$ ]]
 exec 9>"$root/runtime.lock"
 flock -n 9 || { echo 'Another remote bootstrap action is still active' >&2; exit 1; }
 python3 "$root/runtime/settings.py" "$root/settings.json" >"$root/settings.env"
@@ -69,7 +69,7 @@ control-plane)
     min_mtu=9000
     read -r -a mtu_peers <<<"$WORKER_IPS"
     for peer in "${mtu_peers[@]}"; do
-        mtu=$(python3 "$provider/scripts/vxanvil-network.py" --peer "$peer" --mtu-only)
+        mtu=$(python3 "$provider/scripts/vxnip-network.py" --peer "$peer" --mtu-only)
         [[ $mtu =~ ^[0-9]+$ && $mtu -ge 576 ]]
         (( mtu >= min_mtu )) || min_mtu=$mtu
     done
@@ -87,7 +87,7 @@ control-plane)
             for variable in CLUSTER MANAGER_IP LAN_CIDR DOCKER_CIDR CP_IP POD_CIDR SERVICE_CIDR WORKER_IP WORKER_GATEWAY NETWORK_MODE; do
                 printf '%s=%q\n' "$variable" "${!variable}"
             done >"$peer_layout"
-            bash "$provider/scripts/configure-vxanvil-manager-network.sh" --install "$peer_layout"
+            bash "$provider/scripts/configure-vxnip-manager-network.sh" --install "$peer_layout"
         )
     done
     ;;
@@ -105,7 +105,7 @@ check-protected)
     ;;
 node-assets)
     [[ $ARTIFACT_MODE == source ]]
-    VXANVIL_BUILD_LABEL=$SITE bash "$ROOT/runtime/public-inputs.sh" "$work" --node-only
+    VXNIP_BUILD_LABEL=$SITE bash "$ROOT/runtime/public-inputs.sh" "$work" --node-only
     cp -al "$work/artifacts" "$ROOT/input/artifacts"
     ;;
 tailscale-worker)
@@ -143,7 +143,7 @@ worker)
     else
         bash "$recovery" --install worker "$NODE_IP" "$CP_IP" "$MANAGER_IP" "$MANAGER_IP"
     fi
-    systemctl start vxanvil-nvke-lab-worker-recovery.service
+    systemctl start vxnip-nvke-lab-worker-recovery.service
     if [[ $NETWORK_MODE == lan ]]; then
         # NVKE can reapply netplan and replace the interface carrying NODE_IP.
         # Keep the explicit API /32 through that change without altering defaults.
@@ -152,7 +152,7 @@ worker)
         expected_unit=$ROOT/api-route.service
         cat >"$expected_unit" <<UNIT
 [Unit]
-Description=Restore planned VXAnvil LAN API route
+Description=Restore planned VXNIP LAN API route
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=0

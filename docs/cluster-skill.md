@@ -1,6 +1,6 @@
-# Prepare or inspect VXAnvil clusters from SSH connections
+# Prepare or inspect VXNIP clusters from SSH connections
 
-The portable [`vxanvil-cluster` skill](../skills/vxanvil-cluster/SKILL.md) includes a standard-library Python SSH executor and a pinned prebuilt-runtime downloader (plus explicit developer source builders). It supports AMD64/ARM64 mixtures, VM and bare-metal workers, and direct LAN or Tailscale networking.
+The portable [`vxnip-cluster` skill](../skills/vxnip-cluster/SKILL.md) includes a standard-library Python SSH executor and a pinned prebuilt-runtime downloader (plus explicit developer source builders). It supports AMD64/ARM64 mixtures, VM and bare-metal workers, and direct LAN or Tailscale networking.
 
 Choose the mode explicitly. `existing` inspects and preserves the named cluster: no remote uploads, sudo, builds, installations, route updates or new probe Pods. `create` prepares a new dedicated management site and unallocated workers. It cannot adopt existing allocations, add nodes to an existing site or upgrade an active cluster. This prevents an existing machine connection from implicitly authorizing reinstallation.
 
@@ -14,28 +14,28 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-Install the [VXAnvil skill release](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.2.0-rc.1):
+Install the [VXNIP skill release](https://github.com/VXAnvil/VXNIP/releases/tag/skill-v0.3.0-rc.1):
 
 ```bash
-release=skill-v0.2.0-rc.1
-base="https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/$release"
-curl --proto '=https' --proto-redir '=https' -fL "$base/vxanvil-cluster.zip" -o vxanvil-cluster.zip
-curl --proto '=https' --proto-redir '=https' -fL "$base/vxanvil-cluster.zip.sha256" -o vxanvil-cluster.zip.sha256
+release=skill-v0.3.0-rc.1
+base="https://github.com/VXAnvil/VXNIP/releases/download/$release"
+curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip" -o vxnip-cluster.zip
+curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip.sha256" -o vxnip-cluster.zip.sha256
 python3 - <<'PY_VERIFY'
 from pathlib import Path
 import hashlib
-expected = Path('vxanvil-cluster.zip.sha256').read_text().split()[0]
-assert hashlib.sha256(Path('vxanvil-cluster.zip').read_bytes()).hexdigest() == expected, 'Checksum mismatch'
+expected = Path('vxnip-cluster.zip.sha256').read_text().split()[0]
+assert hashlib.sha256(Path('vxnip-cluster.zip').read_bytes()).hexdigest() == expected, 'Checksum mismatch'
 print('ZIP checksum verified')
 PY_VERIFY
-python3 -m zipfile -e vxanvil-cluster.zip "$HOME/.agents/skills"
+python3 -m zipfile -e vxnip-cluster.zip "$HOME/.agents/skills"
 ```
 
-This installs `vxanvil-cluster/`; invoke `$vxanvil-cluster` in Codex. For Claude Code, extract into `$HOME/.claude/skills` and invoke `/vxanvil-cluster`. Back up an existing folder before replacing it, and complete interrupted runs with their exact original runtime and plan.
+This installs `vxnip-cluster/`; invoke `$vxnip-cluster` in Codex. For Claude Code, extract into `$HOME/.claude/skills` and invoke `/vxnip-cluster`. Back up an existing folder before replacing it, and complete interrupted runs with their exact original runtime and plan.
 
 Then ask, for example:
 
-> Use vxanvil-cluster to prepare a new NVKE cluster with SSH aliases `lab-manager` and `lab-worker`. Preserve other clusters and workloads.
+> Use vxnip-cluster to prepare a new NVKE cluster with SSH aliases `lab-manager` and `lab-worker`. Preserve other clusters and workloads.
 
 For a home LAN, ask:
 
@@ -58,12 +58,12 @@ To build the same portable package from a checkout:
 
 ```bash
 mkdir -p dist
-python3 scripts/package-cluster-skill.py dist/vxanvil-cluster.zip
+python3 scripts/package-cluster-skill.py dist/vxnip-cluster.zip
 ```
 
 The ZIP includes instructions, references and runtime scripts. Site configuration, logs, credentials and private test evidence are excluded. This is a skill/executor package; a manifest pins the separately published AMD64/ARM64 manager and node runtimes downloaded during setup. Packaging a distributable skill fails unless that manifest is included. An offline installer is not yet available.
 
-For connection JSON examples, exact source pins, safety boundaries, creation and read-only result semantics, state and recovery, see the [executor reference](../skills/vxanvil-cluster/references/executor.md).
+For connection JSON examples, exact source pins, safety boundaries, creation and read-only result semantics, state and recovery, see the [executor reference](../skills/vxnip-cluster/references/executor.md).
 
 The release installer stops once the NVKE cluster is provisioned and network verification passes. Model bundles and acir-produced Helm charts are obtained and deployed separately by the user.
 

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -60,7 +60,7 @@ func TestReleasedLegacyHostMigrationWithAPIServer(t *testing.T) {
 	}
 	identity := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	oldID := fmt.Sprintf("%x", sha256.Sum256([]byte("nvke-homelab:"+identity)))
-	newID := fmt.Sprintf("%x", sha256.Sum256([]byte("vxanvil:"+identity)))
+	newID := fmt.Sprintf("%x", sha256.Sum256([]byte("vxnip:"+identity)))
 	old := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "homelab.infrastructure.cluster.x-k8s.io/v1alpha1", "kind": "HomelabHost",
 		"metadata": map[string]any{"name": "host-" + oldID[:32]},
@@ -70,7 +70,7 @@ func TestReleasedLegacyHostMigrationWithAPIServer(t *testing.T) {
 	must(t, os.WriteFile(filepath.Join(directory, "ssh"), []byte("#!/bin/sh\nprintf '%s\\n' '"+identity+"'\n"), 0700))
 	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
 	plan := filepath.Join(directory, "migration.json")
-	script := "../../scripts/migrate-vxanvil-hosts.py"
+	script := "../../scripts/migrate-vxnip-hosts.py"
 	for _, apply := range []bool{false, true, true} {
 		args := []string{script, "--kubeconfig", kubeconfig, "--plan", plan}
 		if apply {
@@ -81,9 +81,9 @@ func TestReleasedLegacyHostMigrationWithAPIServer(t *testing.T) {
 			t.Fatalf("migration apply=%v: %v %s", apply, err, out)
 		}
 	}
-	var registered api.VXAnvilHost
+	var registered api.VXNIPHost
 	must(t, c.Get(context.Background(), client.ObjectKey{Name: "host-" + newID[:32]}, &registered))
-	if registered.Spec.MachineID != newID || registered.Annotations["vxanvil.nvke.dev/migrated-from-uid"] != string(old.GetUID()) {
+	if registered.Spec.MachineID != newID || registered.Annotations["vxnip.nvke.dev/migrated-from-uid"] != string(old.GetUID()) {
 		t.Fatalf("migration lost identity provenance: %+v", registered)
 	}
 }

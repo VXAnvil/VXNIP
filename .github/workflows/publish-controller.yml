@@ -1,4 +1,4 @@
-name: Publish VXAnvil controller
+name: Publish VXNIP controller
 
 on:
   push:
@@ -41,10 +41,10 @@ jobs:
           RUN go mod download
           COPY . .
           ARG TARGETOS TARGETARCH
-          RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -o /out/vxanvil-controller ./cmd/vxanvil-controller
+          RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -o /out/vxnip-controller ./cmd/vxnip-controller
           FROM debian:bookworm-slim AS runtime-base
           RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssh-client && rm -rf /var/lib/apt/lists/*
-          COPY --from=build /out/vxanvil-controller /usr/local/bin/vxanvil-controller
-          ENTRYPOINT ["/usr/local/bin/vxanvil-controller"]
+          COPY --from=build /out/vxnip-controller /usr/local/bin/vxnip-controller
+          ENTRYPOINT ["/usr/local/bin/vxnip-controller"]
           DOCKERFILE
           done < "$RUNNER_TEMP/revisions"

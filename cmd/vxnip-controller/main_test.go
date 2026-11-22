@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
 )
 
 func TestManagerResumesAndReleasesClaims(t *testing.T) {
@@ -43,7 +43,7 @@ func TestManagerResumesAndReleasesClaims(t *testing.T) {
 	api.AddInfrastructureToScheme(scheme)
 	c, err := client.New(config, client.Options{Scheme: scheme})
 	check(t, err)
-	for _, namespace := range []string{"kube-system", "vxanvil-test"} {
+	for _, namespace := range []string{"kube-system", "vxnip-test"} {
 		err := c.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
 		if !apierrors.IsAlreadyExists(err) {
 			check(t, err)
@@ -75,25 +75,25 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 	binary, err := os.Executable()
 	check(t, err)
 
-	host := &api.VXAnvilHost{
+	host := &api.VXNIPHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + id[:32]},
-		Spec:       api.VXAnvilHostSpec{MachineID: id, SSHTarget: "ubuntu@worker"},
+		Spec:       api.VXNIPHostSpec{MachineID: id, SSHTarget: "ubuntu@worker"},
 	}
 	check(t, c.Create(ctx, host))
-	newMachine := func(name string) *api.VXAnvilMachine {
-		return &api.VXAnvilMachine{
-			TypeMeta:   metav1.TypeMeta{APIVersion: api.GroupVersion.String(), Kind: "VXAnvilMachine"},
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "vxanvil-test"},
-			Spec:       api.VXAnvilMachineSpec{HostRef: host.Name},
+	newMachine := func(name string) *api.VXNIPMachine {
+		return &api.VXNIPMachine{
+			TypeMeta:   metav1.TypeMeta{APIVersion: api.GroupVersion.String(), Kind: "VXNIPMachine"},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "vxnip-test"},
+			Spec:       api.VXNIPMachineSpec{HostRef: host.Name},
 		}
 	}
 	machine := newMachine("worker")
 	check(t, c.Create(ctx, machine))
-	machine.SetGroupVersionKind(api.GroupVersion.WithKind("VXAnvilMachine"))
+	machine.SetGroupVersionKind(api.GroupVersion.WithKind("VXNIPMachine"))
 	start := func() func() {
 		t.Helper()
 		process := exec.CommandContext(ctx, binary, "-test.run=^TestControllerProcess$")
-		process.Env = append(os.Environ(), "VXANVIL_TEST_PROCESS=1", "KUBECONFIG="+kubeconfig, "VXANVIL_ENABLE_NVKE_INFRA=1")
+		process.Env = append(os.Environ(), "VXNIP_TEST_PROCESS=1", "KUBECONFIG="+kubeconfig, "VXNIP_ENABLE_NVKE_INFRA=1")
 		process.Stdout, process.Stderr = os.Stdout, os.Stderr
 		check(t, process.Start())
 		done := make(chan struct{})
@@ -118,7 +118,7 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 		t.Cleanup(stopAndWait)
 		return stopAndWait
 	}
-	waitForReservation := func(machine *api.VXAnvilMachine) {
+	waitForReservation := func(machine *api.VXNIPMachine) {
 		t.Helper()
 		gvk := machine.GroupVersionKind()
 		check(t, wait.PollUntilContextTimeout(ctx, 200*time.Millisecond, 40*time.Second, true,
@@ -141,13 +141,13 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 	stop()
 
 	// A restart must recover the machine status from the persisted host claim.
-	machine.Status = api.VXAnvilMachineStatus{}
+	machine.Status = api.VXNIPMachineStatus{}
 	check(t, c.Status().Update(ctx, machine))
 	start()
 	waitForReservation(machine)
 
 	replacement := newMachine("replacement")
-	replacementGVK := api.InfrastructureGroupVersion.WithKind("VXAnvilMachine")
+	replacementGVK := api.InfrastructureGroupVersion.WithKind("VXNIPMachine")
 	replacement.SetGroupVersionKind(replacementGVK)
 	check(t, c.Create(ctx, replacement))
 	check(t, wait.PollUntilContextTimeout(ctx, 200*time.Millisecond, 15*time.Second, true,
@@ -164,7 +164,7 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 }
 
 func TestControllerProcess(t *testing.T) {
-	if os.Getenv("VXANVIL_TEST_PROCESS") != "1" {
+	if os.Getenv("VXNIP_TEST_PROCESS") != "1" {
 		t.Skip("only run as the controller subprocess")
 	}
 	check(t, run())
@@ -178,11 +178,11 @@ func check(t *testing.T, err error) {
 }
 
 func TestNVKEOption(t *testing.T) {
-	t.Setenv("VXANVIL_ENABLE_NVKE_INFRA", "0")
+	t.Setenv("VXNIP_ENABLE_NVKE_INFRA", "0")
 	if nvkeEnabled() {
 		t.Fatal("disabled option enabled NVKE")
 	}
-	t.Setenv("VXANVIL_ENABLE_NVKE_INFRA", "1")
+	t.Setenv("VXNIP_ENABLE_NVKE_INFRA", "1")
 	if !nvkeEnabled() {
 		t.Fatal("enabled option did not enable NVKE")
 	}

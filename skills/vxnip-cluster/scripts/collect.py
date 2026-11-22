@@ -35,8 +35,8 @@ def snapshot(settings):
     api = call(workload + ['config', 'view', '--minify', '-o', 'jsonpath={.clusters[0].cluster.server}'])
     if api != existing['api'] or call(workload + ['get', '--raw=/readyz']) != 'ok':
         raise ValueError('Unexpected or unready existing workload API')
-    hosts = obj(manager, 'get', 'vxanvilhosts')['items']
-    machines = obj(manager, 'get', 'vxanvilmachines.infrastructure.cluster.x-k8s.io', '-A')['items']
+    hosts = obj(manager, 'get', 'vxniphosts')['items']
+    machines = obj(manager, 'get', 'vxnipmachines.infrastructure.cluster.x-k8s.io', '-A')['items']
     parents = obj(manager, 'get', 'machines.cluster.x-k8s.io', '-A')['items']
     nodes = obj(workload, 'get', 'nodes')['items']
     context = {'__name__': 'included_verifier'}

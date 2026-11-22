@@ -8,7 +8,7 @@ mode=$1
 layout=$(realpath "$2")
 source "$layout"
 : "${CLUSTER:?}" "${CP_IP:?}" "${MANAGER_IP:?}" "${WORKER_IP:?}"
-[[ $CLUSTER =~ ^vxanvil-[a-z0-9-]+$ && $CLUSTER != *- ]]
+[[ $CLUSTER =~ ^vxnip-[a-z0-9-]+$ && $CLUSTER != *- ]]
 network_mode=${NETWORK_MODE:-lan}
 [[ $network_mode == lan || $network_mode == tailscale ]]
 python3 - "$CP_IP" "$MANAGER_IP" "$WORKER_IP" <<'PY'
@@ -22,7 +22,7 @@ for arg in sys.argv[1:]:
         sys.exit("Invalid routable IPv4 endpoint")
 PY
 if [[ $mode == --install ]]; then
-    config="/etc/vxanvil/network/$CLUSTER.env"
+    config="/etc/vxnip/network/$CLUSTER.env"
     if [[ -e $config ]]; then
         cmp -s "$layout" "$config" || { echo "Existing network layout differs." >&2; exit 1; }
     fi
@@ -59,8 +59,8 @@ ensure nat POSTROUTING -s "$CP_IP/32" ! -d "$WORKER_IP/32" -o "$iface" -p tcp --
     -m comment --comment "$CLUSTER-egress" -j MASQUERADE
 
 if [[ $mode == --install ]]; then
-    config="/etc/vxanvil/network/$CLUSTER.env"
-    program=/usr/local/libexec/vxanvil-manager-network
+    config="/etc/vxnip/network/$CLUSTER.env"
+    program=/usr/local/libexec/vxnip-manager-network
     unit="$CLUSTER-network.service"
     # A changed endpoint should be applied to a new tenant, avoiding stale rules.
     if [[ -e $config ]]; then
@@ -71,7 +71,7 @@ if [[ $mode == --install ]]; then
     [[ $0 -ef $program ]] || install -D -m 0755 "$0" "$program"
     cat >"/etc/systemd/system/$unit" <<UNIT
 [Unit]
-Description=VXAnvil tenant network recovery for $CLUSTER
+Description=VXNIP tenant network recovery for $CLUSTER
 Wants=network-online.target tailscaled.service
 Requires=docker.service
 After=network-online.target docker.service tailscaled.service

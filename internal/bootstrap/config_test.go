@@ -34,7 +34,7 @@ func TestKubeadmPlanForInitAndJoin(t *testing.T) {
 runcmd:
 - 'kubeadm ` + command + " --config " + path + `  && echo success > /run/cluster-api/bootstrap-success.complete'
 `
-			providerID := "vxanvil://new-id"
+			providerID := "vxnip://new-id"
 			plan, err := KubeadmPlan([]byte(payload), providerID)
 			if err != nil {
 				t.Fatal(err)

@@ -16,7 +16,7 @@ import tempfile
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-RESOURCE = "vxanvilhosts.vxanvil.infrastructure.cluster.x-k8s.io"
+RESOURCE = "vxniphosts.vxnip.infrastructure.cluster.x-k8s.io"
 
 
 def digest(value):
@@ -110,8 +110,8 @@ class Registry:
             ]
             self.kubectl("patch", f"{RESOURCE}/{name}", "--type=json", "-p", json.dumps(patch))
         else:
-            obj = {"apiVersion": "vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1",
-                   "kind": "VXAnvilHost", "metadata": {"name": name}, "spec": spec}
+            obj = {"apiVersion": "vxnip.infrastructure.cluster.x-k8s.io/v1alpha1",
+                   "kind": "VXNIPHost", "metadata": {"name": name}, "spec": spec}
             self.kubectl("create", "-f", "-", body=json.dumps(obj))
         if invite:
             write_json(record, identity)
@@ -137,10 +137,10 @@ class Registry:
                                "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=5",
                                "-o", f"UserKnownHostsFile={probe_hosts}",
                                "-o", "GlobalKnownHostsFile=/dev/null", "--", f"{user}@{peer}",
-                               "cat /etc/machine-id && sudo -n -l /usr/local/sbin/vxanvil-kubeadm").splitlines()
+                               "cat /etc/machine-id && sudo -n -l /usr/local/sbin/vxnip-kubeadm").splitlines()
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                 raise Reject(409, "management SSH preflight failed") from None
-            if not observed or digest("vxanvil:" + observed[0].strip()) != machine:
+            if not observed or digest("vxnip:" + observed[0].strip()) != machine:
                 raise Reject(409, "management SSH identity does not match")
         if line not in old.splitlines():
             # Append without replacing the trust entries used by other hosts.

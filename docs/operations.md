@@ -1,4 +1,4 @@
-# Install and operate VXAnvil
+# Install and operate VXNIP
 
 ## Build a reproducible control-plane image
 
@@ -9,9 +9,9 @@ Build on a Linux host with Docker BuildKit/Buildx whose native architecture matc
 ```bash
 bash scripts/build-nvke-control-plane.sh \
   cwe-capd-kindest-node:local /path/to/verified-amd64-artifacts \
-  vxanvil-control-plane:1.36.3 /boot/config-$(uname -r)
+  vxnip-control-plane:1.36.3 /boot/config-$(uname -r)
 
-VXANVIL_CONTROL_PLANE_IMAGE=vxanvil-control-plane:1.36.3 \
+VXNIP_CONTROL_PLANE_IMAGE=vxnip-control-plane:1.36.3 \
   bash scripts/package-nvke-management.sh \
     "$NVKE_CHECKOUT" "$LINUX_TOOL_DIR" \
     "$KIND_NODE_IMAGE" "$NVKE_CONTROLLER_IMAGE" "$NVKE_PROFILE_IMAGE" \
@@ -28,11 +28,11 @@ On the target host, run the bundled installer. It uses the provider files covere
 
 ```bash
 sudo bash /path/to/new-management-bundle/provider/scripts/init-nvke-management.sh \
-  /path/to/new-management-bundle /var/lib/vxanvil-site \
-  192.168.50.10 192.168.50.0/24 vxanvil-site
+  /path/to/new-management-bundle /var/lib/vxnip-site \
+  192.168.50.10 192.168.50.0/24 vxnip-site
 ```
 
-For a Docker tenant, set `CP_IMAGE=vxanvil-control-plane:1.36.3` when running `install-nvke-docker-gpu.sh`. The installer verifies its labels and helper hash, imports its bundled Kubernetes and OVN image archives, and starts the tenant. The `CP_BASE_IMAGE` build path remains available for development.
+For a Docker tenant, set `CP_IMAGE=vxnip-control-plane:1.36.3` when running `install-nvke-docker-gpu.sh`. The installer verifies its labels and helper hash, imports its bundled Kubernetes and OVN image archives, and starts the tenant. The `CP_BASE_IMAGE` build path remains available for development.
 
 The kernel config included in the image must match the target Docker host. Build a new image for a different kernel. Node dependency packages and images must match the pinned NVKE revision and host architecture.
 
@@ -41,13 +41,13 @@ The kernel config included in the image must match the target Docker host. Build
 The client export includes the management kubeconfig and grants its privileges to the directory's owner. Export it only for an intended management operator.
 
 ```bash
-sudo bash scripts/configure-vxanvil-client.sh /var/lib/vxanvil-site \
-  /home/ubuntu/.config/vxanvil/sites/lab /path/to/workload.kubeconfig
+sudo bash scripts/configure-vxnip-client.sh /var/lib/vxnip-site \
+  /home/ubuntu/.config/vxnip/sites/lab /path/to/workload.kubeconfig
 
-source /home/ubuntu/.config/vxanvil/sites/lab/env.sh
+source /home/ubuntu/.config/vxnip/sites/lab/env.sh
 nvkectl --site "$NVKE_SITE" get clusters
-kubectl --kubeconfig /home/ubuntu/.config/vxanvil/sites/lab/management.kubeconfig get vxanvilhosts
-kubectl --kubeconfig /home/ubuntu/.config/vxanvil/sites/lab/workload.kubeconfig get nodes
+kubectl --kubeconfig /home/ubuntu/.config/vxnip/sites/lab/management.kubeconfig get vxniphosts
+kubectl --kubeconfig /home/ubuntu/.config/vxnip/sites/lab/workload.kubeconfig get nodes
 ```
 
 The script copies the matching `nvkectl` and `kubectl`, creates a private CLI configuration, and exports only environment variables. Commands use the full `nvkectl` and `kubectl` names, with explicit kubeconfig paths for management and workload operations. Source that file in each terminal, or source it from the intended user's shell startup file.
@@ -57,19 +57,19 @@ The script copies the matching `nvkectl` and `kubectl`, creates a private CLI co
 Run the doctor from the host whose connectivity you are diagnosing. Choose the real peer and endpoint CA.
 
 ```bash
-python3 scripts/vxanvil-network.py \
+python3 scripts/vxnip-network.py \
   --peer 100.100.0.20 --spire 192.168.50.10 \
   --api-url https://172.30.91.10:6443 --ca /path/to/public-ca.crt --agent
 
-sudo python3 scripts/vxanvil-network.py --peer 172.30.91.10 \
+sudo python3 scripts/vxnip-network.py --peer 172.30.91.10 \
   --spire 192.168.50.10 --api-url https://172.30.91.10:6443 \
   --ca /path/to/public-ca.crt \
-  --cri unix:///run/vxanvil-nvke-containerd/containerd.sock
+  --cri unix:///run/vxnip-nvke-containerd/containerd.sock
 ```
 
 The JSON report distinguishes route/MTU, TCP SPIRE, CA and hostname-verified API readiness, CRI, and the presented agent certificate's expiry. An expiry check reads the public certificate. UDP reachability is reported as requiring a workload check. Run `check-nvke-lab-workers.sh` on two Ready nodes for bidirectional Pod traffic over OVN.
 
-The Docker tenant installer invokes `configure-vxanvil-manager-network.sh`. Its systemd unit restores scoped API, agent, kubelet, UDP 6081 and return-traffic rules. HTTPS egress follows the actual default-route interface. The generated configuration is immutable for that installation. Use a new tenant/layout for changed endpoints.
+The Docker tenant installer invokes `configure-vxnip-manager-network.sh`. Its systemd unit restores scoped API, agent, kubelet, UDP 6081 and return-traffic rules. HTTPS egress follows the actual default-route interface. The generated configuration is immutable for that installation. Use a new tenant/layout for changed endpoints.
 
 For Tailscale, add `NETWORK_MODE=tailscale` to the trusted layout. The manager advertises the API and SPIRE `/32` routes while preserving other advertisements and disables subnet SNAT to retain the worker's source address. Approve the routes and relevant grants in the tailnet. On the remote worker, enable route acceptance. Route approval remains an administrator action.
 
@@ -85,10 +85,10 @@ bash scripts/check-nvke-lab-workers.sh /path/to/workload.kubeconfig \
 ## Read failures in Kubernetes
 
 ```bash
-kubectl get vxanvilhosts
-kubectl get vxanvilhost HOST -o jsonpath='{.status.discoveryMessage}'
-kubectl get vxanvilhost HOST -o jsonpath='{.status.conditions}'
-kubectl -n nvke-system get vxanvilmachine.infrastructure.cluster.x-k8s.io MACHINE \
+kubectl get vxniphosts
+kubectl get vxniphost HOST -o jsonpath='{.status.discoveryMessage}'
+kubectl get vxniphost HOST -o jsonpath='{.status.conditions}'
+kubectl -n nvke-system get vxnipmachine.infrastructure.cluster.x-k8s.io MACHINE \
   -o jsonpath='{.status.reason}{"\n"}{.status.message}{"\n"}'
 ```
 

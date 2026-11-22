@@ -6,14 +6,14 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.19.0
   labels:
     cluster.x-k8s.io/v1beta2: v1alpha1
-  name: vxanvilmachines.vxanvil.infrastructure.cluster.x-k8s.io
+  name: vxnipmachines.infrastructure.cluster.x-k8s.io
 spec:
-  group: vxanvil.infrastructure.cluster.x-k8s.io
+  group: infrastructure.cluster.x-k8s.io
   names:
-    kind: VXAnvilMachine
-    listKind: VXAnvilMachineList
-    plural: vxanvilmachines
-    singular: vxanvilmachine
+    kind: VXNIPMachine
+    listKind: VXNIPMachineList
+    plural: vxnipmachines
+    singular: vxnipmachine
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -57,7 +57,7 @@ spec:
                 - NVKE
                 type: string
               hostRef:
-                description: HostRef is the name of a cluster-scoped VXAnvilHost.
+                description: HostRef is the name of a cluster-scoped VXNIPHost.
                 pattern: ^host-[a-f0-9]{32}$
                 type: string
               providerID:

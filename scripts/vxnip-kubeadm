@@ -14,7 +14,7 @@ import subprocess
 import sys
 import syslog
 
-ROOT = Path("/var/lib/vxanvil-kubeadm")
+ROOT = Path("/var/lib/vxnip-kubeadm")
 STATE = ROOT / "current.json"
 CONFIG = ROOT / "kubeadm.yaml"
 LOG = ROOT / "kubeadm.log"
@@ -38,9 +38,9 @@ SPIRE_CONFIG = Path("/etc/spire-agent/agent.conf")
 SPIRE_BUNDLE = Path("/etc/spire-agent/initial-trust-bundle.pem")
 SPIRE_STATE = Path("/var/lib/spire-agent")
 NVKE_STATE = Path("/var/lib/nvke/state.json")
-NVKE_WORKER_RUNTIME_UNIT = Path("/etc/systemd/system/vxanvil-nvke-containerd.service")
-NVKE_WORKER_RUNTIME_SOCKET = Path("/run/vxanvil-nvke-containerd/containerd.sock")
-RECOVERY_SERVICE = Path("/etc/systemd/system/vxanvil-nvke-allocation-recovery.service")
+NVKE_WORKER_RUNTIME_UNIT = Path("/etc/systemd/system/vxnip-nvke-containerd.service")
+NVKE_WORKER_RUNTIME_SOCKET = Path("/run/vxnip-nvke-containerd/containerd.sock")
+RECOVERY_SERVICE = Path("/etc/systemd/system/vxnip-nvke-allocation-recovery.service")
 RECOVERY_TIMER = RECOVERY_SERVICE.with_suffix(".timer")
 NVKE_KUBEADM_FILES = (
     "patches/kube-apiserver-base-graceful-shutdown+merge.yaml",
@@ -49,7 +49,7 @@ NVKE_KUBEADM_FILES = (
     "oidc/auth-config.yaml",
     "kube-api-encryption/encryption-config.yaml",
 )
-KUBELET_DROPIN = Path("/etc/systemd/system/kubelet.service.d/90-vxanvil-nvke.conf")
+KUBELET_DROPIN = Path("/etc/systemd/system/kubelet.service.d/90-vxnip-nvke.conf")
 KUBELET_ENV = ROOT / "nvke-kubelet.env"
 NVKE_TEMP = tuple(Path("/tmp") / name for name in (
     "kubeadm-init-config.yaml", "kubeadm-join-config.yaml", "kubeadm-reset-config.yaml",
@@ -167,7 +167,7 @@ def systemctl(*args):
 
 def nvke_plan_files(uid, plan):
     unit = plan["unit"]
-    if unit not in AGENT_ENV or plan["providerID"] != "vxanvil://" + uid:
+    if unit not in AGENT_ENV or plan["providerID"] != "vxnip://" + uid:
         raise HelperError("unexpected NVKE unit or provider ID")
     address = ipaddress.IPv4Address(plan["nodeIP"])
     if address.is_loopback or address.is_link_local or address.is_multicast or address.is_unspecified:
@@ -196,7 +196,7 @@ def nvke_plan_files(uid, plan):
         ).split())
         if not SPIRE_JOIN_TOKEN.fullmatch(config) or not files[SPIRE_BUNDLE][0].startswith("-----BEGIN CERTIFICATE-----"):
             raise HelperError("unsupported SPIRE join-token configuration")
-    files[KUBELET_ENV] = (f'KUBELET_EXTRA_ARGS="--provider-id=vxanvil://{uid} --node-ip={address}"\n', 0o600)
+    files[KUBELET_ENV] = (f'KUBELET_EXTRA_ARGS="--provider-id=vxnip://{uid} --node-ip={address}"\n', 0o600)
     files[KUBELET_DROPIN] = (f"[Service]\nEnvironmentFile={KUBELET_ENV}\n", 0o644)
     return files
 
@@ -243,7 +243,7 @@ WantedBy=timers.target
 """,
     }
     for path, content in recovery.items():
-        temporary = path.with_suffix(path.suffix + ".vxanvil-next")
+        temporary = path.with_suffix(path.suffix + ".vxnip-next")
         temporary.unlink(missing_ok=True)
         with temporary.open("x") as stream:
             stream.write(content)
@@ -284,7 +284,7 @@ def apply_nvke(uid, state, plan):
         SPIRE_CONFIG.parent.chmod(0o750)
     for path, (content, mode) in files.items():
         path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
-        tmp = path.with_name(path.name + ".vxanvil-next")
+        tmp = path.with_name(path.name + ".vxnip-next")
         tmp.unlink(missing_ok=True)
         with tmp.open("x") as destination:
             destination.write(content)
@@ -312,7 +312,7 @@ def reset(uid, state, mode):
             systemctl("stop", RECOVERY_SERVICE.name)
         for path in (RECOVERY_SERVICE, RECOVERY_TIMER):
             path.unlink(missing_ok=True)
-            path.with_suffix(path.suffix + ".vxanvil-next").unlink(missing_ok=True)
+            path.with_suffix(path.suffix + ".vxnip-next").unlink(missing_ok=True)
         systemctl("stop", state["unit"])
         if state["spire"]:
             systemctl("stop", "spire-agent.service")
@@ -321,7 +321,7 @@ def reset(uid, state, mode):
         for raw in state["files"]:
             path = Path(raw)
             path.unlink(missing_ok=True)
-            path.with_name(path.name + ".vxanvil-next").unlink(missing_ok=True)
+            path.with_name(path.name + ".vxnip-next").unlink(missing_ok=True)
         for path in (NVKE_STATE, *NVKE_TEMP):
             path.unlink(missing_ok=True)
         if state["spire"] and SPIRE_STATE.exists():
@@ -354,7 +354,7 @@ def main():
         raise HelperError("invalid allocation UID")
     identity = Path("/etc/machine-id").read_text().strip()
     # Protocol v1 identity namespace, fixed across future branding changes.
-    observed = hashlib.sha256(("vxanvil:" + identity).encode()).hexdigest()
+    observed = hashlib.sha256(("vxnip:" + identity).encode()).hexdigest()
     if request["machineID"] != observed:
         raise HelperError("machine identity changed")
     os.umask(0o077)
@@ -382,10 +382,10 @@ if __name__ == "__main__":
     try:
         main()
     except HelperError as err:
-        syslog.openlog("vxanvil-kubeadm")
+        syslog.openlog("vxnip-kubeadm")
         syslog.syslog(syslog.LOG_ERR, str(err))
         sys.exit(1)
     except (ValueError, OSError, subprocess.SubprocessError, KeyError, TypeError):
         # Exceptions from payload parsing and child processes must not leak secrets.
-        print("VXAnvil kubeadm helper failed; inspect VM prerequisites and its root-only log", file=sys.stderr)
+        print("VXNIP kubeadm helper failed; inspect VM prerequisites and its root-only log", file=sys.stderr)
         sys.exit(1)

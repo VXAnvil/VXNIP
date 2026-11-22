@@ -13,7 +13,7 @@ import sys
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'skills/vxanvil-cluster/scripts'))
+sys.path.insert(0, str(ROOT / 'skills/vxnip-cluster/scripts'))
 from cluster import RELEASE  # noqa: E402
 
 
@@ -48,7 +48,7 @@ def pack(directory, role, arch, output, tag, sources=None):
             selected.append((path, Path(name)))
     metadata = json.dumps({'schema': 1, 'role': role, 'arch': arch, 'sources': sources}, sort_keys=True).encode()
     total = len(metadata)
-    archive_path = output / f'vxanvil-{role}-{arch}.tar.gz'
+    archive_path = output / f'vxnip-{role}-{arch}.tar.gz'
     with tarfile.open(archive_path, 'x:gz', compresslevel=6) as tar:
         info = tarfile.TarInfo('asset.json')
         info.size, info.mode = len(metadata), 0o644
@@ -71,7 +71,7 @@ def pack(directory, role, arch, output, tag, sources=None):
     archive_path.with_suffix('.gz.sha256').write_text(digest + '  ' + archive_path.name + '\n')
     return {'role': role, 'arch': arch, 'size': archive_path.stat().st_size,
             'unpacked_size': total, 'sha256': digest,
-            'url': 'https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/' + tag + '/' + archive_path.name}
+            'url': 'https://github.com/VXAnvil/VXNIP/releases/download/' + tag + '/' + archive_path.name}
 
 
 def main():
@@ -84,7 +84,7 @@ def main():
     native = {'x86_64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(platform.machine())
     if native != args.arch or not re.fullmatch(r'runtime-v[0-9A-Za-z.-]+', args.tag):
         raise ValueError('Publish on the native architecture with a versioned runtime tag')
-    provider_revision = os.environ.get('VXANVIL_PROVIDER_REVISION', RELEASE['provider'])
+    provider_revision = os.environ.get('VXNIP_PROVIDER_REVISION', RELEASE['provider'])
     if not re.fullmatch(r'[a-f0-9]{40}', provider_revision):
         raise ValueError('Publisher requires an exact Provider source commit')
     sources = dict(RELEASE, provider=provider_revision)

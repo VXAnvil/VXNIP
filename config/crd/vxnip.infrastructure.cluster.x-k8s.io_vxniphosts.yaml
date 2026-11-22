@@ -4,14 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: vxanvilhosts.vxanvil.infrastructure.cluster.x-k8s.io
+  name: vxniphosts.vxnip.infrastructure.cluster.x-k8s.io
 spec:
-  group: vxanvil.infrastructure.cluster.x-k8s.io
+  group: vxnip.infrastructure.cluster.x-k8s.io
   names:
-    kind: VXAnvilHost
-    listKind: VXAnvilHostList
-    plural: vxanvilhosts
-    singular: vxanvilhost
+    kind: VXNIPHost
+    listKind: VXNIPHostList
+    plural: vxniphosts
+    singular: vxniphost
   scope: Cluster
   versions:
   - additionalPrinterColumns:

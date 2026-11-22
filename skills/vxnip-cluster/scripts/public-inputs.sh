@@ -12,7 +12,7 @@ export DEBIAN_FRONTEND=noninteractive GIT_TERMINAL_PROMPT=0 GOMAXPROCS=4 GOFLAGS
 apt-get update
 packages=(build-essential git curl jq ca-certificates openssh-client python3 python3-yaml
   iproute2 openssl gnupg dpkg-dev zstd xz-utils conntrack socat ethtool kmod)
-if [[ ${VXANVIL_USE_EXISTING_BUILD_DOCKER:-0} == 1 ]]; then
+if [[ ${VXNIP_USE_EXISTING_BUILD_DOCKER:-0} == 1 ]]; then
     docker info >/dev/null
     docker buildx version >/dev/null
 else
@@ -28,7 +28,7 @@ if [[ $mode == --node-only ]]; then
 else
     apt-get install -y "${packages[@]}"
     systemctl enable --now docker
-    if [[ ${VXANVIL_PORTABLE_KERNEL_CONFIG:-0} != 1 ]]; then
+    if [[ ${VXNIP_PORTABLE_KERNEL_CONFIG:-0} != 1 ]]; then
         test -r "/boot/config-$(uname -r)"
     fi
 fi
@@ -50,11 +50,11 @@ checkout() {
     git -C "$directory" -c core.hooksPath=/dev/null checkout --detach FETCH_HEAD
     [[ $(git -C "$directory" rev-parse HEAD) == "$revision" ]]
 }
-provider_revision=${VXANVIL_PROVIDER_REVISION:-1650c7c1175d3475ec7498ff442adb373c43b871}
+provider_revision=${VXNIP_PROVIDER_REVISION:-1650c7c1175d3475ec7498ff442adb373c43b871}
 [[ $provider_revision =~ ^[a-f0-9]{40}$ ]] || { echo 'Provider source requires an exact commit.' >&2; exit 1; }
-checkout https://github.com/VXAnvil/cluster-api-provider-vxanvil.git "$provider_revision" provider
-grep -Fx 'module github.com/VXAnvil/cluster-api-provider-vxanvil' provider/go.mod >/dev/null || {
-    echo 'Provider pin must use the native VXAnvil module.' >&2; exit 1;
+checkout https://github.com/VXAnvil/VXNIP.git "$provider_revision" provider
+grep -Fx 'module github.com/VXAnvil/VXNIP' provider/go.mod >/dev/null || {
+    echo 'Provider pin must use the native VXNIP module.' >&2; exit 1;
 }
 checkout https://github.com/dsx-ai-factory/nvke.git \
   2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 nvke
@@ -102,7 +102,7 @@ download "https://get.helm.sh/helm-v4.2.4-linux-$arch.tar.gz.sha256sum" download
 (cd downloads && sha256sum -c helm.sha256sum && tar -xzf "helm-v4.2.4-linux-$arch.tar.gz")
 install -m 0755 "downloads/linux-$arch/helm" tools/helm
 if [[ $mode != --node-only ]]; then
-    (cd provider && go build -trimpath -o "$root/tools/vxanvil-controller" ./cmd/vxanvil-controller)
+    (cd provider && go build -trimpath -o "$root/tools/vxnip-controller" ./cmd/vxnip-controller)
     make -C nvke/cli build
     install -m 0755 nvke/cli/bin/nvkectl tools/nvkectl
 fi
@@ -110,10 +110,10 @@ fi
 make -C nvke/os-image/packages/kubeadm-distro debs ARCH="$arch" K8S_VERSIONS=v1.36.3 \
   DEB_REVISION=1 OUT_DIR="$root/artifacts" >logs/kubeadm-deb.log 2>&1
 BUNDLE_ARCH="$arch" bash nvke/controller/hack/ci/prepare-capd-bundles.sh "$root/artifacts" >logs/ovn-spire.log 2>&1
-base_image=vxanvil-public-node-base:2f31480b
+base_image=vxnip-public-node-base:2f31480b
 if [[ $mode == --node-only ]]; then
-    [[ ${VXANVIL_BUILD_LABEL:-} =~ ^[a-z0-9-]+$ ]]
-    base_image=vxanvil-bootstrap-$VXANVIL_BUILD_LABEL-$arch:2f31480b
+    [[ ${VXNIP_BUILD_LABEL:-} =~ ^[a-z0-9-]+$ ]]
+    base_image=vxnip-bootstrap-$VXNIP_BUILD_LABEL-$arch:2f31480b
     if docker image inspect "$base_image" >/dev/null 2>&1; then
         echo 'Native builder image already exists; reconcile the prior build rather than overwrite it.' >&2
         exit 1
@@ -142,13 +142,13 @@ if [[ $mode == --node-only ]]; then
     exit 0
 fi
 docker build -f nvke/controller/Dockerfile --build-arg BUILD_VERSION=2f31480b \
-  -t vxanvil-public-nvke-controller:2f31480b nvke >logs/controller-image.log 2>&1
+  -t vxnip-public-nvke-controller:2f31480b nvke >logs/controller-image.log 2>&1
 docker build -f nvke/controller/test/fixtures/Dockerfile -t docker.local/cwe-profiles:public-2f31480b \
   nvke/controller/test/fixtures >logs/profile-image.log 2>&1
-bash provider/scripts/build-nvke-control-plane.sh vxanvil-public-node-base:2f31480b \
-  "$root/artifacts" vxanvil-control-plane:public-1.36.3 "/boot/config-$(uname -r)" >logs/control-plane-image.log 2>&1
+bash provider/scripts/build-nvke-control-plane.sh vxnip-public-node-base:2f31480b \
+  "$root/artifacts" vxnip-control-plane:public-1.36.3 "/boot/config-$(uname -r)" >logs/control-plane-image.log 2>&1
 docker pull kindest/node:v1.36.4
-VXANVIL_CONTROL_PLANE_IMAGE=vxanvil-control-plane:public-1.36.3 \
+VXNIP_CONTROL_PLANE_IMAGE=vxnip-control-plane:public-1.36.3 \
   bash provider/scripts/package-nvke-management.sh "$root/nvke" "$root/tools" kindest/node:v1.36.4 \
-  vxanvil-public-nvke-controller:2f31480b docker.local/cwe-profiles:public-2f31480b "$root/management-bundle"
+  vxnip-public-nvke-controller:2f31480b docker.local/cwe-profiles:public-2f31480b "$root/management-bundle"
 (cd management-bundle && sha256sum --quiet -c SHA256SUMS)

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/discovery"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/bootstrap"
+	"github.com/VXAnvil/VXNIP/internal/discovery"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,9 +24,9 @@ func (failedProbe) Discover(context.Context, string) (discovery.Hardware, error)
 func TestHostDiscoveryPublishesSanitizedCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	must(t, api.SchemeBuilder.AddToScheme(scheme))
-	host := &api.VXAnvilHost{
+	host := &api.VXNIPHost{
 		ObjectMeta: metav1.ObjectMeta{Name: "host-" + strings.Repeat("a", 32)},
-		Spec:       api.VXAnvilHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker"},
+		Spec:       api.VXNIPHostSpec{MachineID: strings.Repeat("a", 64), SSHTarget: "ubuntu@worker"},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(host).WithObjects(host).Build()
 	r := HostReconciler{Client: c, Discovery: failedProbe{}}
@@ -44,16 +44,16 @@ func TestFailedResetRetainsClaimAndReportsOperation(t *testing.T) {
 	ctx := context.Background()
 	scheme := runtime.NewScheme()
 	must(t, api.SchemeBuilder.AddToScheme(scheme))
-	machine := &api.VXAnvilMachine{
+	machine := &api.VXNIPMachine{
 		ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: "default", UID: "allocation",
 			Finalizers: []string{machineFinalizer}},
-		Spec:   api.VXAnvilMachineSpec{HostRef: "host-" + strings.Repeat("b", 32), BootstrapMode: "NVKE"},
-		Status: api.VXAnvilMachineStatus{Phase: "Provisioned", BootstrapStarted: true},
+		Spec:   api.VXNIPMachineSpec{HostRef: "host-" + strings.Repeat("b", 32), BootstrapMode: "NVKE"},
+		Status: api.VXNIPMachineStatus{Phase: "Provisioned", BootstrapStarted: true},
 	}
-	host := &api.VXAnvilHost{
+	host := &api.VXNIPHost{
 		ObjectMeta: metav1.ObjectMeta{Name: machine.Spec.HostRef, Finalizers: []string{hostFinalizer}},
-		Spec:       api.VXAnvilHostSpec{MachineID: strings.Repeat("b", 64), SSHTarget: "ubuntu@worker"},
-		Status:     api.VXAnvilHostStatus{Claim: &api.HostClaim{Namespace: machine.Namespace, Name: machine.Name, UID: machine.UID}},
+		Spec:       api.VXNIPHostSpec{MachineID: strings.Repeat("b", 64), SSHTarget: "ubuntu@worker"},
+		Status:     api.VXNIPHostStatus{Claim: &api.HostClaim{Namespace: machine.Namespace, Name: machine.Name, UID: machine.UID}},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(host, machine).WithObjects(host, machine).Build()
 	must(t, c.Delete(ctx, machine))

@@ -24,8 +24,8 @@ jq -e '(.spec.updateStrategy.type == "OnDelete" or .spec.updateStrategy.type == 
         any(.env[]; .name=="OVN_GATEWAY_MODE" and .value=="shared"))' "$dir/original.json" >/dev/null ||
     { echo "Expected the OVN 2.4.2 shared-gateway DaemonSet." >&2; exit 1; }
 
-jq --arg key 'vxanvil.nvke.dev/gateway' '
-    {apiVersion, kind, metadata:{name:"ovnkube-node-vxanvil-baremetal", namespace:.metadata.namespace}, spec}
+jq --arg key 'vxnip.nvke.dev/gateway' '
+    {apiVersion, kind, metadata:{name:"ovnkube-node-vxnip-baremetal", namespace:.metadata.namespace}, spec}
     | .spec.selector.matchLabels.app = .metadata.name
     | .spec.template.metadata.labels.app = .metadata.name
     | .spec.template.spec.nodeSelector[$key] = "local"
@@ -46,12 +46,12 @@ patch=$(jq -c '
         {op:"replace", path:"/spec/updateStrategy", value:{type:"OnDelete"}}
     ] end) as $strategy
     | .spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions as $expressions
-    | (if any($expressions[]; .key == "vxanvil.nvke.dev/gateway") then
-        if any($expressions[]; .key=="vxanvil.nvke.dev/gateway" and .operator=="NotIn" and .values==["local"])
-        then [] else error("Unexpected existing VXAnvil gateway selector") end
+    | (if any($expressions[]; .key == "vxnip.nvke.dev/gateway") then
+        if any($expressions[]; .key=="vxnip.nvke.dev/gateway" and .operator=="NotIn" and .values==["local"])
+        then [] else error("Unexpected existing VXNIP gateway selector") end
       else [
         {op:"test", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions", value:$expressions},
-        {op:"add", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/-", value:{key:"vxanvil.nvke.dev/gateway",operator:"NotIn",values:["local"]}}
+        {op:"add", path:"/spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/-", value:{key:"vxnip.nvke.dev/gateway",operator:"NotIn",values:["local"]}}
       ] end) as $affinity
     | $strategy + $affinity
 ' "$dir/original.json")
@@ -71,7 +71,7 @@ if [[ -n ${OVN_MTU:-} ]]; then
             kubectl "${kubectl_args[@]}" patch cm ovn-config --type=merge \
               -p "{\"data\":{\"mtu\":\"$OVN_MTU\"}}"
             kubectl "${kubectl_args[@]}" rollout restart deployment/ovnkube-control-plane
-            kubectl "${kubectl_args[@]}" delete pod -l 'app in (ovnkube-node,ovnkube-node-vxanvil-baremetal)' --wait=false
+            kubectl "${kubectl_args[@]}" delete pod -l 'app in (ovnkube-node,ovnkube-node-vxnip-baremetal)' --wait=false
         fi
     fi
 fi
@@ -82,4 +82,4 @@ if [[ $patch != '[]' ]]; then
     kubectl "${kubectl_args[@]}" patch ds ovnkube-node --type=json -p "$patch"
 fi
 kubectl "${kubectl_args[@]}" apply -f "$dir/baremetal.json"
-kubectl "${kubectl_args[@]}" get ds ovnkube-node ovnkube-node-vxanvil-baremetal
+kubectl "${kubectl_args[@]}" get ds ovnkube-node ovnkube-node-vxnip-baremetal

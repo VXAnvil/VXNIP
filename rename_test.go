@@ -9,14 +9,14 @@ import (
 	"testing"
 )
 
-func TestVXAnvilReadsInventory(t *testing.T) {
+func TestVXNIPReadsInventory(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, "vxanvil", "inventory.json")
+	path := filepath.Join(dir, "vxnip", "inventory.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}

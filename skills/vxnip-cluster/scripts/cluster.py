@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan mixed VXAnvil/NVKE installations or read-only existing-cluster checks over trusted SSH."""
+"""Plan mixed VXNIP/NVKE installations or read-only existing-cluster checks over trusted SSH."""
 import argparse
 import base64
 import fcntl
@@ -229,9 +229,9 @@ def make_plan(config, get_facts=None):
     manager_asset = None
     if get_facts is None:
         get_facts = lambda target: probe(target, require_root=mode == 'create')
-    site = config.get('site', 'vxanvil-lab')
-    if not re.fullmatch(r'vxanvil-[a-z0-9](?:[a-z0-9-]{0,18}[a-z0-9])?', site):
-        raise ValueError('Pinned runtimes require a short vxanvil-* site name')
+    site = config.get('site', 'vxnip-lab')
+    if not re.fullmatch(r'vxnip-[a-z0-9](?:[a-z0-9-]{0,18}[a-z0-9])?', site):
+        raise ValueError('Pinned runtimes require a short vxnip-* site name')
     workers = config.get('workers', [])
     if not isinstance(workers, list) or not workers:
         raise ValueError('At least one worker is required')
@@ -314,7 +314,7 @@ def checked_plan(path, expected=None):
 
 
 def root_path(plan):
-    return '/var/lib/vxanvil-bootstrap/' + plan['site']
+    return '/var/lib/vxnip-bootstrap/' + plan['site']
 
 
 def initialize(target, root, identity):

@@ -16,8 +16,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	api "github.com/VXAnvil/cluster-api-provider-vxanvil/api/v1alpha1"
-	"github.com/VXAnvil/cluster-api-provider-vxanvil/internal/bootstrap"
+	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	"github.com/VXAnvil/VXNIP/internal/bootstrap"
 )
 
 const (
@@ -43,8 +43,8 @@ func infraGroup(group schema.GroupVersion) schema.GroupVersion {
 }
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var cluster api.VXAnvilCluster
-	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilCluster"))
+	var cluster api.VXNIPCluster
+	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXNIPCluster"))
 	if err := r.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -54,21 +54,21 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// The endpoint was allocated and configured by the operator before the
 	// Cluster was created. This provider has no external cluster-level resources.
 	cluster.Status.Initialization = &api.InfrastructureInitialization{Provisioned: true}
-	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilCluster"))
+	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXNIPCluster"))
 	return ctrl.Result{}, r.Status().Update(ctx, &cluster)
 }
 
 func (r *ClusterReconciler) SetupWithManager(manager ctrl.Manager) error {
-	cluster := &api.VXAnvilCluster{}
-	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilCluster"))
+	cluster := &api.VXNIPCluster{}
+	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXNIPCluster"))
 	builder := ctrl.NewControllerManagedBy(manager).For(cluster)
 	if r.InfrastructureGroup == api.InfrastructureGroupVersion {
-		builder.Named("vxanvilcluster-nvke")
+		builder.Named("vxnipcluster-nvke")
 	}
 	return builder.Complete(r)
 }
 
-func capiOwner(machine *api.VXAnvilMachine) *metav1.OwnerReference {
+func capiOwner(machine *api.VXNIPMachine) *metav1.OwnerReference {
 	for _, owner := range machine.OwnerReferences {
 		if owner.Kind == "Machine" && strings.HasPrefix(owner.APIVersion, "cluster.x-k8s.io/") {
 			return &owner
@@ -78,7 +78,7 @@ func capiOwner(machine *api.VXAnvilMachine) *metav1.OwnerReference {
 }
 
 func (r *MachineReconciler) reconcileBootstrap(
-	ctx context.Context, machine *api.VXAnvilMachine, host *api.VXAnvilHost,
+	ctx context.Context, machine *api.VXNIPMachine, host *api.VXNIPHost,
 ) (ctrl.Result, error) {
 	owner := capiOwner(machine)
 	if owner == nil {
@@ -98,8 +98,8 @@ func (r *MachineReconciler) reconcileBootstrap(
 	}
 	ref, _, _ := unstructured.NestedStringMap(capiMachine.Object, "spec", "infrastructureRef")
 	if capiMachine.GetUID() != owner.UID || ref["apiGroup"] != infraGroup(r.InfrastructureGroup).Group ||
-		ref["kind"] != "VXAnvilMachine" || ref["name"] != machine.Name {
-		return ctrl.Result{}, fmt.Errorf("CAPI Machine does not reference this VXAnvilMachine")
+		ref["kind"] != "VXNIPMachine" || ref["name"] != machine.Name {
+		return ctrl.Result{}, fmt.Errorf("CAPI Machine does not reference this VXNIPMachine")
 	}
 	if isPaused(&capiMachine) || !capiMachine.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{RequeueAfter: allocationPoll}, nil
@@ -147,7 +147,7 @@ func (r *MachineReconciler) reconcileBootstrap(
 	if secret.Labels["cluster.x-k8s.io/cluster-name"] != clusterName {
 		return ctrl.Result{}, fmt.Errorf("bootstrap Secret belongs to a different cluster")
 	}
-	providerID := "vxanvil://" + string(machine.UID)
+	providerID := "vxnip://" + string(machine.UID)
 	if machine.Spec.ProviderID != "" && machine.Spec.ProviderID != providerID {
 		return ctrl.Result{}, fmt.Errorf("spec.providerID does not match the allocation")
 	}
@@ -191,7 +191,7 @@ func (r *MachineReconciler) reconcileBootstrap(
 	return r.setStatus(ctx, machine, "Provisioned", "BootstrapComplete")
 }
 
-func verifiedNodeIP(host *api.VXAnvilHost) bool {
+func verifiedNodeIP(host *api.VXNIPHost) bool {
 	address, err := netip.ParseAddr(host.Spec.NodeIP)
 	if err != nil || !address.Is4() || !address.IsGlobalUnicast() ||
 		!host.Status.DiscoveryReady || host.Status.Hardware == nil {
@@ -215,8 +215,8 @@ func verifiedNodeIP(host *api.VXAnvilHost) bool {
 	return false
 }
 
-func (r *MachineReconciler) runBootstrap(ctx context.Context, machine *api.VXAnvilMachine,
-	host *api.VXAnvilHost, request bootstrap.Request) error {
+func (r *MachineReconciler) runBootstrap(ctx context.Context, machine *api.VXNIPMachine,
+	host *api.VXNIPHost, request bootstrap.Request) error {
 	if r.Bootstrap == nil {
 		return fmt.Errorf("bootstrap runner is unavailable")
 	}

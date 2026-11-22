@@ -6,9 +6,9 @@ import os
 import re
 from pathlib import Path
 
-MODULE = "github.com/VXAnvil/cluster-api-provider-vxanvil"
+MODULE = "github.com/VXAnvil/VXNIP"
 REQUIRED = {
-    (MODULE + "/cmd/vxanvil-controller", "TestManagerResumesAndReleasesClaims"),
+    (MODULE + "/cmd/vxnip-controller", "TestManagerResumesAndReleasesClaims"),
     (MODULE + "/internal/controllers", "TestAllocationWithAPIServer"),
     (MODULE + "/internal/controllers", "TestReleasedLegacyHostMigrationWithAPIServer"),
 }

@@ -11,13 +11,13 @@ repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source "$layout"
 : "${CLUSTER:?}" "${MANAGER_IP:?}" "${LAN_CIDR:?}" "${DOCKER_CIDR:?}" "${CP_IP:?}"
 : "${POD_CIDR:?}" "${SERVICE_CIDR:?}" "${WORKER_IP:?}" "${WORKER_GATEWAY:?}"
-[[ $CLUSTER =~ ^vxanvil-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$ ]] || fail "Choose a unique vxanvil-* name."
+[[ $CLUSTER =~ ^vxnip-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$ ]] || fail "Choose a unique vxnip-* name."
 network="$CLUSTER-routed"
 container="$CLUSTER-control-plane"
 volume="$container-var"
 api="https://$CP_IP:6443"
-ns=vxanvil-gtx-gpu
-marker=vxanvil.nvke.dev/installer
+ns=vxnip-gtx-gpu
+marker=vxnip.nvke.dev/installer
 privilege() { if [[ $EUID == 0 ]]; then "$@"; else sudo "$@"; fi; }
 tcp() { timeout 5 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$@"; }
 address_interface() {
@@ -124,7 +124,7 @@ manager_inputs() {
     iface=$(ip -j -4 route get 1.1.1.1 | jq -er '.[0].dev')
     [[ $iface =~ ^[a-zA-Z0-9_.-]+$ ]] || fail "Unexpected interface name."
     [[ $(sysctl -n net.ipv4.ip_forward) == 1 ]] || fail "Enable IPv4 forwarding on the Docker host."
-    mgmt get crd vxanvilhosts.vxanvil.infrastructure.cluster.x-k8s.io >/dev/null
+    mgmt get crd vxniphosts.vxnip.infrastructure.cluster.x-k8s.io >/dev/null
     nvke get clusters >/dev/null
     tcp "$MANAGER_IP" 30441 || fail "SPIRE unavailable at $MANAGER_IP:30441."
 }
@@ -151,14 +151,14 @@ check_manager() {
     docker image inspect "${CP_IMAGE:-$CP_BASE_IMAGE}" >/dev/null || fail "Build or load the pinned NVKE node image first."
     if [[ -n ${CP_IMAGE:-} ]]; then
         local kernel_mode
-        kernel_mode=$(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vxanvil.nvke.dev/kernel"}}')
+        kernel_mode=$(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vxnip.nvke.dev/kernel"}}')
         if [[ $kernel_mode == host-bind-v1 ]]; then
             [[ -r /boot/config-$(uname -r) ]] || fail "The running host kernel config is required."
         else
             [[ $kernel_mode == $(uname -r) ]] || fail "CP_IMAGE kernel config differs from this Docker host."
         fi
-        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vxanvil.nvke.dev/kubernetes"}}') == v1.36.3 ]] || fail "CP_IMAGE must be a verified VXAnvil Kubernetes 1.36.3 image."
-        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vxanvil.nvke.dev/helper-sha256"}}') == $(sha256sum "$repo/scripts/vxanvil-kubeadm" | cut -d' ' -f1) ]] || fail "CP_IMAGE helper differs from this release."
+        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vxnip.nvke.dev/kubernetes"}}') == v1.36.3 ]] || fail "CP_IMAGE must be a verified VXNIP Kubernetes 1.36.3 image."
+        [[ $(docker image inspect "$CP_IMAGE" -f '{{index .Config.Labels "vxnip.nvke.dev/helper-sha256"}}') == $(sha256sum "$repo/scripts/vxnip-kubeadm" | cut -d' ' -f1) ]] || fail "CP_IMAGE helper differs from this release."
     fi
     if docker network inspect "$network" >/dev/null 2>&1; then
         owned_docker "$network" network || fail "Existing Docker network is not owned by this installation."
@@ -191,21 +191,21 @@ register_host() {
     local hash=$1 addr=$2 user=$3 name existing
     [[ $hash =~ ^[0-9a-f]{64}$ && $user =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "Invalid enrollment identity."
     name="host-${hash:0:32}"
-    existing=$(mgmt get vxanvilhost "$name" --ignore-not-found -o json)
+    existing=$(mgmt get vxniphost "$name" --ignore-not-found -o json)
     if [[ -n $existing ]]; then
         jq -e --arg cluster "$CLUSTER" --arg addr "$addr" --arg target "$user@$addr" --arg hash "$hash" '
-            .metadata.labels["vxanvil.nvke.dev/installer"] == $cluster and
+            .metadata.labels["vxnip.nvke.dev/installer"] == $cluster and
             .spec.machineID == $hash and .spec.nodeIP == $addr and .spec.sshTarget == $target and
             (.status.claim == null or (.status.claim.name | startswith($cluster + "-")))
         ' <<<"$existing" >/dev/null || fail "Host $name already belongs to another installation."
     else
         jq -cn --arg name "$name" --arg cluster "$CLUSTER" --arg addr "$addr" --arg target "$user@$addr" --arg hash "$hash" '
-            {apiVersion:"vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1",kind:"VXAnvilHost",
-             metadata:{name:$name,labels:{"vxanvil.nvke.dev/installer":$cluster}},
+            {apiVersion:"vxnip.infrastructure.cluster.x-k8s.io/v1alpha1",kind:"VXNIPHost",
+             metadata:{name:$name,labels:{"vxnip.nvke.dev/installer":$cluster}},
              spec:{machineID:$hash,nodeIP:$addr,sshTarget:$target,allowBootstrap:true}}
         ' | mgmt create -f - >&2
     fi
-    mgmt wait --for=jsonpath='{.status.discoveryReady}'=true "vxanvilhost/$name" --timeout=90s >&2
+    mgmt wait --for=jsonpath='{.status.discoveryReady}'=true "vxniphost/$name" --timeout=90s >&2
     printf '%s\n' "$name"
 }
 get_cluster_id() {
@@ -226,12 +226,12 @@ control_plane() {
         docker network create --label "$marker=$CLUSTER" --subnet "$DOCKER_CIDR" \
             -o com.docker.network.bridge.gateway_mode_ipv4=routed "$network"
     fi
-    privilege bash "$repo/scripts/configure-vxanvil-manager-network.sh" --install "$layout"
+    privilege bash "$repo/scripts/configure-vxnip-manager-network.sh" --install "$layout"
     if ! docker container inspect "$container" >/dev/null 2>&1; then
         if [[ -z ${CP_IMAGE:-} ]]; then
         context=$(mktemp -d "$state/build.XXXXXXXX")
         mkdir "$context/scripts"
-        cp "$repo/scripts/vxanvil-kubeadm" "$context/scripts/"
+        cp "$repo/scripts/vxnip-kubeadm" "$context/scripts/"
         cp "$repo/examples/nvke-docker-control-plane.Dockerfile" "$context/Dockerfile"
         if ! docker build --build-arg "NVKE_NODE_IMAGE=$CP_BASE_IMAGE" -t "$image" "$context"; then
             rm -rf -- "$context"
@@ -257,12 +257,12 @@ control_plane() {
             fail "Control-plane containerd did not start."
         docker exec "$container" bash -ec '
             set -o pipefail
-            if [[ ! -f /var/lib/vxanvil-images-imported ]]; then
+            if [[ ! -f /var/lib/vxnip-images-imported ]]; then
                 for archive in /usr/lib/nvke/k8s-matrix/v1.36.3/*/*.tgz /usr/lib/nvke/cni-ovn/2.4.2/*.tgz; do
                     test -f "$archive"
                     gzip -dc "$archive" | ctr --namespace k8s.io images import --all-platforms -
                 done
-                touch /var/lib/vxanvil-images-imported
+                touch /var/lib/vxnip-images-imported
             fi'
     fi
     wait_for 20 docker exec "$container" systemctl is-active --quiet ssh.service || fail "Control-plane SSH did not start."
@@ -273,9 +273,9 @@ control_plane() {
     key=$(docker exec "$container" awk '{print $1, $2}' /etc/ssh/ssh_host_ed25519_key.pub)
     remember_key "$CP_IP" "$key"
     awk 'NR==1 {print "restrict", $1, $2}' "$PROVIDER_PUBLIC_KEY" |
-        docker exec -i "$container" sh -ec 'umask 077; cat >/home/vxanvil/.ssh/authorized_keys; chown vxanvil:vxanvil /home/vxanvil/.ssh/authorized_keys'
+        docker exec -i "$container" sh -ec 'umask 077; cat >/home/vxnip/.ssh/authorized_keys; chown vxnip:vxnip /home/vxnip/.ssh/authorized_keys'
     hash=$(docker exec -i "$container" python3 - <"$repo/internal/discovery/probe.py" | jq -er '.machine_id_hash')
-    host=$(register_host "$hash" "$CP_IP" vxanvil)
+    host=$(register_host "$hash" "$CP_IP" vxnip)
     if [[ -z $current ]]; then
         printf '%s\n' "$CLUSTER" >"$state/cluster-request"
         cat >"$state/cluster.yaml" <<YAML
@@ -293,7 +293,7 @@ controlPlaneConfig:
   infra:
     machineTemplate:
       apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-      kind: VXAnvilMachineTemplate
+      kind: VXNIPMachineTemplate
       spec:
         template:
           spec:
@@ -302,7 +302,7 @@ controlPlaneConfig:
 infra:
   cluster:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-    kind: VXAnvilCluster
+    kind: VXNIPCluster
     metadata:
       name: $CLUSTER
     spec:
@@ -320,7 +320,7 @@ YAML
         fail "NVKE published an unexpected workload API endpoint."
     wait_for 30 kube get --raw=/readyz
     kube wait --for=condition=Ready node -l node-role.kubernetes.io/control-plane --timeout=130s
-    OVN_MTU=${OVN_MTU:-$(python3 "$repo/scripts/vxanvil-network.py" --peer "$WORKER_IP" --mtu-only)} \
+    OVN_MTU=${OVN_MTU:-$(python3 "$repo/scripts/vxnip-network.py" --peer "$WORKER_IP" --mtu-only)} \
       bash "$repo/scripts/configure-nvke-baremetal-ovn.sh" --apply "$state/workload.kubeconfig" "$api"
     install -d -m 0700 "$state/worker"
     install -m 0644 "$PROVIDER_PUBLIC_KEY" "$state/worker/provider.pub"
@@ -336,7 +336,7 @@ check_worker() {
     : "${WORKER_USER:?}" "${WORKER_ARTIFACTS:?}" "${WORKER_STORAGE:?}"
     [[ $WORKER_USER =~ ^[a-z_][a-z0-9_-]*$ && $WORKER_STORAGE =~ ^/[a-zA-Z0-9_./-]+$ ]] || fail "Invalid worker settings."
     [[ $(realpath -m "$WORKER_STORAGE") == "$WORKER_STORAGE" ]] || fail "Use a canonical worker storage path."
-    if [[ -e /etc/kubernetes/kubelet.conf || -e /var/lib/vxanvil-kubeadm/current.json ]]; then
+    if [[ -e /etc/kubernetes/kubelet.conf || -e /var/lib/vxnip-kubeadm/current.json ]]; then
         [[ -e $state/prepared && -s /etc/kubernetes/kubelet.conf &&
            $(awk '$1=="server:" {print $2}' /etc/kubernetes/kubelet.conf) == "$api" ]] ||
             fail "The worker has an existing allocation. Release it before installing a separate cluster."
@@ -360,7 +360,7 @@ check_worker() {
     else
         printf 'Workload API TLS will be checked after adding the /32 route through %s.\n' "$WORKER_GATEWAY"
     fi
-    python3 "$repo/scripts/vxanvil-network.py" --peer "$CP_IP" --spire "$MANAGER_IP" \
+    python3 "$repo/scripts/vxnip-network.py" --peer "$CP_IP" --spire "$MANAGER_IP" \
       --cidrs "$LAN_CIDR" "$DOCKER_CIDR" "$POD_CIDR" "$SERVICE_CIDR"
     [[ -x /usr/bin/nvidia-container-runtime ]] || fail "Install NVIDIA Container Toolkit."
     nvidia-smi --query-gpu=name,memory.free --format=csv,noheader
@@ -401,7 +401,7 @@ authorize_worker_key() {
 
 install_worker() {
     check_worker
-    exec 8>/run/lock/vxanvil-nvke-gpu-worker.lock
+    exec 8>/run/lock/vxnip-nvke-gpu-worker.lock
     flock -n 8 || fail "Another installer is preparing this worker."
     lock_state
     ip -4 route replace "$CP_IP/32" via "$WORKER_GATEWAY" dev "$iface" src "$WORKER_IP"
@@ -414,13 +414,13 @@ install_worker() {
         authorize_worker_key
         touch "$state/prepared"
     else
-        crictl --config=/dev/null --runtime-endpoint unix:///run/vxanvil-nvke-containerd/containerd.sock --timeout 5s info |
+        crictl --config=/dev/null --runtime-endpoint unix:///run/vxnip-nvke-containerd/containerd.sock --timeout 5s info |
             jq -e 'any(.status.conditions[]; .type=="RuntimeReady" and .status==true)' >/dev/null
     fi
     # The CNI interface exists only after join. The scoped rules can be installed before it.
     bash "$repo/scripts/configure-nvke-lab-host-recovery.sh" --install worker \
         "$WORKER_IP" "$CP_IP" "$MANAGER_IP" "$WORKER_GATEWAY" "$POD_CIDR" host-network-api
-    wait_for 20 systemctl is-active --quiet vxanvil-nvke-lab-worker-recovery.service ||
+    wait_for 20 systemctl is-active --quiet vxnip-nvke-lab-worker-recovery.service ||
         fail "Worker network recovery did not become active. Check its journal."
     local hash key
     hash=$(python3 "$repo/internal/discovery/probe.py" | jq -er '.machine_id_hash')
@@ -450,14 +450,14 @@ finish_cluster() {
     user=$(jq -er .sshUser "$report")
     key=$(jq -er .publicKey "$report")
     [[ $hash =~ ^[0-9a-f]{64}$ && $user =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "Invalid worker report."
-    claim=$(mgmt get vxanvilhost "host-${hash:0:32}" --ignore-not-found -o json)
+    claim=$(mgmt get vxniphost "host-${hash:0:32}" --ignore-not-found -o json)
     if [[ -n $claim ]]; then
-        jq -e --arg cluster "$CLUSTER" '.metadata.labels["vxanvil.nvke.dev/installer"]==$cluster' <<<"$claim" >/dev/null ||
+        jq -e --arg cluster "$CLUSTER" '.metadata.labels["vxnip.nvke.dev/installer"]==$cluster' <<<"$claim" >/dev/null ||
             fail "Worker is already in another inventory."
     fi
     remember_key "$WORKER_IP" "$key"
     "$PROVIDER_SSH" -n -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=5 \
-        "$user@$WORKER_IP" 'sudo -n -l /usr/local/sbin/vxanvil-kubeadm' >/dev/null
+        "$user@$WORKER_IP" 'sudo -n -l /usr/local/sbin/vxnip-kubeadm' >/dev/null
     host=$(register_host "$hash" "$WORKER_IP" "$user")
     id=$(get_cluster_id)
     [[ $id =~ ^[a-f0-9-]{36}$ ]] || fail "Cannot resolve NVKE cluster ID."
@@ -472,9 +472,9 @@ systemReservedMemory: "2Gi"
 kubeReservedMemory: "512Mi"
 desiredNodeCount: 1
 nodeLabels:
-  vxanvil.nvke.dev/gateway: local
+  vxnip.nvke.dev/gateway: local
 nodeTaints:
-  - key: vxanvil.nvke.dev/experiment
+  - key: vxnip.nvke.dev/experiment
     value: "true"
     effect: NoSchedule
 autoModeDisabled: true
@@ -482,7 +482,7 @@ provisioningMonitorDisabled: true
 infra:
   machineTemplate:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-    kind: VXAnvilMachineTemplate
+    kind: VXNIPMachineTemplate
     spec:
       template:
         spec:
@@ -494,11 +494,11 @@ YAML
         [[ $pool == "$host" ]] || fail "Existing node pool refers to a different host."
     fi
     worker_node() {
-        kube get nodes -l vxanvil.nvke.dev/gateway=local -o json |
+        kube get nodes -l vxnip.nvke.dev/gateway=local -o json |
             jq -er --arg ip "$WORKER_IP" '[.items[] | select(any(.status.addresses[]; .type=="InternalIP" and .address==$ip))] | select(length==1) | .[0].metadata.name'
     }
     node=$(wait_for 60 worker_node) || fail "GTX worker did not register."
-    [[ $(mgmt get vxanvilhost "$host" -o jsonpath='{.status.claim.name}') == "$node" ]] || fail "Worker claim differs."
+    [[ $(mgmt get vxniphost "$host" -o jsonpath='{.status.claim.name}') == "$node" ]] || fail "Worker claim differs."
     cp=$(control_node)
     kube wait --for=condition=Ready "node/$cp" "node/$node" --timeout=180s
     printf '%s\n' "$node" >"$state/worker-node"
@@ -513,13 +513,13 @@ deploy_gpu() {
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
-  name: vxanvil-nvidia
+  name: vxnip-nvidia
 handler: nvidia
 scheduling:
   nodeSelector:
     kubernetes.io/hostname: $node
   tolerations:
-    - {key: vxanvil.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
+    - {key: vxnip.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -528,17 +528,17 @@ metadata:
   namespace: $ns
 spec:
   selector:
-    matchLabels: {app: vxanvil-nvidia-device-plugin}
+    matchLabels: {app: vxnip-nvidia-device-plugin}
   template:
     metadata:
-      labels: {app: vxanvil-nvidia-device-plugin}
+      labels: {app: vxnip-nvidia-device-plugin}
     spec:
-      runtimeClassName: vxanvil-nvidia
+      runtimeClassName: vxnip-nvidia
       automountServiceAccountToken: false
       nodeSelector:
         kubernetes.io/hostname: $node
       tolerations:
-        - {key: vxanvil.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
+        - {key: vxnip.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
       containers:
       - name: plugin
         image: nvcr.io/nvidia/k8s-device-plugin:v0.17.1

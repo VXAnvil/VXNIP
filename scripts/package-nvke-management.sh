@@ -8,8 +8,8 @@ fi
 nvke=$(realpath "$1")
 tools=$(realpath "$2")
 images=("$3" "$4" "$5")
-if [[ -n ${VXANVIL_CONTROL_PLANE_IMAGE:-} ]]; then
-    images+=("$VXANVIL_CONTROL_PLANE_IMAGE")
+if [[ -n ${VXNIP_CONTROL_PLANE_IMAGE:-} ]]; then
+    images+=("$VXNIP_CONTROL_PLANE_IMAGE")
 fi
 output=$(realpath -m "$6")
 revision=$(git -C "$nvke" rev-parse HEAD)
@@ -31,13 +31,13 @@ while IFS= read -r file || [[ -n $file ]]; do
     }
     (cd "$repo" && cp --parents -p -- "$file" "$staging/provider/")
 done <"$manifest"
-if [[ -n ${VXANVIL_CONTROL_PLANE_IMAGE:-} ]]; then
-    expected=$(sha256sum "$repo/scripts/vxanvil-kubeadm" | cut -d' ' -f1)
-    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vxanvil.nvke.dev/helper-sha256"}}') == "$expected" ]]
-    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vxanvil.nvke.dev/kubernetes"}}') == v1.36.3 ]]
-    printf '%s\n' "$VXANVIL_CONTROL_PLANE_IMAGE" >"$staging/control-plane-image"
+if [[ -n ${VXNIP_CONTROL_PLANE_IMAGE:-} ]]; then
+    expected=$(sha256sum "$repo/scripts/vxnip-kubeadm" | cut -d' ' -f1)
+    [[ $(docker image inspect "$VXNIP_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vxnip.nvke.dev/helper-sha256"}}') == "$expected" ]]
+    [[ $(docker image inspect "$VXNIP_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vxnip.nvke.dev/kubernetes"}}') == v1.36.3 ]]
+    printf '%s\n' "$VXNIP_CONTROL_PLANE_IMAGE" >"$staging/control-plane-image"
 fi
-for tool in kind kubectl clusterctl helm nvkectl vxanvil-controller; do
+for tool in kind kubectl clusterctl helm nvkectl vxnip-controller; do
     source_tool="$tools/$tool"
     install -m 0755 "$source_tool" "$staging/bin/$tool"
 done
