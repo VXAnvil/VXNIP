@@ -86,7 +86,7 @@ git init nvke
 git -C nvke remote add origin https://github.com/dsx-ai-factory/nvke.git
 git -C nvke fetch --depth 1 origin 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049
 git -C nvke checkout --detach FETCH_HEAD
-test "$(git -C provider describe --tags --exact-match)" = v0.0.3-rc.1
+test "$(git -C provider rev-parse HEAD)" = eb563fdd1f66093c036925a653e223019945d72c
 test -z "$(git -C provider status --porcelain --untracked-files=no)"
 test "$(git -C nvke rev-parse HEAD)" = 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049
 ```

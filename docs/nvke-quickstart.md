@@ -10,7 +10,7 @@ Starting with a fresh Ubuntu host and no NVKE assets? First follow [Prepare publ
 
 If you followed the public-inputs guide, use its verified `management-bundle/` and proceed to the installer command below. The following build and packaging commands are alternatives for users preparing their own compatible inputs.
 
-Use the kubeconfig and tooling of an existing compatible management site, or create a new site below. Prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. The public-inputs guide extracts `vxnip-controller` from the Release image. Alternatively, build it for the management host's architecture into the same tools directory:
+Use the kubeconfig and tooling of an existing compatible management site, or create a new site below. Prepare a checkout of the pinned NVKE revision, the matching NVKE images, and the Linux tools `kind`, `kubectl`, `clusterctl`, `helm`, and `nvkectl`. The public-inputs guide builds `vxnip-controller` from the fixed release source. If you already have the inputs, build it for the management host's architecture into the same tools directory:
 
 ```bash
 go build -o "$LINUX_TOOL_DIR/vxnip-controller" ./cmd/vxnip-controller

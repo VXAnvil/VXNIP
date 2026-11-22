@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "sources": {
+    "provider": "eb563fdd1f66093c036925a653e223019945d72c",
+    "nvke": "2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049"
+  },
+  "assets": {
+    "manager-amd64": {
+      "role": "manager",
+      "arch": "amd64",
+      "size": 2056558529,
+      "unpacked_size": 3546752211,
+      "sha256": "e261c93c7c73ebe419a16486e1aba13f9cefe3abb8777164d9b2bdd74fc733d2",
+      "url": "https://github.com/VXAnvil/VXNIP/releases/download/runtime-v0.3.0-rc.1/vxnip-manager-amd64.tar.gz"
+    },
+    "node-amd64": {
+      "role": "node",
+      "arch": "amd64",
+      "size": 680238094,
+      "unpacked_size": 761324103,
+      "sha256": "c6b4750006ad68ecab86653dc498896a33f88a69b7fb0586c935bb17611d994d",
+      "url": "https://github.com/VXAnvil/VXNIP/releases/download/runtime-v0.3.0-rc.1/vxnip-node-amd64.tar.gz"
+    },
+    "manager-arm64": {
+      "role": "manager",
+      "arch": "arm64",
+      "size": 1877585023,
+      "unpacked_size": 3379524755,
+      "sha256": "7b6fb90a1bc99007afac3cbed94fc00ac1a2dbd16fd02885f87478e04397037a",
+      "url": "https://github.com/VXAnvil/VXNIP/releases/download/runtime-v0.3.0-rc.1/vxnip-manager-arm64.tar.gz"
+    },
+    "node-arm64": {
+      "role": "node",
+      "arch": "arm64",
+      "size": 620248439,
+      "unpacked_size": 697645383,
+      "sha256": "e018a7c047a307c150b6946611215da7a9682d3a2fc7fdc6451424939a937582",
+      "url": "https://github.com/VXAnvil/VXNIP/releases/download/runtime-v0.3.0-rc.1/vxnip-node-arm64.tar.gz"
+    }
+  }
+}

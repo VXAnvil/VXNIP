@@ -21,7 +21,7 @@ import artifacts as runtime_assets
 
 HERE = Path(__file__).resolve().parent
 BUNDLE_MANIFEST = HERE.parent / 'references/runtime-artifacts.json'
-RELEASE = {'provider': '3584a4e7520d12f3e30be2efaedde65a2e4d8e46',
+RELEASE = {'provider': 'eb563fdd1f66093c036925a653e223019945d72c',
            'nvke': '2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049'}
 SSH_OPTIONS = ['-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
                '-o', 'ForwardAgent=no', '-o', 'ClearAllForwardings=yes',

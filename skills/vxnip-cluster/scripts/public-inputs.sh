@@ -50,7 +50,7 @@ checkout() {
     git -C "$directory" -c core.hooksPath=/dev/null checkout --detach FETCH_HEAD
     [[ $(git -C "$directory" rev-parse HEAD) == "$revision" ]]
 }
-provider_revision=${VXNIP_PROVIDER_REVISION:-3584a4e7520d12f3e30be2efaedde65a2e4d8e46}
+provider_revision=${VXNIP_PROVIDER_REVISION:-eb563fdd1f66093c036925a653e223019945d72c}
 [[ $provider_revision =~ ^[a-f0-9]{40}$ ]] || { echo 'Provider source requires an exact commit.' >&2; exit 1; }
 checkout https://github.com/VXAnvil/VXNIP.git "$provider_revision" provider
 grep -Fx 'module github.com/VXAnvil/VXNIP' provider/go.mod >/dev/null || {
