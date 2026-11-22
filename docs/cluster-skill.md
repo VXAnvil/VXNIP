@@ -79,4 +79,4 @@ Fresh release acceptance records the exact artifacts and checks described in [va
 
 CAPI v1beta2 may publish a name-only `status.nodeRef`. The verifier checks a supplied Node UID strictly; if omitted it reports `node_ref_uid_verified: false`, retains the observed Node UID for preservation comparisons, and still requires the exact allocation-derived providerID, physical Host identity, expected address and Node Ready. It does not invent a UID or accept a mismatched providerID.
 
-See the [mixed-architecture preservation validation record](cluster-skill-validation.md) for completed checks, audited recovery and remaining coverage limits.
+See the [validation contract](cluster-skill-validation.md) for required checks and coverage limits. Detailed site evidence remains local.
