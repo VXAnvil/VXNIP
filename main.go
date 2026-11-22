@@ -58,7 +58,7 @@ func run(ctx context.Context, args []string, out io.Writer, backend discovery.Di
 		if err != nil {
 			return err
 		}
-		*path = filepath.Join(dir, "vmetal", "inventory.json")
+		*path = filepath.Join(dir, "vxanvil", "inventory.json")
 	}
 	state := store{path: filepath.Clean(*path)}
 	result, err := execute(ctx, state, backend, command, args)
@@ -117,7 +117,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := run(ctx, os.Args[1:], os.Stdout, discovery.SSH{}); err != nil {
-		fmt.Fprintln(os.Stderr, "vmetal:", err)
+		fmt.Fprintln(os.Stderr, "vxanvil:", err)
 		fmt.Fprintln(os.Stderr, "See vxanvil -h for usage.")
 		os.Exit(1)
 	}

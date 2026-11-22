@@ -28,13 +28,13 @@ func run() error {
 		return err
 	}
 	standaloneMachine := &api.VXAnvilMachine{}
-	standaloneMachine.SetGroupVersionKind(api.GroupVersion.WithKind("VMetalMachine"))
+	standaloneMachine.SetGroupVersionKind(api.GroupVersion.WithKind("VXAnvilMachine"))
 	directReads := []client.Object{&api.VXAnvilHost{}, standaloneMachine, &corev1.Secret{}}
 	enableNVKE := nvkeEnabled()
 	if enableNVKE {
 		api.AddInfrastructureToScheme(scheme)
 		nvkeMachine := &api.VXAnvilMachine{}
-		nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VMetalMachine"))
+		nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VXAnvilMachine"))
 		directReads = append(directReads, nvkeMachine)
 	}
 	config, err := ctrl.GetConfig()
@@ -46,7 +46,7 @@ func run() error {
 		Scheme:                  scheme,
 		Metrics:                 metricsserver.Options{BindAddress: "0"},
 		LeaderElection:          true,
-		LeaderElectionID:        "vmetal-controller",
+		LeaderElectionID:        "vxanvil-controller",
 		LeaderElectionNamespace: "kube-system",
 		// A finalizer must never be removed based on an old host claim from
 		// a cache that has yet to observe the reservation write.
@@ -82,13 +82,8 @@ func run() error {
 	return manager.Start(ctrl.SetupSignalHandler())
 }
 
-// The new option wins even when explicitly disabled. Existing service units
-// continue using the legacy option and the same leader-election Lease.
 func nvkeEnabled() bool {
-	if value, configured := os.LookupEnv("VXANVIL_ENABLE_NVKE_INFRA"); configured {
-		return value == "1"
-	}
-	return os.Getenv("VMETAL_ENABLE_NVKE_INFRA") == "1"
+	return os.Getenv("VXANVIL_ENABLE_NVKE_INFRA") == "1"
 }
 
 func main() {

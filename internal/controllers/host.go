@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	hostFinalizer = "vmetal.infrastructure.cluster.x-k8s.io/host"
+	hostFinalizer = "vxanvil.infrastructure.cluster.x-k8s.io/host"
 	probeInterval = time.Minute
 )
 

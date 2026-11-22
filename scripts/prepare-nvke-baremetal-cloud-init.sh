@@ -10,10 +10,10 @@ if grep -Fxq 'status: done' <<<"$status"; then
 fi
 
 marker=/etc/cloud/cloud-init.disabled
-backup=/var/lib/cloud/vmetal-nvke-cloud-init.disabled
+backup=/var/lib/cloud/vxanvil-nvke-cloud-init.disabled
 seed=/var/lib/cloud/seed/nocloud
-config=/etc/cloud/cloud.cfg.d/zz-vmetal-nvke-lab.cfg
-metadata='instance-id: vmetal-nvke-baremetal'
+config=/etc/cloud/cloud.cfg.d/zz-vxanvil-nvke-lab.cfg
+metadata='instance-id: vxanvil-nvke-baremetal'
 if [[ ! -f $marker && ! -f $backup ]]; then
     printf 'Expected the Ubuntu installer cloud-init disable marker. Inspect cloud-init status before continuing.\n' >&2
     exit 1

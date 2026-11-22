@@ -16,23 +16,23 @@ RUN rm -f /usr/local/bin/cloud-init /etc/default/nke-agent /etc/default/nvke-age
     install -d -m 0750 -o spire -g spire /var/lib/spire-agent && \
     install -d /var/lib/cloud/seed/nocloud /etc/cloud/cloud.cfg.d \
       /etc/systemd/system/ssh.service.d /etc/systemd/system/nvke-agent.service.d && \
-    printf '%s\n' 'instance-id: vmetal-nvke-docker' > /var/lib/cloud/seed/nocloud/meta-data && \
+    printf '%s\n' 'instance-id: vxanvil-nvke-docker' > /var/lib/cloud/seed/nocloud/meta-data && \
     printf '%s\n' '#cloud-config' 'manage_etc_hosts: false' > /var/lib/cloud/seed/nocloud/user-data && \
     printf '%s\n' 'datasource_list: [NoCloud]' 'network: {config: disabled}' 'preserve_hostname: true' \
       'ssh_deletekeys: false' 'cloud_init_modules: []' 'cloud_config_modules: []' 'cloud_final_modules: []' \
-      > /etc/cloud/cloud.cfg.d/99-vmetal.cfg && \
+      > /etc/cloud/cloud.cfg.d/99-vxanvil.cfg && \
     systemctl disable nvke-agent.service spire-agent.service && \
     ln -sfn nvke-agent.service /etc/systemd/system/nke-agent.service && \
     printf '%s\n' '[Service]' 'ExecStart=' 'ExecStart=/usr/local/bin/nvke-agent $AGENT_ARGS --disable-mlx5-rescan' \
       > /etc/systemd/system/nvke-agent.service.d/95-container-no-mlx5.conf && \
-    if ! id vmetal >/dev/null 2>&1; then useradd -m -s /bin/bash vmetal; fi && passwd -d vmetal && \
-    install -d -m 0700 -o vmetal -g vmetal /home/vmetal/.ssh && \
-    printf '%s\n' 'vmetal ALL=(root) NOPASSWD: /usr/local/sbin/vmetal-kubeadm ""' > /etc/sudoers.d/vmetal && \
-    chmod 0440 /etc/sudoers.d/vmetal && visudo -cf /etc/sudoers.d/vmetal && \
+    if ! id vxanvil >/dev/null 2>&1; then useradd -m -s /bin/bash vxanvil; fi && passwd -d vxanvil && \
+    install -d -m 0700 -o vxanvil -g vxanvil /home/vxanvil/.ssh && \
+    printf '%s\n' 'vxanvil ALL=(root) NOPASSWD: /usr/local/sbin/vxanvil-kubeadm ""' > /etc/sudoers.d/vxanvil && \
+    chmod 0440 /etc/sudoers.d/vxanvil && visudo -cf /etc/sudoers.d/vxanvil && \
     printf '%s\n' 'AuthenticationMethods publickey' 'PasswordAuthentication no' 'KbdInteractiveAuthentication no' \
-      'PermitRootLogin no' > /etc/ssh/sshd_config.d/01-vmetal.conf && \
+      'PermitRootLogin no' > /etc/ssh/sshd_config.d/01-vxanvil.conf && \
     printf '%s\n' '[Service]' 'ExecStartPre=' 'ExecStartPre=/usr/bin/ssh-keygen -A' 'ExecStartPre=/usr/sbin/sshd -t' \
       > /etc/systemd/system/ssh.service.d/10-host-keys.conf && systemctl enable ssh.service
-COPY --chmod=0755 scripts/vxanvil-kubeadm /usr/local/sbin/vmetal-kubeadm
+COPY --chmod=0755 scripts/vxanvil-kubeadm /usr/local/sbin/vxanvil-kubeadm
 
 RUN chmod 0755 /usr/bin /usr/local/bin && test -x /usr/bin/kubeadm

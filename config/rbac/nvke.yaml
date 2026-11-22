@@ -3,15 +3,15 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: vmetal-infrastructure-nvke
+  name: vxanvil-infrastructure-nvke
   namespace: nvke-system
 rules:
   - apiGroups:
       - infrastructure.cluster.x-k8s.io
     resources:
-      - vmetalclusters
-      - vmetalmachines
-      - vmetalmachinetemplates
+      - vxanvilclusters
+      - vxanvilmachines
+      - vxanvilmachinetemplates
     verbs:
       - create
       - delete
@@ -24,7 +24,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: vmetal-infrastructure-nvke
+  name: vxanvil-infrastructure-nvke
   namespace: nvke-system
 subjects:
   - kind: ServiceAccount
@@ -33,28 +33,28 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: vmetal-infrastructure-nvke
+  name: vxanvil-infrastructure-nvke
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: vmetal-infrastructure-nvke-crds
+  name: vxanvil-infrastructure-nvke-crds
 rules:
   - apiGroups:
       - apiextensions.k8s.io
     resources:
       - customresourcedefinitions
     resourceNames:
-      - vmetalclusters.infrastructure.cluster.x-k8s.io
-      - vmetalmachines.infrastructure.cluster.x-k8s.io
-      - vmetalmachinetemplates.infrastructure.cluster.x-k8s.io
+      - vxanvilclusters.infrastructure.cluster.x-k8s.io
+      - vxanvilmachines.infrastructure.cluster.x-k8s.io
+      - vxanvilmachinetemplates.infrastructure.cluster.x-k8s.io
     verbs:
       - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: vmetal-infrastructure-nvke-crds
+  name: vxanvil-infrastructure-nvke-crds
 subjects:
   - kind: ServiceAccount
     name: nvke-controller
@@ -62,4 +62,4 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: vmetal-infrastructure-nvke-crds
+  name: vxanvil-infrastructure-nvke-crds

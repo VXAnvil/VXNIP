@@ -25,7 +25,7 @@ for component in spire oidc; do
         spire) service=spire-server; port=30441 ;;
         oidc) service=spire-spiffe-oidc-discovery-provider; port=30444 ;;
     esac
-    unit="vmetal-nvke-lab-$component-forward.service"
+    unit="vxanvil-nvke-lab-$component-forward.service"
     units+=("$unit")
     cat >"$temp/$unit" <<UNIT
 [Unit]

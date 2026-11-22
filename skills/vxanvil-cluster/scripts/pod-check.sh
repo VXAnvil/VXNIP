@@ -59,7 +59,7 @@ spec:
   restartPolicy: Never
   terminationGracePeriodSeconds: 1
   tolerations:
-    - {key: vmetal.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
+    - {key: vxanvil.nvke.dev/experiment, operator: Equal, value: "true", effect: NoSchedule}
   containers:
     - name: http
       image: docker.io/library/busybox:1.36.1

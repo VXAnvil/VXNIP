@@ -1,16 +1,11 @@
 #!/bin/bash
 # Fixed actions only; root state is bound to one local plan digest.
 set -euo pipefail
-# Accept existing automation without changing the new variable's precedence.
-for legacy_key in ${!VMETAL_@}; do
-    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
-    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
-done
 umask 077
 [[ $# == 2 && $EUID == 0 ]] || { echo 'Usage: sudo bash runtime.sh phase root' >&2; exit 2; }
 phase=$1
 root=$2
-[[ $root =~ ^/var/lib/vmetal-bootstrap/(vxanvil|vmetal)-[a-z0-9-]+$ ]]
+[[ $root =~ ^/var/lib/vxanvil-bootstrap/vxanvil-[a-z0-9-]+$ ]]
 exec 9>"$root/runtime.lock"
 flock -n 9 || { echo 'Another remote bootstrap action is still active' >&2; exit 1; }
 python3 "$root/runtime/settings.py" "$root/settings.json" >"$root/settings.env"
@@ -34,11 +29,7 @@ export NVKE_SITE=$SITE
 # The selected public runtimes pin their own image and Provider helper names.
 CP_IMAGE=$(cat "$bundle/control-plane-image" 2>/dev/null || true)
 export CP_IMAGE
-provider_script() {
-    local name=$1
-    if [[ -f $provider/scripts/$name ]]; then printf '%s\n' "$provider/scripts/$name";
-    else printf '%s\n' "$provider/scripts/${name//vxanvil/vmetal}"; fi
-}
+
 export PROVIDER_PUBLIC_KEY=$site_state/ssh-key.pub PROVIDER_KNOWN_HOSTS=$site_state/known-hosts
 export PROVIDER_SSH=$site_state/bin/ssh
 k() { kubectl --kubeconfig "$tenant/workload.kubeconfig" --request-timeout=20s "$@"; }
@@ -78,7 +69,7 @@ control-plane)
     min_mtu=9000
     read -r -a mtu_peers <<<"$WORKER_IPS"
     for peer in "${mtu_peers[@]}"; do
-        mtu=$(python3 "$(provider_script vxanvil-network.py)" --peer "$peer" --mtu-only)
+        mtu=$(python3 "$provider/scripts/vxanvil-network.py" --peer "$peer" --mtu-only)
         [[ $mtu =~ ^[0-9]+$ && $mtu -ge 576 ]]
         (( mtu >= min_mtu )) || min_mtu=$mtu
     done
@@ -96,7 +87,7 @@ control-plane)
             for variable in CLUSTER MANAGER_IP LAN_CIDR DOCKER_CIDR CP_IP POD_CIDR SERVICE_CIDR WORKER_IP WORKER_GATEWAY NETWORK_MODE; do
                 printf '%s=%q\n' "$variable" "${!variable}"
             done >"$peer_layout"
-            bash "$(provider_script configure-vxanvil-manager-network.sh)" --install "$peer_layout"
+            bash "$provider/scripts/configure-vxanvil-manager-network.sh" --install "$peer_layout"
         )
     done
     ;;
@@ -152,7 +143,7 @@ worker)
     else
         bash "$recovery" --install worker "$NODE_IP" "$CP_IP" "$MANAGER_IP" "$MANAGER_IP"
     fi
-    systemctl start vmetal-nvke-lab-worker-recovery.service
+    systemctl start vxanvil-nvke-lab-worker-recovery.service
     if [[ $NETWORK_MODE == lan ]]; then
         # NVKE can reapply netplan and replace the interface carrying NODE_IP.
         # Keep the explicit API /32 through that change without altering defaults.

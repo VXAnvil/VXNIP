@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	machineFinalizer = "vmetal.infrastructure.cluster.x-k8s.io/claim"
+	machineFinalizer = "vxanvil.infrastructure.cluster.x-k8s.io/claim"
 	allocationPoll   = 10 * time.Second
 )
 
@@ -29,7 +29,7 @@ type MachineReconciler struct {
 
 func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var machine api.VXAnvilMachine
-	gvk := infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine")
+	gvk := infraGroup(r.InfrastructureGroup).WithKind("VXAnvilMachine")
 	machine.SetGroupVersionKind(gvk)
 	if err := r.Get(ctx, req.NamespacedName, &machine); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -123,7 +123,7 @@ func (r *MachineReconciler) setStatus(ctx context.Context, machine *api.VXAnvilM
 func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VXAnvilMachine, status bool) error {
 	// API decoding can discard TypeMeta for typed objects. Preserve it across
 	// writes because this Go type is registered under two API groups.
-	gvk := infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine")
+	gvk := infraGroup(r.InfrastructureGroup).WithKind("VXAnvilMachine")
 	machine.SetGroupVersionKind(gvk)
 	defer machine.SetGroupVersionKind(gvk)
 	if status {
@@ -134,10 +134,10 @@ func (r *MachineReconciler) updateMachine(ctx context.Context, machine *api.VXAn
 
 func (r *MachineReconciler) SetupWithManager(manager ctrl.Manager) error {
 	machine := &api.VXAnvilMachine{}
-	machine.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalMachine"))
+	machine.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilMachine"))
 	builder := ctrl.NewControllerManagedBy(manager).For(machine)
 	if r.InfrastructureGroup == api.InfrastructureGroupVersion {
-		builder.Named("vmetalmachine-nvke")
+		builder.Named("vxanvilmachine-nvke")
 	}
 	return builder.
 		WithOptions(controller.Options{MaxConcurrentReconciles: 2}).Complete(r)

@@ -41,7 +41,7 @@ func TestCABPKBootstrapAndCleanup(t *testing.T) {
 			"clusterName": "lab",
 			"infrastructureRef": map[string]any{
 				"apiGroup": api.GroupVersion.Group,
-				"kind":     "VMetalMachine", "name": "worker",
+				"kind":     "VXAnvilMachine", "name": "worker",
 			},
 		},
 	}}
@@ -96,7 +96,7 @@ runcmd:
 		case "apply":
 			var stored api.VXAnvilMachine
 			must(t, c.Get(ctx, req.NamespacedName, &stored))
-			if !stored.Status.BootstrapStarted || !strings.Contains(op.Plan.Config, "vmetal://infra-worker") {
+			if !stored.Status.BootstrapStarted || !strings.Contains(op.Plan.Config, "vxanvil://infra-worker") {
 				t.Fatal("bootstrap started without persisting the intent or setting the kubelet identity")
 			}
 		case "reset":
@@ -120,7 +120,7 @@ runcmd:
 	_, err = controller.Reconcile(ctx, req)
 	must(t, err)
 	must(t, c.Get(ctx, req.NamespacedName, machine))
-	if machine.Spec.ProviderID != "vmetal://infra-worker" ||
+	if machine.Spec.ProviderID != "vxanvil://infra-worker" ||
 		machine.Status.Initialization == nil || !machine.Status.Initialization.Provisioned {
 		t.Fatalf("bootstrap completion was not published: %+v %+v", machine.Spec, machine.Status)
 	}

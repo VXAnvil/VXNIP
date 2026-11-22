@@ -44,7 +44,7 @@ func infraGroup(group schema.GroupVersion) schema.GroupVersion {
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var cluster api.VXAnvilCluster
-	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalCluster"))
+	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilCluster"))
 	if err := r.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -54,16 +54,16 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// The endpoint was allocated and configured by the operator before the
 	// Cluster was created. This provider has no external cluster-level resources.
 	cluster.Status.Initialization = &api.InfrastructureInitialization{Provisioned: true}
-	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalCluster"))
+	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilCluster"))
 	return ctrl.Result{}, r.Status().Update(ctx, &cluster)
 }
 
 func (r *ClusterReconciler) SetupWithManager(manager ctrl.Manager) error {
 	cluster := &api.VXAnvilCluster{}
-	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VMetalCluster"))
+	cluster.SetGroupVersionKind(infraGroup(r.InfrastructureGroup).WithKind("VXAnvilCluster"))
 	builder := ctrl.NewControllerManagedBy(manager).For(cluster)
 	if r.InfrastructureGroup == api.InfrastructureGroupVersion {
-		builder.Named("vmetalcluster-nvke")
+		builder.Named("vxanvilcluster-nvke")
 	}
 	return builder.Complete(r)
 }
@@ -98,7 +98,7 @@ func (r *MachineReconciler) reconcileBootstrap(
 	}
 	ref, _, _ := unstructured.NestedStringMap(capiMachine.Object, "spec", "infrastructureRef")
 	if capiMachine.GetUID() != owner.UID || ref["apiGroup"] != infraGroup(r.InfrastructureGroup).Group ||
-		ref["kind"] != "VMetalMachine" || ref["name"] != machine.Name {
+		ref["kind"] != "VXAnvilMachine" || ref["name"] != machine.Name {
 		return ctrl.Result{}, fmt.Errorf("CAPI Machine does not reference this VXAnvilMachine")
 	}
 	if isPaused(&capiMachine) || !capiMachine.GetDeletionTimestamp().IsZero() {
@@ -147,7 +147,7 @@ func (r *MachineReconciler) reconcileBootstrap(
 	if secret.Labels["cluster.x-k8s.io/cluster-name"] != clusterName {
 		return ctrl.Result{}, fmt.Errorf("bootstrap Secret belongs to a different cluster")
 	}
-	providerID := "vmetal://" + string(machine.UID)
+	providerID := "vxanvil://" + string(machine.UID)
 	if machine.Spec.ProviderID != "" && machine.Spec.ProviderID != providerID {
 		return ctrl.Result{}, fmt.Errorf("spec.providerID does not match the allocation")
 	}

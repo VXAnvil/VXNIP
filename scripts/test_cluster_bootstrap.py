@@ -34,24 +34,15 @@ def facts(ip='192.168.50.10', identity='a', user='ubuntu'):
             'routes': [{'dst': '192.168.50.0/24'}, {'dst': 'default', 'gateway': '192.168.50.1'}]}
 
 
-class NameCompatibilityTests(unittest.TestCase):
-    def test_historical_asset_catalog_keeps_real_filenames_and_digests(self):
-        manifest = cluster.runtime_assets.catalog(cluster.BUNDLE_MANIFEST, cluster.RELEASE)
-        self.assertEqual(set(manifest['assets']), {'manager-amd64', 'manager-arm64', 'node-amd64', 'node-arm64'})
-        for asset in manifest['assets'].values():
-            self.assertIn('/VXAnvil/cluster-api-provider-vxanvil/releases/download/', asset['url'])
-            self.assertIn('/vmetal-', asset['url'])
-
-    def test_new_source_and_old_entrypoints_ship_identical_runtime_behavior(self):
+class NativeNamingTests(unittest.TestCase):
+    def test_runtime_manifest_ships_canonical_helper(self):
         root = RUNTIME.parents[2]
-        for new, old in [('vxanvil-kubeadm','vmetal-kubeadm'), ('vxanvil-network.py','vmetal-network.py'),
-                         ('configure-vxanvil-client.sh','configure-vmetal-client.sh'),
-                         ('configure-vxanvil-manager-network.sh','configure-vmetal-manager-network.sh'),
-                         ('migrate-vxanvil-hosts.py','migrate-vmetal-hosts.py')]:
-            self.assertEqual((root/'scripts'/new).read_bytes(), (root/'scripts'/old).read_bytes())
-        helper=(root/'scripts/vxanvil-kubeadm').read_bytes()
-        import hashlib
-        self.assertEqual(hashlib.sha256(helper).hexdigest(), '007fb029a88f25a88dc9cd7ce504a33788f099b82302374a41ef34c83de0a065')
+        files = (root/'config/management-bundle-files.txt').read_text().splitlines()
+        self.assertIn('scripts/vxanvil-kubeadm', files)
+        self.assertEqual(len(files), len(set(files)))
+        helper = (root/'scripts/vxanvil-kubeadm').read_text()
+        self.assertIn('/var/lib/vxanvil-kubeadm', helper)
+        self.assertIn('vxanvil://', helper)
 
 
 class RuntimeAssetTests(unittest.TestCase):
@@ -79,6 +70,19 @@ class RuntimeAssetTests(unittest.TestCase):
         self.assertEqual((result / 'node-tool').read_bytes(), b'verified tool')
         self.assertFalse((result / 'unused-build-output').exists())
         self.assertEqual(self.publisher.sha256(archive), asset['sha256'])
+
+    def test_producer_source_is_independent_of_consumer_pin(self):
+        sources = dict(cluster.RELEASE, provider='a'*40)
+        asset = self.publisher.pack(self.input, 'node', 'amd64', self.root, 'runtime-v0.2.0-test', sources=sources)
+        staging = self.root / 'staging'
+        staging.mkdir()
+        archive = self.root / 'vxanvil-node-amd64.tar.gz'
+        result = cluster.runtime_assets.unpack(archive, staging, asset, sources)
+        self.assertTrue((result / 'node-tool').is_file())
+        wrong = self.root / 'wrong'
+        wrong.mkdir()
+        with self.assertRaisesRegex(cluster.runtime_assets.DownloadBlocked, 'source pins differ'):
+            cluster.runtime_assets.unpack(archive, wrong, asset, cluster.RELEASE)
 
     def test_publication_requires_all_four_archives_with_matching_hashes(self):
         spec = importlib.util.spec_from_file_location('release_verify', RUNTIME.parents[2] / 'scripts/verify-runtime-release.py')
@@ -334,13 +338,13 @@ class BootstrapTests(unittest.TestCase):
             self.plan()
 
     def test_management_and_workload_containers_never_share_a_name(self):
-        for site in ('vmetal-lab', 'vmetal-' + 'a' * 20):
+        for site in ('vxanvil-lab', 'vxanvil-' + 'a' * 20):
             self.config['site'] = site
             plan = self.plan()
             shell = settings.values({'plan': plan, 'root': '/fixture', 'node': plan['manager']})
             self.assertNotEqual(shell['CLUSTER'] + '-control-plane', site + '-control-plane')
             self.assertEqual(shell['CLUSTER'], plan['workload_cluster'])
-            self.assertRegex(shell['CLUSTER'], r'^vmetal-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$')
+            self.assertRegex(shell['CLUSTER'], r'^vxanvil-[a-z0-9]([a-z0-9-]{0,20}[a-z0-9])?$')
 
     def test_reviewed_plan_cannot_reuse_the_management_name_for_workloads(self):
         plan = self.plan()
@@ -803,13 +807,13 @@ class VerificationTests(unittest.TestCase):
         self.machine = {'metadata': {'name': 'worker', 'namespace': 'nvke-system', 'uid': 'infra',
                                     'ownerReferences': [{'apiVersion': 'cluster.x-k8s.io/v1beta2',
                                                         'kind': 'Machine', 'name': 'parent', 'uid': 'capi'}]},
-                        'spec': {'hostRef': 'host-a', 'providerID': 'vmetal://infra'}}
+                        'spec': {'hostRef': 'host-a', 'providerID': 'vxanvil://infra'}}
         self.parent = {'metadata': {'name': 'parent', 'uid': 'capi'},
                        'spec': {'infrastructureRef': {'apiGroup': 'infrastructure.cluster.x-k8s.io',
-                                                     'kind': 'VMetalMachine', 'name': 'worker'}},
+                                                     'kind': 'VXAnvilMachine', 'name': 'worker'}},
                        'status': {'nodeRef': {'name': 'worker', 'uid': 'node-uid'}}}
         self.node = {'metadata': {'name': 'worker', 'uid': 'node-uid'},
-                     'spec': {'providerID': 'vmetal://infra'},
+                     'spec': {'providerID': 'vxanvil://infra'},
                      'status': {'conditions': [{'type': 'Ready', 'status': 'True'}],
                                 'addresses': [{'type': 'InternalIP', 'address': '192.168.50.20'}]}}
 
@@ -818,10 +822,10 @@ class VerificationTests(unittest.TestCase):
                                        '192.168.50.20', 'physical')
 
     def test_complete_identity_chain_is_accepted(self):
-        self.assertEqual(self.check()['provider_id'], 'vmetal://infra')
+        self.assertEqual(self.check()['provider_id'], 'vxanvil://infra')
 
     def test_ready_node_with_wrong_allocation_is_rejected(self):
-        self.node['spec']['providerID'] = 'vmetal://unrelated'
+        self.node['spec']['providerID'] = 'vxanvil://unrelated'
         with self.assertRaisesRegex(ValueError, 'providerID'):
             self.check()
 
@@ -840,7 +844,7 @@ class VerificationTests(unittest.TestCase):
         result = self.check()
         self.assertFalse(result['node_ref_uid_verified'])
         self.assertEqual(result['node_uid'], 'node-uid')
-        self.node['spec']['providerID'] = 'vmetal://wrong-allocation'
+        self.node['spec']['providerID'] = 'vxanvil://wrong-allocation'
         with self.assertRaisesRegex(ValueError, 'providerID'):
             self.check()
 

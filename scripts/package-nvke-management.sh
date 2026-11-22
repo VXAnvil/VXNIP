@@ -1,10 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-# Accept existing automation without changing the new variable's precedence.
-for legacy_key in ${!VMETAL_@}; do
-    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
-    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
-done
 
 if [[ $# != 6 ]]; then
     echo "Usage: bash $0 nvke-checkout tool-bin-dir kind-image controller-image profile-image output-dir" >&2
@@ -38,13 +33,12 @@ while IFS= read -r file || [[ -n $file ]]; do
 done <"$manifest"
 if [[ -n ${VXANVIL_CONTROL_PLANE_IMAGE:-} ]]; then
     expected=$(sha256sum "$repo/scripts/vxanvil-kubeadm" | cut -d' ' -f1)
-    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/helper-sha256"}}') == "$expected" ]]
-    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vmetal.nvke.dev/kubernetes"}}') == v1.36.3 ]]
+    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vxanvil.nvke.dev/helper-sha256"}}') == "$expected" ]]
+    [[ $(docker image inspect "$VXANVIL_CONTROL_PLANE_IMAGE" -f '{{index .Config.Labels "vxanvil.nvke.dev/kubernetes"}}') == v1.36.3 ]]
     printf '%s\n' "$VXANVIL_CONTROL_PLANE_IMAGE" >"$staging/control-plane-image"
 fi
 for tool in kind kubectl clusterctl helm nvkectl vxanvil-controller; do
     source_tool="$tools/$tool"
-    if [[ $tool == vxanvil-controller && ! -x $source_tool ]]; then source_tool="$tools/vmetal-controller"; fi
     install -m 0755 "$source_tool" "$staging/bin/$tool"
 done
 git -C "$nvke" archive "$revision" deploy controller/deploy controller/hack/ci/deploy-stack.sh \

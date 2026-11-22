@@ -9,14 +9,14 @@ import (
 	"testing"
 )
 
-func TestVXAnvilReadsExistingInventory(t *testing.T) {
+func TestVXAnvilReadsInventory(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, "vmetal", "inventory.json")
+	path := filepath.Join(dir, "vxanvil", "inventory.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -30,9 +30,6 @@ func TestVXAnvilReadsExistingInventory(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "original-cluster") {
 		t.Fatal("lost existing reservation", output.String())
-	}
-	if _, err := os.Stat(filepath.Join(dir, "vxanvil")); !os.IsNotExist(err) {
-		t.Fatal("created a separate renamed inventory")
 	}
 	after, err := os.ReadFile(path)
 	if err != nil || string(after) != entry {

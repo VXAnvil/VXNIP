@@ -27,7 +27,7 @@ type SSH struct{}
 func (SSH) Run(ctx context.Context, target string, request Request) error {
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer cancel()
-	cmd, err := discovery.SSHCommand(ctx, target, "sudo -n /usr/local/sbin/vmetal-kubeadm")
+	cmd, err := discovery.SSHCommand(ctx, target, "sudo -n /usr/local/sbin/vxanvil-kubeadm")
 	if err != nil {
 		return err
 	}

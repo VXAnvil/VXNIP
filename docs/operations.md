@@ -28,7 +28,7 @@ On the target host, run the bundled installer. It uses the provider files covere
 
 ```bash
 sudo bash /path/to/new-management-bundle/provider/scripts/init-nvke-management.sh \
-  /path/to/new-management-bundle /var/lib/vmetal-site \
+  /path/to/new-management-bundle /var/lib/vxanvil-site \
   192.168.50.10 192.168.50.0/24 vxanvil-site
 ```
 
@@ -41,13 +41,13 @@ The kernel config included in the image must match the target Docker host. Build
 The client export includes the management kubeconfig and grants its privileges to the directory's owner. Export it only for an intended management operator.
 
 ```bash
-sudo bash scripts/configure-vxanvil-client.sh /var/lib/vmetal-site \
-  /home/ubuntu/.config/vmetal/sites/lab /path/to/workload.kubeconfig
+sudo bash scripts/configure-vxanvil-client.sh /var/lib/vxanvil-site \
+  /home/ubuntu/.config/vxanvil/sites/lab /path/to/workload.kubeconfig
 
-source /home/ubuntu/.config/vmetal/sites/lab/env.sh
+source /home/ubuntu/.config/vxanvil/sites/lab/env.sh
 nvkectl --site "$NVKE_SITE" get clusters
-kubectl --kubeconfig /home/ubuntu/.config/vmetal/sites/lab/management.kubeconfig get vmetalhosts
-kubectl --kubeconfig /home/ubuntu/.config/vmetal/sites/lab/workload.kubeconfig get nodes
+kubectl --kubeconfig /home/ubuntu/.config/vxanvil/sites/lab/management.kubeconfig get vxanvilhosts
+kubectl --kubeconfig /home/ubuntu/.config/vxanvil/sites/lab/workload.kubeconfig get nodes
 ```
 
 The script copies the matching `nvkectl` and `kubectl`, creates a private CLI configuration, and exports only environment variables. Commands use the full `nvkectl` and `kubectl` names, with explicit kubeconfig paths for management and workload operations. Source that file in each terminal, or source it from the intended user's shell startup file.
@@ -64,7 +64,7 @@ python3 scripts/vxanvil-network.py \
 sudo python3 scripts/vxanvil-network.py --peer 172.30.91.10 \
   --spire 192.168.50.10 --api-url https://172.30.91.10:6443 \
   --ca /path/to/public-ca.crt \
-  --cri unix:///run/vmetal-nvke-containerd/containerd.sock
+  --cri unix:///run/vxanvil-nvke-containerd/containerd.sock
 ```
 
 The JSON report distinguishes route/MTU, TCP SPIRE, CA and hostname-verified API readiness, CRI, and the presented agent certificate's expiry. An expiry check reads the public certificate. UDP reachability is reported as requiring a workload check. Run `check-nvke-lab-workers.sh` on two Ready nodes for bidirectional Pod traffic over OVN.
@@ -85,10 +85,10 @@ bash scripts/check-nvke-lab-workers.sh /path/to/workload.kubeconfig \
 ## Read failures in Kubernetes
 
 ```bash
-kubectl get vmetalhosts
-kubectl get vmetalhost HOST -o jsonpath='{.status.discoveryMessage}'
-kubectl get vmetalhost HOST -o jsonpath='{.status.conditions}'
-kubectl -n nvke-system get vmetalmachine.infrastructure.cluster.x-k8s.io MACHINE \
+kubectl get vxanvilhosts
+kubectl get vxanvilhost HOST -o jsonpath='{.status.discoveryMessage}'
+kubectl get vxanvilhost HOST -o jsonpath='{.status.conditions}'
+kubectl -n nvke-system get vxanvilmachine.infrastructure.cluster.x-k8s.io MACHINE \
   -o jsonpath='{.status.reason}{"\n"}{.status.message}{"\n"}'
 ```
 

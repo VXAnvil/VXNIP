@@ -43,25 +43,25 @@ def main(settings):
         spec = {'machineID': worker['facts']['machine_id'], 'nodeIP': worker['address'],
                 'sshTarget': worker['user'] + '@' + worker['address'], 'allowBootstrap': True}
         # A fresh bootstrap never adopts or patches existing inventory with the same name.
-        host = json.loads(run([*mgmt, 'get', 'vmetalhost', name, '--ignore-not-found', '-o', 'json']) or 'null')
+        host = json.loads(run([*mgmt, 'get', 'vxanvilhost', name, '--ignore-not-found', '-o', 'json']) or 'null')
         if host is not None:
             raise ValueError('Host inventory already exists; inspect ownership, do not automatically adopt it')
-        obj = {'apiVersion': 'vmetal.infrastructure.cluster.x-k8s.io/v1alpha1', 'kind': 'VMetalHost',
-               'metadata': {'name': name, 'labels': {'vmetal.nvke.dev/bootstrap': plan['site']}}, 'spec': spec}
+        obj = {'apiVersion': 'vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1', 'kind': 'VXAnvilHost',
+               'metadata': {'name': name, 'labels': {'vxanvil.nvke.dev/bootstrap': plan['site']}}, 'spec': spec}
         run([*mgmt, 'create', '-f', '-'], json.dumps(obj))
-        run([*mgmt, 'wait', '--for=jsonpath={.status.discoveryReady}=true', 'vmetalhost/' + name,
+        run([*mgmt, 'wait', '--for=jsonpath={.status.discoveryReady}=true', 'vxanvilhost/' + name,
              '--timeout=120s'])
-        host = json.loads(run([*mgmt, 'get', 'vmetalhost', name, '-o', 'json']))
+        host = json.loads(run([*mgmt, 'get', 'vxanvilhost', name, '-o', 'json']))
         if (any(host['spec'].get(key) != value for key, value in spec.items())
                 or host['status'].get('claim')
                 or host['status'].get('observedGeneration') != host['metadata']['generation']):
             raise ValueError('Host identity or claim differs before allocation')
         pool = {'clusterID': cluster, 'name': 'cpu-' + str(i), 'nodeNamePrefix': 'cpu' + str(i),
                 'desiredNodeCount': 1, 'systemReservedMemory': '512Mi', 'kubeReservedMemory': '256Mi',
-                'nodeLabels': {'vmetal.nvke.dev/gateway': 'local'}, 'autoModeDisabled': True,
+                'nodeLabels': {'vxanvil.nvke.dev/gateway': 'local'}, 'autoModeDisabled': True,
                 'provisioningMonitorDisabled': True,
                 'infra': {'machineTemplate': {'apiVersion': 'infrastructure.cluster.x-k8s.io/v1alpha1',
-                          'kind': 'VMetalMachineTemplate', 'spec': {'template': {'spec': {
+                          'kind': 'VXAnvilMachineTemplate', 'spec': {'template': {'spec': {
                               'hostRef': name, 'bootstrapMode': 'NVKE'}}}}}}
         path = root / 'tenant' / ('cpu-' + str(i) + '.json')
         path.write_text(json.dumps(pool))

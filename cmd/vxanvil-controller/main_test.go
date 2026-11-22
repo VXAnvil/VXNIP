@@ -82,18 +82,18 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 	check(t, c.Create(ctx, host))
 	newMachine := func(name string) *api.VXAnvilMachine {
 		return &api.VXAnvilMachine{
-			TypeMeta:   metav1.TypeMeta{APIVersion: api.GroupVersion.String(), Kind: "VMetalMachine"},
+			TypeMeta:   metav1.TypeMeta{APIVersion: api.GroupVersion.String(), Kind: "VXAnvilMachine"},
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "vxanvil-test"},
 			Spec:       api.VXAnvilMachineSpec{HostRef: host.Name},
 		}
 	}
 	machine := newMachine("worker")
 	check(t, c.Create(ctx, machine))
-	machine.SetGroupVersionKind(api.GroupVersion.WithKind("VMetalMachine"))
-	start := func(option string) func() {
+	machine.SetGroupVersionKind(api.GroupVersion.WithKind("VXAnvilMachine"))
+	start := func() func() {
 		t.Helper()
 		process := exec.CommandContext(ctx, binary, "-test.run=^TestControllerProcess$")
-		process.Env = append(os.Environ(), "VXANVIL_TEST_PROCESS=1", "KUBECONFIG="+kubeconfig, option+"=1")
+		process.Env = append(os.Environ(), "VXANVIL_TEST_PROCESS=1", "KUBECONFIG="+kubeconfig, "VXANVIL_ENABLE_NVKE_INFRA=1")
 		process.Stdout, process.Stderr = os.Stdout, os.Stderr
 		check(t, process.Start())
 		done := make(chan struct{})
@@ -136,18 +136,18 @@ printf '%s\n' '{"machine_id_hash":"` + id + `","os":"Ubuntu","logical_cpus":4}'
 		}
 	}
 
-	stop := start("VMETAL_ENABLE_NVKE_INFRA")
+	stop := start()
 	waitForReservation(machine)
 	stop()
 
 	// A restart must recover the machine status from the persisted host claim.
 	machine.Status = api.VXAnvilMachineStatus{}
 	check(t, c.Status().Update(ctx, machine))
-	start("VXANVIL_ENABLE_NVKE_INFRA")
+	start()
 	waitForReservation(machine)
 
 	replacement := newMachine("replacement")
-	replacementGVK := api.InfrastructureGroupVersion.WithKind("VMetalMachine")
+	replacementGVK := api.InfrastructureGroupVersion.WithKind("VXAnvilMachine")
 	replacement.SetGroupVersionKind(replacementGVK)
 	check(t, c.Create(ctx, replacement))
 	check(t, wait.PollUntilContextTimeout(ctx, 200*time.Millisecond, 15*time.Second, true,
@@ -177,26 +177,13 @@ func check(t *testing.T, err error) {
 	}
 }
 
-func TestNVKEOptionCompatibility(t *testing.T) {
-	t.Setenv("VMETAL_ENABLE_NVKE_INFRA", "1")
-	previous, present := os.LookupEnv("VXANVIL_ENABLE_NVKE_INFRA")
-	_ = os.Unsetenv("VXANVIL_ENABLE_NVKE_INFRA")
-	t.Cleanup(func() {
-		if present {
-			_ = os.Setenv("VXANVIL_ENABLE_NVKE_INFRA", previous)
-		} else {
-			_ = os.Unsetenv("VXANVIL_ENABLE_NVKE_INFRA")
-		}
-	})
-	if !nvkeEnabled() {
-		t.Fatal("legacy service option no longer enables NVKE")
-	}
+func TestNVKEOption(t *testing.T) {
 	t.Setenv("VXANVIL_ENABLE_NVKE_INFRA", "0")
 	if nvkeEnabled() {
-		t.Fatal("legacy option overrides explicit new disable")
+		t.Fatal("disabled option enabled NVKE")
 	}
 	t.Setenv("VXANVIL_ENABLE_NVKE_INFRA", "1")
 	if !nvkeEnabled() {
-		t.Fatal("new option does not enable NVKE")
+		t.Fatal("enabled option did not enable NVKE")
 	}
 }

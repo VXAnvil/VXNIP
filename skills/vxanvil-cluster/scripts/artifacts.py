@@ -35,9 +35,9 @@ def validate_asset(asset, role, arch):
     if not url.startswith(ORIGIN) or urllib.parse.urlsplit(url).query or urllib.parse.urlsplit(url).fragment:
         raise ValueError('Runtime assets must use the official public GitHub release')
     suffix = url.removeprefix(ORIGIN)
-    if not re.fullmatch(r'runtime-v[0-9A-Za-z.-]+/(?:vxanvil|vmetal)-(manager|node)-(amd64|arm64)\.tar\.gz', suffix):
+    if not re.fullmatch(r'runtime-v[0-9A-Za-z.-]+/vxanvil-(manager|node)-(amd64|arm64)\.tar\.gz', suffix):
         raise ValueError('Invalid versioned runtime asset URL')
-    if suffix.split('/')[-1] not in (f'vxanvil-{role}-{arch}.tar.gz', f'vmetal-{role}-{arch}.tar.gz'):
+    if suffix.split('/')[-1] != f'vxanvil-{role}-{arch}.tar.gz':
         raise ValueError('Runtime URL role/architecture differs')
     return asset
 

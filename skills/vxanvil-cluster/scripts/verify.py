@@ -29,10 +29,10 @@ def validate_binding(host, machine, parent, node, expected_ip, expected_id=None)
     if len(owners) != 1 or any(owners[0][k] != parent['metadata'][k] for k in ('name', 'uid')):
         raise ValueError('CAPI Machine owner identity mismatch')
     ref = parent['spec']['infrastructureRef']
-    if (ref.get('name') != machine['metadata']['name'] or ref.get('kind') != 'VMetalMachine'
+    if (ref.get('name') != machine['metadata']['name'] or ref.get('kind') != 'VXAnvilMachine'
             or ref.get('apiGroup', ref.get('apiVersion', '').split('/')[0]) != 'infrastructure.cluster.x-k8s.io'):
         raise ValueError('CAPI infrastructure reference mismatch')
-    provider_id = 'vmetal://' + machine['metadata']['uid']
+    provider_id = 'vxanvil://' + machine['metadata']['uid']
     if machine['spec'].get('providerID') != provider_id or node['spec'].get('providerID') != provider_id:
         raise ValueError('Node providerID does not match infrastructure allocation UID')
     node_ref = parent['status'].get('nodeRef') or {}
@@ -81,14 +81,14 @@ def main(settings):
         last_error = None
         for _ in range(90):
             try:
-                hosts = json.loads(run([*mgmt, 'get', 'vmetalhosts', '-o', 'json']))['items']
+                hosts = json.loads(run([*mgmt, 'get', 'vxanvilhosts', '-o', 'json']))['items']
                 hosts = [h for h in hosts if h['spec']['nodeIP'] == address]
                 if len(hosts) != 1:
                     raise ValueError('Expected exactly one Host for planned node address')
                 host = hosts[0]
                 claim = host['status'].get('claim') or {}
                 machine = json.loads(run([*mgmt, '-n', claim['namespace'], 'get',
-                                          'vmetalmachine.infrastructure.cluster.x-k8s.io', claim['name'], '-o', 'json']))
+                                          'vxanvilmachine.infrastructure.cluster.x-k8s.io', claim['name'], '-o', 'json']))
                 owner = next(o for o in machine['metadata']['ownerReferences'] if o['kind'] == 'Machine'
                              and o['apiVersion'].startswith('cluster.x-k8s.io/'))
                 parent = json.loads(run([*mgmt, '-n', claim['namespace'], 'get', 'machines.cluster.x-k8s.io',

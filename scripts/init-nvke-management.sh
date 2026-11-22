@@ -1,10 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-# Accept existing automation without changing the new variable's precedence.
-for legacy_key in ${!VMETAL_@}; do
-    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
-    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
-done
 umask 077
 
 if [[ $# != 5 || $EUID != 0 ]]; then
@@ -69,8 +64,8 @@ watches=$(sysctl -n fs.inotify.max_user_watches)
 (( instances >= 2048 )) || instances=2048
 (( watches >= 1048576 )) || watches=1048576
 printf 'fs.inotify.max_user_instances=%s\nfs.inotify.max_user_watches=%s\n' \
-  "$instances" "$watches" >/etc/sysctl.d/90-vmetal-inotify.conf
-sysctl -p /etc/sysctl.d/90-vmetal-inotify.conf >/dev/null
+  "$instances" "$watches" >/etc/sysctl.d/90-vxanvil-inotify.conf
+sysctl -p /etc/sysctl.d/90-vxanvil-inotify.conf >/dev/null
 systemctl enable --now docker.service
 export PATH="$bundle/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export KUBECONFIG="$state/management.kubeconfig"
@@ -125,7 +120,7 @@ clusterctl init --kubeconfig "$KUBECONFIG" --core cluster-api:v1.13.6 \
 if [[ ! -e $state/db-password ]]; then
     openssl rand -hex 24 >"$state/db-password"
 fi
-export DGXC_TENANT_USER=vmetal
+export DGXC_TENANT_USER=vxanvil
 DGXC_TENANT_PASSWORD=$(cat "$state/db-password")
 export DGXC_TENANT_PASSWORD
 export CNPG_SUPERUSER_PASSWORD="$DGXC_TENANT_PASSWORD"
@@ -164,7 +159,7 @@ fi
 touch "$state/known-hosts"
 install -m 0644 "$state/ssh-key.pub" "$state/worker-bundle/provider.pub"
 install -m 0644 "$state/ca.crt" "$state/worker-bundle/ca.crt"
-for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh vxanvil-kubeadm vmetal-kubeadm; do
+for file in enroll-nvke-vm-worker.sh prepare-nvke-vm-worker.sh configure-nvke-lab-host-recovery.sh vxanvil-kubeadm; do
     install -m 0755 "$repo/scripts/$file" "$state/worker-bundle/$file"
 done
 install -m 0644 "$repo/scripts/nvke-enrollment-server.py" "$state/nvke-enrollment-server.py"
@@ -176,7 +171,7 @@ exec /usr/bin/ssh -F /dev/null -i "$state/ssh-key" -o IdentitiesOnly=yes -o User
 EOF
 chmod 0755 "$state/bin/ssh"
 
-cat >"/etc/systemd/system/vmetal-nvke-$site-provider.service" <<UNIT
+cat >"/etc/systemd/system/vxanvil-nvke-$site-provider.service" <<UNIT
 [Unit]
 Description=VXAnvil Provider for $site
 After=docker.service
@@ -191,7 +186,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNIT
-cat >"/etc/systemd/system/vmetal-nvke-$site-enrollment.service" <<UNIT
+cat >"/etc/systemd/system/vxanvil-nvke-$site-enrollment.service" <<UNIT
 [Unit]
 Description=VXAnvil enrollment for $site
 After=network-online.target docker.service
@@ -204,7 +199,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNIT
-cat >"/etc/systemd/system/vmetal-nvke-$site-api.service" <<UNIT
+cat >"/etc/systemd/system/vxanvil-nvke-$site-api.service" <<UNIT
 [Unit]
 Description=Local NVKE API for $site
 After=docker.service
@@ -218,7 +213,7 @@ WantedBy=multi-user.target
 UNIT
 docker update --restart=unless-stopped "$site-control-plane" >/dev/null
 systemctl daemon-reload
-systemctl enable --now "vmetal-nvke-$site-provider" "vmetal-nvke-$site-enrollment" "vmetal-nvke-$site-api"
+systemctl enable --now "vxanvil-nvke-$site-provider" "vxanvil-nvke-$site-enrollment" "vxanvil-nvke-$site-api"
 wait_port() {
     local ip=$1 port=$2
     for attempt in $(seq 1 12); do

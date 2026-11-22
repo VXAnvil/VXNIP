@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/VXAnvil/cluster-api-provider-vxanvil/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/VXAnvil/cluster-api-provider-vxanvil/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Release: v0.0.1-rc.2](https://img.shields.io/badge/release-v0.0.1--rc.2-orange)](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/v0.0.1-rc.2)
+[![Release: v0.0.2-rc.1](https://img.shields.io/badge/release-v0.0.2--rc.1-orange)](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/v0.0.2-rc.1)
 
 A Cluster API infrastructure provider for existing Linux machines. VXAnvil discovers hosts over SSH, allocates them to Kubernetes clusters, and supports kubeadm bootstrap and NVIDIA NVKE's generic `infra` contract.
 
@@ -34,7 +34,7 @@ These commands record local inventory and read host information; they do not joi
 
 | Guide | Contents |
 | --- | --- |
-| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.1.0-rc.4): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
+| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.2.0-rc.1): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
 | [Prepare public inputs](docs/public-inputs.md) | Fresh Ubuntu: fixed source, verified tools, node artifacts and management bundle |
 | [NVKE setup](docs/nvke-quickstart.md) | Management site, worker enrollment, Docker control plane and GPU worker example |
 | [Operations](docs/operations.md) | Images and bundles, terminal configuration, diagnostics and recovery |
@@ -42,11 +42,11 @@ These commands record local inventory and read host information; they do not joi
 
 ## Compatibility
 
-VXAnvil keeps existing wire identities and installed state so allocated clusters continue to work. The old spelling below is intentional; see [name compatibility and upgrades](docs/compatibility.md#vxanvil-name-compatibility).
+Use a fresh site and unallocated hosts for this API release. See [installation and allocation identity](docs/compatibility.md#fresh-install-requirement).
 
-The inventory API is `vmetal.infrastructure.cluster.x-k8s.io/v1alpha1`, with `VMetalHost`, `VMetalCluster`, `VMetalMachine` and `VMetalMachineTemplate`. The NVKE adapter exposes the three infrastructure kinds in `infrastructure.cluster.x-k8s.io/v1alpha1` and shares the host inventory.
+The inventory API is `vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1`, with `VXAnvilHost`, `VXAnvilCluster`, `VXAnvilMachine` and `VXAnvilMachineTemplate`. The NVKE adapter exposes the three infrastructure kinds in `infrastructure.cluster.x-k8s.io/v1alpha1` and shares the host inventory.
 
-Provider IDs use `vmetal://<machine-uid>`. A reboot preserves the current allocation's ID; releasing and allocating again creates a new Machine and ID.
+Provider IDs use `vxanvil://<machine-uid>`. A reboot preserves the current allocation's ID; releasing and allocating again creates a new Machine and ID.
 
 For new installations, start with a fresh management site and hosts that are not allocated to another cluster.
 

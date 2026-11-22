@@ -29,7 +29,7 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 		"metadata": map[string]any{"name": "lab", "namespace": "nvke-system"},
 	}}
 	nvkeMachine := &api.VXAnvilMachine{}
-	nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VMetalMachine"))
+	nvkeMachine.SetGroupVersionKind(api.InfrastructureGroupVersion.WithKind("VXAnvilMachine"))
 	c := fake.NewClientBuilder().WithScheme(scheme).
 		WithStatusSubresource(&api.VXAnvilHost{}, nvkeMachine).WithObjects(cluster).Build()
 	for index, tc := range []struct{ name, ip string }{
@@ -56,13 +56,13 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 					"clusterName": "lab",
 					"infrastructureRef": map[string]any{
 						"apiGroup": api.InfrastructureGroupVersion.Group,
-						"kind":     "VMetalMachine", "name": tc.name,
+						"kind":     "VXAnvilMachine", "name": tc.name,
 					},
 				},
 			}}
 			must(t, c.Create(ctx, parent))
 			machine := &api.VXAnvilMachine{
-				TypeMeta: metav1.TypeMeta{APIVersion: api.InfrastructureGroupVersion.String(), Kind: "VMetalMachine"},
+				TypeMeta: metav1.TypeMeta{APIVersion: api.InfrastructureGroupVersion.String(), Kind: "VXAnvilMachine"},
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "nvke-system", Name: tc.name, UID: types.UID("infra-" + tc.name),
 					OwnerReferences: []metav1.OwnerReference{{
@@ -73,7 +73,7 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 			}
 			must(t, c.Create(ctx, machine))
 			var operations []string
-			providerID := "vmetal://" + string(machine.UID)
+			providerID := "vxanvil://" + string(machine.UID)
 			r := MachineReconciler{Client: c, InfrastructureGroup: api.InfrastructureGroupVersion,
 				Bootstrap: kubeadmFunc(func(_ context.Context, target string, req bootstrap.Request) error {
 					operations = append(operations, req.Action)
@@ -88,7 +88,7 @@ func TestNVKEHandoffWithTwoHosts(t *testing.T) {
 				}),
 			}
 			machineKey := client.ObjectKeyFromObject(machine)
-			machineGVK := api.InfrastructureGroupVersion.WithKind("VMetalMachine")
+			machineGVK := api.InfrastructureGroupVersion.WithKind("VXAnvilMachine")
 			getMachine := func() {
 				t.Helper()
 				machine.SetGroupVersionKind(machineGVK)

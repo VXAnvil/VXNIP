@@ -1,13 +1,13 @@
 # Provider files shipped in a management bundle. Paths are repository-relative.
 # Keep install, enrollment, recovery and operator dependencies here.
 config/management-bundle-files.txt
-config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalclusters.yaml
-config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalhosts.yaml
-config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalmachines.yaml
-config/crd/vmetal.infrastructure.cluster.x-k8s.io_vmetalmachinetemplates.yaml
-config/crd/nvke/infrastructure.cluster.x-k8s.io_vmetalclusters.yaml
-config/crd/nvke/infrastructure.cluster.x-k8s.io_vmetalmachines.yaml
-config/crd/nvke/infrastructure.cluster.x-k8s.io_vmetalmachinetemplates.yaml
+config/crd/vxanvil.infrastructure.cluster.x-k8s.io_vxanvilclusters.yaml
+config/crd/vxanvil.infrastructure.cluster.x-k8s.io_vxanvilhosts.yaml
+config/crd/vxanvil.infrastructure.cluster.x-k8s.io_vxanvilmachines.yaml
+config/crd/vxanvil.infrastructure.cluster.x-k8s.io_vxanvilmachinetemplates.yaml
+config/crd/nvke/infrastructure.cluster.x-k8s.io_vxanvilclusters.yaml
+config/crd/nvke/infrastructure.cluster.x-k8s.io_vxanvilmachines.yaml
+config/crd/nvke/infrastructure.cluster.x-k8s.io_vxanvilmachinetemplates.yaml
 config/rbac/capi.yaml
 config/rbac/nvke.yaml
 examples/kubeadm-two-vm.yaml.tmpl
@@ -31,10 +31,3 @@ scripts/vxanvil-network.py
 scripts/check-nvke-lab-workers.sh
 scripts/install-nvke-docker-gpu.sh
 scripts/migrate-vxanvil-hosts.py
-
-# Compatibility entrypoints for existing automation and copied worker bundles.
-scripts/vmetal-kubeadm
-scripts/vmetal-network.py
-scripts/configure-vmetal-client.sh
-scripts/configure-vmetal-manager-network.sh
-scripts/migrate-vmetal-hosts.py

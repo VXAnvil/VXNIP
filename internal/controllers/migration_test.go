@@ -60,7 +60,7 @@ func TestReleasedLegacyHostMigrationWithAPIServer(t *testing.T) {
 	}
 	identity := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	oldID := fmt.Sprintf("%x", sha256.Sum256([]byte("nvke-homelab:"+identity)))
-	newID := fmt.Sprintf("%x", sha256.Sum256([]byte("vmetal:"+identity)))
+	newID := fmt.Sprintf("%x", sha256.Sum256([]byte("vxanvil:"+identity)))
 	old := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "homelab.infrastructure.cluster.x-k8s.io/v1alpha1", "kind": "HomelabHost",
 		"metadata": map[string]any{"name": "host-" + oldID[:32]},
@@ -83,7 +83,7 @@ func TestReleasedLegacyHostMigrationWithAPIServer(t *testing.T) {
 	}
 	var registered api.VXAnvilHost
 	must(t, c.Get(context.Background(), client.ObjectKey{Name: "host-" + newID[:32]}, &registered))
-	if registered.Spec.MachineID != newID || registered.Annotations["vmetal.nvke.dev/migrated-from-uid"] != string(old.GetUID()) {
+	if registered.Spec.MachineID != newID || registered.Annotations["vxanvil.nvke.dev/migrated-from-uid"] != string(old.GetUID()) {
 		t.Fatalf("migration lost identity provenance: %+v", registered)
 	}
 }

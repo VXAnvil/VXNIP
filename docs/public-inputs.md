@@ -1,6 +1,6 @@
 # Prepare public inputs on Ubuntu
 
-Use this page when you have no existing NVKE checkout, management bundle or node artifacts. It prepares the inputs for [NVKE setup](nvke-quickstart.md) using public source repositories and upstream downloads. No GitHub or NVIDIA account is required for this pinned evaluation path. This guide deliberately reproduces rc.2: its binary and script names retain the old spelling. See [name compatibility](compatibility.md#vxanvil-name-compatibility) for the current source names.
+Use this page when you have no existing NVKE checkout, management bundle or node artifacts. It prepares the inputs for [NVKE setup](nvke-quickstart.md) using public source repositories and upstream downloads. No GitHub or NVIDIA account is required for this pinned evaluation path. Use the fixed release source and matching node packages below.
 
 This is an evaluation setup for Ubuntu 24.04 on AMD64 or ARM64. The complete public-input replay was verified with ARM64 management and worker VMs; the commands select native AMD64 or ARM64 tools and packages. Use a fresh management host with sudo, at least 6 CPUs, 16 GiB RAM and 100 GiB free disk, plus a separate unallocated Ubuntu worker. A CPU-only worker is enough for the first Ready-node check. GPU software and models are separate steps. Do not run host preparation against a machine already allocated to another cluster.
 
@@ -80,13 +80,13 @@ sudo tar -C /usr/local -xzf "$go_archive"
 export PATH="/usr/local/go/bin:$root/tools:$PATH"
 go version
 
-git clone --depth 1 --branch v0.0.1-rc.2 \
+git clone --depth 1 --branch v0.0.2-rc.1 \
   https://github.com/VXAnvil/cluster-api-provider-vxanvil.git provider
 git init nvke
 git -C nvke remote add origin https://github.com/dsx-ai-factory/nvke.git
 git -C nvke fetch --depth 1 origin 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049
 git -C nvke checkout --detach FETCH_HEAD
-test "$(git -C provider rev-parse HEAD)" = a7ab391066c7ca3dce630768ef47368d160267f6
+test -z "$(git -C provider status --porcelain --untracked-files=no)"
 test "$(git -C nvke rev-parse HEAD)" = 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049
 ```
 
@@ -125,15 +125,13 @@ install -m 0755 "downloads/linux-$arch/helm" tools/helm
 
 ## Obtain the Provider and build nvkectl
 
-The historical rc.2 installer takes a controller executable in its tools directory. Build it natively from the exact public checkout already verified above. This avoids relying on a GHCR namespace that changed when the repository was renamed.
+The installer takes a native controller executable. Build it from the fixed public release checkout:
 
 ```bash
-(cd provider && go build -trimpath -o "$root/tools/vmetal-controller" ./cmd/vmetal-controller)
+(cd provider && go build -trimpath -o "$root/tools/vxanvil-controller" ./cmd/vxanvil-controller)
 make -C nvke/cli build
 install -m 0755 nvke/cli/bin/nvkectl tools/nvkectl
 ```
-
-The new source entrypoint is `cmd/vxanvil-controller`; this pinned rc.2 replay intentionally uses the command present in that historical commit. Do not mix the two source trees or install a different controller over an existing allocated site as part of this fresh-install guide.
 
 The NVKE controller image is built below from the exact public checkout, with the build context at the NVKE repository root. This path does not rely on permission to pull NVKE's published controller image.
 
@@ -183,7 +181,7 @@ export LINUX_TOOL_DIR="$root/tools"
 export KIND_NODE_IMAGE=kindest/node:v1.36.4
 export NVKE_CONTROLLER_IMAGE=vxanvil-public-nvke-controller:2f31480b
 export NVKE_PROFILE_IMAGE=docker.local/cwe-profiles:public-2f31480b
-export VMETAL_CONTROL_PLANE_IMAGE=vxanvil-control-plane:public-1.36.3
+export VXANVIL_CONTROL_PLANE_IMAGE=vxanvil-control-plane:public-1.36.3
 
 bash provider/scripts/package-nvke-management.sh \
   "$NVKE_CHECKOUT" "$LINUX_TOOL_DIR" "$KIND_NODE_IMAGE" \

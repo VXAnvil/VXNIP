@@ -72,7 +72,7 @@ def interfaces():
         return None
 
 
-# The vmetal: identity namespace is protocol v1 and stays fixed across renames.
+# The vxanvil: identity namespace is protocol v1 and stays fixed across renames.
 def main():
     identity = read("/etc/machine-id")
     if not re.fullmatch(r"[0-9a-f]{32}", identity) or identity == "0" * 32:
@@ -89,7 +89,7 @@ def main():
     os_release = dict(line.split("=", 1) for line in read("/etc/os-release").splitlines()
                       if line and not line.startswith("#") and "=" in line)
     print(json.dumps({
-        "machine_id_hash": hashlib.sha256(("vmetal:" + identity).encode()).hexdigest(),
+        "machine_id_hash": hashlib.sha256(("vxanvil:" + identity).encode()).hexdigest(),
         "hostname": platform.node(),
         "os": os_release["PRETTY_NAME"].strip('"'),
         "kernel": platform.release(),

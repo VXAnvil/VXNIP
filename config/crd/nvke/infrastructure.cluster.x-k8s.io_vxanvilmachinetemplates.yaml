@@ -6,14 +6,14 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.19.0
   labels:
     cluster.x-k8s.io/v1beta2: v1alpha1
-  name: vmetalclusters.vmetal.infrastructure.cluster.x-k8s.io
+  name: vxanvilmachinetemplates.infrastructure.cluster.x-k8s.io
 spec:
-  group: vmetal.infrastructure.cluster.x-k8s.io
+  group: infrastructure.cluster.x-k8s.io
   names:
-    kind: VMetalCluster
-    listKind: VMetalClusterList
-    plural: vmetalclusters
-    singular: vmetalcluster
+    kind: VXAnvilMachineTemplate
+    listKind: VXAnvilMachineTemplateList
+    plural: vxanvilmachinetemplates
+    singular: vxanvilmachinetemplate
   scope: Namespaced
   versions:
   - name: v1alpha1
@@ -39,41 +39,41 @@ spec:
             type: object
           spec:
             properties:
-              controlPlaneEndpoint:
+              template:
                 properties:
-                  host:
-                    maxLength: 253
-                    minLength: 1
-                    type: string
-                  port:
-                    format: int32
-                    maximum: 65535
-                    minimum: 1
-                    type: integer
+                  spec:
+                    properties:
+                      bootstrapMode:
+                        description: BootstrapMode defaults to the existing Cluster
+                          API kubeadm path.
+                        enum:
+                        - Kubeadm
+                        - NVKE
+                        type: string
+                      hostRef:
+                        description: HostRef is the name of a cluster-scoped VXAnvilHost.
+                        pattern: ^host-[a-f0-9]{32}$
+                        type: string
+                      providerID:
+                        description: ProviderID is written by the controller and matches
+                          the kubelet provider ID.
+                        maxLength: 512
+                        minLength: 1
+                        type: string
+                    required:
+                    - hostRef
+                    type: object
                 required:
-                - host
-                - port
+                - spec
                 type: object
             required:
-            - controlPlaneEndpoint
-            type: object
-          status:
-            properties:
-              initialization:
-                properties:
-                  provisioned:
-                    type: boolean
-                required:
-                - provisioned
-                type: object
+            - template
             type: object
         required:
         - spec
         type: object
         x-kubernetes-validations:
-        - message: the control plane endpoint is immutable
+        - message: machine template is immutable
           rule: self.spec == oldSelf.spec
     served: true
     storage: true
-    subresources:
-      status: {}

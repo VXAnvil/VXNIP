@@ -11,8 +11,8 @@ import tempfile
 
 OLD_GROUP = "homelab.infrastructure.cluster.x-k8s.io"
 OLD_HOSTS = "homelabhosts." + OLD_GROUP
-NEW_HOSTS = "vmetalhosts.vmetal.infrastructure.cluster.x-k8s.io"
-IDENTITY_NAMESPACE = "vmetal:"  # Protocol v1, frozen independently of display names.
+NEW_HOSTS = "vxanvilhosts.vxanvil.infrastructure.cluster.x-k8s.io"
+IDENTITY_NAMESPACE = "vxanvil:"  # Protocol v1, frozen independently of display names.
 
 
 def kubectl(config, *args, body=None):
@@ -123,13 +123,13 @@ def apply_migration(source, target, path, plan):
             raise ValueError("Physical host or migration mapping changed during migration")
         new = kubectl(target, "get", NEW_HOSTS, entry["newName"], "--ignore-not-found", "-o", "json")
         if new:
-            if new["spec"] != entry["newSpec"] or new["metadata"].get("annotations", {}).get("vmetal.nvke.dev/migrated-from-uid") != entry["oldUID"]:
+            if new["spec"] != entry["newSpec"] or new["metadata"].get("annotations", {}).get("vxanvil.nvke.dev/migrated-from-uid") != entry["oldUID"]:
                 raise ValueError("Target identity is owned by another registration")
         else:
-            obj = {"apiVersion": "vmetal.infrastructure.cluster.x-k8s.io/v1alpha1",
-                   "kind": "VMetalHost", "metadata": {
+            obj = {"apiVersion": "vxanvil.infrastructure.cluster.x-k8s.io/v1alpha1",
+                   "kind": "VXAnvilHost", "metadata": {
                        "name": entry["newName"], "annotations": {
-                           "vmetal.nvke.dev/migrated-from-uid": entry["oldUID"]}},
+                           "vxanvil.nvke.dev/migrated-from-uid": entry["oldUID"]}},
                    "spec": entry["newSpec"]}
             kubectl(target, "create", "-f", "-", body=obj)
         entry["created"] = True

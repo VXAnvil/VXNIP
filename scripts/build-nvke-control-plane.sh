@@ -1,10 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-# Accept existing automation without changing the new variable's precedence.
-for legacy_key in ${!VMETAL_@}; do
-    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
-    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
-done
 umask 077
 [[ $# == 3 || $# == 4 ]] || {
     echo "Usage: $0 dependency-base-image verified-artifact-dir output-image [host-kernel-config]" >&2
@@ -82,12 +77,12 @@ sed -i '/^COPY root\//a COPY ovn-charts.deb /tmp/ovn-charts.deb\nRUN dpkg -i /tm
 helper=$(sha256sum "$repo/scripts/vxanvil-kubeadm" | cut -d' ' -f1)
 manifest=$(sha256sum "$artifacts/SHA256SUMS" | cut -d' ' -f1)
 docker build --build-arg "NVKE_NODE_IMAGE=$base" \
-    --label vmetal.nvke.dev/kubernetes=v1.36.3 \
-    --label "vmetal.nvke.dev/kernel=$target_kernel" \
-    --label "vmetal.nvke.dev/helper-sha256=$helper" \
-    --label "vmetal.nvke.dev/artifacts-sha256=$manifest" -t "$image" "$context"
+    --label vxanvil.nvke.dev/kubernetes=v1.36.3 \
+    --label "vxanvil.nvke.dev/kernel=$target_kernel" \
+    --label "vxanvil.nvke.dev/helper-sha256=$helper" \
+    --label "vxanvil.nvke.dev/artifacts-sha256=$manifest" -t "$image" "$context"
 docker run --rm --network none --entrypoint /usr/bin/kubeadm "$image" version -o short | grep -Fx v1.36.3
-docker run --rm --network none --user vmetal --entrypoint /usr/bin/python3 "$image" -c 'import os; assert os.geteuid()!=0'
+docker run --rm --network none --user vxanvil --entrypoint /usr/bin/python3 "$image" -c 'import os; assert os.geteuid()!=0'
 docker run --rm --network none --entrypoint /usr/bin/dpkg-query "$image" \
     -W -f='${Version}\n' nvke-cni-ovn-charts-2.4.2 | grep -Fx 2.4.2
 docker run --rm --network none --entrypoint /usr/bin/python3 "$image" -c '

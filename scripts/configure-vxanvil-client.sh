@@ -1,10 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-# Accept existing automation without changing the new variable's precedence.
-for legacy_key in ${!VMETAL_@}; do
-    canonical_key="VXANVIL_${legacy_key#VMETAL_}"
-    if [[ ${!canonical_key+x} != x ]]; then export "$canonical_key=${!legacy_key}"; fi
-done
 umask 077
 [[ $# == 2 || $# == 3 ]] || {
     echo "Usage: sudo bash $0 management-state client-directory [workload-kubeconfig]" >&2
@@ -54,7 +49,7 @@ if [[ $EUID == 0 && -n ${SUDO_UID:-} && $SUDO_UID != 0 ]]; then
 fi
 printf '\nLoad this site in any new terminal:\nsource %q\n' "$output/env.sh"
 printf 'Commands:\nnvkectl --site "$NVKE_SITE" get clusters\n'
-printf 'kubectl --kubeconfig %q get vmetalhosts\n' "$output/management.kubeconfig"
+printf 'kubectl --kubeconfig %q get vxanvilhosts\n' "$output/management.kubeconfig"
 if [[ -f $output/workload.kubeconfig ]]; then
     printf 'kubectl --kubeconfig %q get nodes\n' "$output/workload.kubeconfig"
 fi

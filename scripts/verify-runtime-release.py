@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'skills/vxanvil-cluster/scripts'))
@@ -15,11 +16,12 @@ publisher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(publisher)
 
 
-def verify(directory, tag):
-    result = {'schema': 1, 'sources': RELEASE, 'assets': {}}
+def verify(directory, tag, expected_sources=None):
+    expected_sources = RELEASE if expected_sources is None else expected_sources
+    result = {'schema': 1, 'sources': expected_sources, 'assets': {}}
     for arch in ('amd64', 'arm64'):
         manifest = json.loads((directory / ('manifest-' + arch + '.json')).read_text())
-        if manifest.get('schema') != 1 or manifest.get('sources') != RELEASE:
+        if manifest.get('schema') != 1 or manifest.get('sources') != expected_sources:
             raise ValueError('Native publisher source identity differs')
         for role in ('manager', 'node'):
             key = role + '-' + arch
@@ -35,7 +37,7 @@ def verify(directory, tag):
             result['assets'][key] = asset
     output = directory / 'runtime-artifacts.json'
     output.write_text(json.dumps(result, indent=2) + '\n')
-    artifacts.catalog(output, RELEASE)
+    artifacts.catalog(output, expected_sources)
     return result
 
 
@@ -44,4 +46,5 @@ if __name__ == '__main__':
     parser.add_argument('directory', type=Path)
     parser.add_argument('--tag', required=True)
     args = parser.parse_args()
-    verify(args.directory, args.tag)
+    revision = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
+    verify(args.directory, args.tag, dict(RELEASE, provider=revision))

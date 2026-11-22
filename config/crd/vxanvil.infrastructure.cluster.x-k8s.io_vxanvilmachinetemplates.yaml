@@ -6,14 +6,14 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.19.0
   labels:
     cluster.x-k8s.io/v1beta2: v1alpha1
-  name: vmetalmachinetemplates.infrastructure.cluster.x-k8s.io
+  name: vxanvilmachinetemplates.vxanvil.infrastructure.cluster.x-k8s.io
 spec:
-  group: infrastructure.cluster.x-k8s.io
+  group: vxanvil.infrastructure.cluster.x-k8s.io
   names:
-    kind: VMetalMachineTemplate
-    listKind: VMetalMachineTemplateList
-    plural: vmetalmachinetemplates
-    singular: vmetalmachinetemplate
+    kind: VXAnvilMachineTemplate
+    listKind: VXAnvilMachineTemplateList
+    plural: vxanvilmachinetemplates
+    singular: vxanvilmachinetemplate
   scope: Namespaced
   versions:
   - name: v1alpha1
@@ -51,7 +51,7 @@ spec:
                         - NVKE
                         type: string
                       hostRef:
-                        description: HostRef is the name of a cluster-scoped VMetalHost.
+                        description: HostRef is the name of a cluster-scoped VXAnvilHost.
                         pattern: ^host-[a-f0-9]{32}$
                         type: string
                       providerID:

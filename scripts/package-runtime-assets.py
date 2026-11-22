@@ -6,6 +6,7 @@ import io
 import json
 from pathlib import Path
 import platform
+import os
 import re
 import subprocess
 import sys
@@ -24,7 +25,8 @@ def sha256(path):
     return h.hexdigest()
 
 
-def pack(directory, role, arch, output, tag):
+def pack(directory, role, arch, output, tag, sources=None):
+    sources = RELEASE if sources is None else sources
     root_name = 'management-bundle' if role == 'manager' else 'artifacts'
     selected = []
     if role == 'manager':
@@ -44,10 +46,10 @@ def pack(directory, role, arch, output, tag):
             if path.is_symlink() or not path.is_file() or sha256(path) != digest:
                 raise ValueError('Unverified node artifact: ' + name)
             selected.append((path, Path(name)))
-    metadata = json.dumps({'schema': 1, 'role': role, 'arch': arch, 'sources': RELEASE}, sort_keys=True).encode()
+    metadata = json.dumps({'schema': 1, 'role': role, 'arch': arch, 'sources': sources}, sort_keys=True).encode()
     total = len(metadata)
     archive_path = output / f'vxanvil-{role}-{arch}.tar.gz'
-    with tarfile.open(archive_path, 'x:gz', compresslevel=1) as tar:
+    with tarfile.open(archive_path, 'x:gz', compresslevel=6) as tar:
         info = tarfile.TarInfo('asset.json')
         info.size, info.mode = len(metadata), 0o644
         tar.addfile(info, io.BytesIO(metadata))
@@ -82,7 +84,11 @@ def main():
     native = {'x86_64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(platform.machine())
     if native != args.arch or not re.fullmatch(r'runtime-v[0-9A-Za-z.-]+', args.tag):
         raise ValueError('Publish on the native architecture with a versioned runtime tag')
-    for checkout, revision in (('provider', RELEASE['provider']), ('nvke', RELEASE['nvke'])):
+    provider_revision = os.environ.get('VXANVIL_PROVIDER_REVISION', RELEASE['provider'])
+    if not re.fullmatch(r'[a-f0-9]{40}', provider_revision):
+        raise ValueError('Publisher requires an exact Provider source commit')
+    sources = dict(RELEASE, provider=provider_revision)
+    for checkout, revision in (('provider', sources['provider']), ('nvke', sources['nvke'])):
         actual = subprocess.check_output(['git', '-C', str(args.workspace / checkout), 'rev-parse', 'HEAD'], text=True).strip()
         if actual != revision:
             raise ValueError('Workspace source revision differs: ' + checkout)
@@ -91,8 +97,8 @@ def main():
     args.output.mkdir(mode=0o700, parents=True, exist_ok=True)
     assets = {}
     for role, directory in (('manager', manager), ('node', args.workspace / 'artifacts')):
-        assets[role + '-' + args.arch] = pack(directory, role, args.arch, args.output, args.tag)
-    (args.output / ('manifest-' + args.arch + '.json')).write_text(json.dumps({'schema': 1, 'sources': RELEASE, 'assets': assets}, indent=2))
+        assets[role + '-' + args.arch] = pack(directory, role, args.arch, args.output, args.tag, sources=sources)
+    (args.output / ('manifest-' + args.arch + '.json')).write_text(json.dumps({'schema': 1, 'sources': sources, 'assets': assets}, indent=2))
 
 
 if __name__ == '__main__':

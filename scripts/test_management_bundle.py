@@ -107,20 +107,6 @@ else:
         for relative in re.findall(r"^COPY (?:--\S+ )?(\S+)", dockerfile, re.MULTILINE):
             self.assertTrue((provider / relative).is_file(), relative)
 
-    def test_legacy_tool_and_environment_still_package_the_same_runtime(self):
-        (self.tools / "vxanvil-controller").rename(self.tools / "vmetal-controller")
-        self.env["VMETAL_CONTROL_PLANE_IMAGE"] = "legacy-control-plane:fixture"
-        result = self.package()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue((self.output / "bin/vxanvil-controller").is_file())
-        self.assertEqual((self.output / "control-plane-image").read_text(), "legacy-control-plane:fixture\n")
-
-    def test_new_environment_takes_precedence_over_legacy_environment(self):
-        self.env["VMETAL_CONTROL_PLANE_IMAGE"] = "legacy-control-plane:fixture"
-        result = self.package(extra_image=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((self.output / "control-plane-image").read_text(), "vxanvil-control-plane:fixture\n")
-
     def test_three_image_bundle_preserves_install_enrollment_and_recovery(self):
         # Untracked operator files must never leak into the distribution.
         (self.repo / "scripts/local-secret.env").write_text("must-not-ship\n")

@@ -14,32 +14,24 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-The current source skill is named `vxanvil-cluster`. Previously published [skill-v0.1.0-rc.4](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.1.0-rc.4) retains its historical asset and installed folder name, `vmetal-cluster`. To install that exact published version:
+Install the [VXAnvil skill release](https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/tag/skill-v0.2.0-rc.1):
 
 ```bash
-release=skill-v0.1.0-rc.4
+release=skill-v0.2.0-rc.1
 base="https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/$release"
-curl --proto '=https' --proto-redir '=https' -fL "$base/vmetal-cluster.zip" -o vmetal-cluster.zip
-curl --proto '=https' --proto-redir '=https' -fL "$base/vmetal-cluster.zip.sha256" -o vmetal-cluster.zip.sha256
+curl --proto '=https' --proto-redir '=https' -fL "$base/vxanvil-cluster.zip" -o vxanvil-cluster.zip
+curl --proto '=https' --proto-redir '=https' -fL "$base/vxanvil-cluster.zip.sha256" -o vxanvil-cluster.zip.sha256
 python3 - <<'PY_VERIFY'
 from pathlib import Path
 import hashlib
-expected = Path('vmetal-cluster.zip.sha256').read_text().split()[0]
-assert hashlib.sha256(Path('vmetal-cluster.zip').read_bytes()).hexdigest() == expected, 'Checksum mismatch'
+expected = Path('vxanvil-cluster.zip.sha256').read_text().split()[0]
+assert hashlib.sha256(Path('vxanvil-cluster.zip').read_bytes()).hexdigest() == expected, 'Checksum mismatch'
 print('ZIP checksum verified')
 PY_VERIFY
+python3 -m zipfile -e vxanvil-cluster.zip "$HOME/.agents/skills"
 ```
 
-Extract into one agent skill directory. Back up its existing folder before upgrading.
-
-| Version | Codex installation command | Invoke |
-| --- | --- | --- |
-| Historical rc.4 ZIP above | `python3 -m zipfile -e vmetal-cluster.zip "$HOME/.agents/skills"` | `$vmetal-cluster` |
-| Package built from the current source below | `python3 -m zipfile -e dist/vxanvil-cluster.zip "$HOME/.agents/skills"` | `$vxanvil-cluster` |
-
-For Claude Code, extract into `$HOME/.claude/skills` and invoke `/vmetal-cluster` or `/vxanvil-cluster` to match the actual installed folder. Do not install a new folder next to an older skill and assume its interrupted plans can resume with different code. See [name compatibility](compatibility.md#vxanvil-name-compatibility).
-
-The current source skill pins the same published native runtimes and still uses `vmetal-*` site names. A newly named native-runtime release has not been published by this source rename.
+This installs `vxanvil-cluster/`; invoke `$vxanvil-cluster` in Codex. For Claude Code, extract into `$HOME/.claude/skills` and invoke `/vxanvil-cluster`. Back up an existing folder before replacing it, and complete interrupted runs with their exact original runtime and plan.
 
 Then ask, for example:
 
@@ -83,7 +75,7 @@ python3 scripts/test_cluster_bootstrap.py
 
 Offline tests cover mixed-architecture artifact selection, Tailscale addresses and approval gates, VM/bare-metal selection, existing-mode dispatch without installers, protected resource drift, unknown inventory, shared-runtime compatibility, SSH trust, interrupted actions, allocation identity, packaging and probe cleanup. ShellCheck and Python/Bash parsing cover runtime files.
 
-Historical source-path validation completed with an ARM64 management VM and AMD64 worker VM, including native architecture-specific builds, approved Tailscale routes, two Ready Nodes, strict Host/Machine/provider identity, fresh bidirectional Pod HTTP and Service DNS/HTTP. The existing ThinkPad/Spark cluster passed separate read-only preservation checks: 4 Hosts, 4 Machines, 2 Nodes, 60 controllers and 76 Pods retained the same protected snapshot; 35/35 Deployments were available. The run exposed and fixed management/workload name collisions and early HTTP probing under TCG. The completed stages were retained through audited plan updates. A new physical bare-metal installation remains untested; GPU workloads and migration are outside this release.
+Fresh release acceptance records the exact artifacts and checks described in [validation](cluster-skill-validation.md).
 
 CAPI v1beta2 may publish a name-only `status.nodeRef`. The verifier checks a supplied Node UID strictly; if omitted it reports `node_ref_uid_verified: false`, retains the observed Node UID for preservation comparisons, and still requires the exact allocation-derived providerID, physical Host identity, expected address and Node Ready. It does not invent a UID or accept a mismatched providerID.
 

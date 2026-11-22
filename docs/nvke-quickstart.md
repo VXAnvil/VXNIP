@@ -28,7 +28,7 @@ On the Linux management host, set `bundle` to the output directory and run the b
 ```bash
 bundle=/path/to/management-bundle
 sudo bash "$bundle/provider/scripts/init-nvke-management.sh" \
-  "$bundle" /var/lib/vmetal-nvke \
+  "$bundle" /var/lib/vxanvil-nvke \
   192.168.50.10 192.168.50.0/24 vxanvil-site
 ```
 
@@ -40,7 +40,7 @@ Issue an enrollment bundle for an unallocated worker from the management host. T
 
 ```bash
 sudo bash "$bundle/provider/scripts/issue-nvke-enrollment.sh" \
-  /var/lib/vmetal-nvke /root/worker01-invitation
+  /var/lib/vxanvil-nvke /root/worker01-invitation
 ```
 
 On the worker, run the enrollment script. On the management host, inspect the registered inventory with the management kubeconfig. A host is ready to allocate when discovery is ready, bootstrapping is allowed, and its claim is empty.
@@ -50,7 +50,7 @@ sudo bash /path/to/worker01-invitation/enroll.sh /path/to/verified-worker-artifa
 ```
 
 ```bash
-sudo "$bundle/bin/kubectl" --kubeconfig /var/lib/vmetal-nvke/management.kubeconfig get vmetalhosts
+sudo "$bundle/bin/kubectl" --kubeconfig /var/lib/vxanvil-nvke/management.kubeconfig get vxanvilhosts
 ```
 
 Use [the NVKE adapter example](development.md#test-the-nvke-infra-adapter) to allocate a control plane and the first worker. Compare the workload Node's `spec.providerID` with the management cluster Machine's `spec.providerID`. A reboot of the same allocation should preserve this identifier. Releasing and allocating again creates a new Machine.
@@ -65,7 +65,7 @@ Use a root shell on the management host for the root-owned site state. Select th
 
 ```bash
 provider_dir=/path/to/management-bundle/provider
-MGMT_STATE=/var/lib/vmetal-nvke
+MGMT_STATE=/var/lib/vxanvil-nvke
 export PATH="/path/to/management-bundle/bin:$PATH"
 export KUBECONFIG="$MGMT_STATE/management.kubeconfig"
 export XDG_CONFIG_HOME="$MGMT_STATE/nvkectl-config"
@@ -92,7 +92,7 @@ The worker needs a route to the Docker API through the management host. Copy the
 source /path/to/layout.env
 sudo bash /path/to/worker01-invitation/configure-nvke-lab-host-recovery.sh \
   --install worker "$WORKER_IP" "$CP_IP" "$MANAGER_IP" "$WORKER_GATEWAY"
-sudo systemctl start vmetal-nvke-lab-worker-recovery.service
+sudo systemctl start vxanvil-nvke-lab-worker-recovery.service
 ip -4 route get "$CP_IP"
 ```
 
@@ -100,11 +100,11 @@ Back in the management host's root shell, retain the environment and `install_di
 
 ```bash
 source layout.env
-WORKER_HOST=$(kubectl get vmetalhosts -o json | jq -er --arg ip "$WORKER_IP" \
+WORKER_HOST=$(kubectl get vxanvilhosts -o json | jq -er --arg ip "$WORKER_IP" \
   '[.items[] | select(.spec.nodeIP == $ip)] | select(length == 1) | .[0].metadata.name')
 kubectl wait --for='jsonpath={.status.discoveryReady}=true' \
-  "vmetalhost/$WORKER_HOST" --timeout=120s
-kubectl get vmetalhost "$WORKER_HOST" -o json | \
+  "vxanvilhost/$WORKER_HOST" --timeout=120s
+kubectl get vxanvilhost "$WORKER_HOST" -o json | \
   jq -e '(.status.claim.uid // "") == ""'
 CLUSTER_ID=$(nvkectl --site "$NVKE_SITE" get clusters -o json | \
   jq -er --arg name "$CLUSTER" \
@@ -118,13 +118,13 @@ desiredNodeCount: 1
 systemReservedMemory: "512Mi"
 kubeReservedMemory: "256Mi"
 nodeLabels:
-  vmetal.nvke.dev/gateway: local
+  vxanvil.nvke.dev/gateway: local
 autoModeDisabled: true
 provisioningMonitorDisabled: true
 infra:
   machineTemplate:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-    kind: VMetalMachineTemplate
+    kind: VXAnvilMachineTemplate
     spec:
       template:
         spec:
@@ -134,9 +134,9 @@ YAML
 nvkectl --site "$NVKE_SITE" create nodepool -f "$install_dir/cpu-pool.yaml"
 
 kubectl wait --for='jsonpath={.status.claim.name}' \
-  "vmetalhost/$WORKER_HOST" --timeout=180s
-WORKER_NODE=$(kubectl get vmetalhost "$WORKER_HOST" -o jsonpath='{.status.claim.name}')
-MACHINE_NAMESPACE=$(kubectl get vmetalhost "$WORKER_HOST" -o jsonpath='{.status.claim.namespace}')
+  "vxanvilhost/$WORKER_HOST" --timeout=180s
+WORKER_NODE=$(kubectl get vxanvilhost "$WORKER_HOST" -o jsonpath='{.status.claim.name}')
+MACHINE_NAMESPACE=$(kubectl get vxanvilhost "$WORKER_HOST" -o jsonpath='{.status.claim.namespace}')
 kubectl --kubeconfig "$install_dir/workload.kubeconfig" wait --for=create \
   "node/$WORKER_NODE" --timeout=300s
 kubectl --kubeconfig "$install_dir/workload.kubeconfig" wait --for=condition=Ready \
@@ -146,7 +146,7 @@ kubectl --kubeconfig "$install_dir/workload.kubeconfig" get nodes -o wide
 NODE_PROVIDER_ID=$(kubectl --kubeconfig "$install_dir/workload.kubeconfig" \
   get node "$WORKER_NODE" -o jsonpath='{.spec.providerID}')
 MACHINE_PROVIDER_ID=$(kubectl -n "$MACHINE_NAMESPACE" \
-  get vmetalmachine.infrastructure.cluster.x-k8s.io "$WORKER_NODE" -o jsonpath='{.spec.providerID}')
+  get vxanvilmachine.infrastructure.cluster.x-k8s.io "$WORKER_NODE" -o jsonpath='{.spec.providerID}')
 test -n "$NODE_PROVIDER_ID" && test "$NODE_PROVIDER_ID" = "$MACHINE_PROVIDER_ID"
 CP_NODE=$(kubectl --kubeconfig "$install_dir/workload.kubeconfig" get nodes \
   -l node-role.kubernetes.io/control-plane -o jsonpath='{.items[0].metadata.name}')
@@ -154,24 +154,24 @@ bash "$provider_dir/scripts/check-nvke-lab-workers.sh" \
   "$install_dir/workload.kubeconfig" "https://$CP_IP:6443" "$CP_NODE" "$WORKER_NODE"
 ```
 
-The `vmetal.nvke.dev/gateway: local` label selects the worker OVN DaemonSet created during control-plane setup.
+The `vxanvil.nvke.dev/gateway: local` label selects the worker OVN DaemonSet created during control-plane setup.
 
-Expected result: two Ready workload Nodes, a matching `vmetal://` worker provider ID, and HTTP success in both directions. The HTTP script creates and removes its own temporary namespace. This CPU path does not install a GPU plugin or model service.
+Expected result: two Ready workload Nodes, a matching `vxanvil://` worker provider ID, and HTTP success in both directions. The HTTP script creates and removes its own temporary namespace. This CPU path does not install a GPU plugin or model service.
 
 ## Join an NVIDIA GPU worker
 
-This installer path prepares an unallocated Ubuntu AMD64 NVIDIA GPU worker with an existing working NVIDIA driver and Container Toolkit. It taints the worker `vmetal.nvke.dev/experiment=true:NoSchedule`; workloads need a matching toleration. Use the generic adapter for other layouts. Use this path instead of the VM enrollment path for that worker.
+This installer path prepares an unallocated Ubuntu AMD64 NVIDIA GPU worker with an existing working NVIDIA driver and Container Toolkit. It taints the worker `vxanvil.nvke.dev/experiment=true:NoSchedule`; workloads need a matching toleration. Use the generic adapter for other layouts. Use this path instead of the VM enrollment path for that worker.
 
 On the worker, copy the bundle's runtime `provider/` directory and the same trusted layout. Copy the installer's public `provider.pub` and workload `ca.crt` from `$install_dir/worker/` into the worker state directory. Set `provider_dir` to the copied directory, then run preflight and preparation:
 
 ```bash
 provider_dir=/path/to/provider
-worker_state=/var/lib/vmetal-gpu-install
+worker_state=/var/lib/vxanvil-gpu-install
 sudo env WORKER_USER=ubuntu WORKER_ARTIFACTS=/path/to/verified-worker-artifacts \
-  WORKER_STORAGE=/var/lib/vmetal-nvke-worker \
+  WORKER_STORAGE=/var/lib/vxanvil-nvke-worker \
   bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" check-worker layout.env "$worker_state"
 sudo env WORKER_USER=ubuntu WORKER_ARTIFACTS=/path/to/verified-worker-artifacts \
-  WORKER_STORAGE=/var/lib/vmetal-nvke-worker \
+  WORKER_STORAGE=/var/lib/vxanvil-nvke-worker \
   bash "$provider_dir/scripts/install-nvke-docker-gpu.sh" worker layout.env "$worker_state"
 ```
 
