@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "sources": {
+    "provider": "1650c7c1175d3475ec7498ff442adb373c43b871",
+    "nvke": "2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049"
+  },
+  "assets": {
+    "manager-amd64": {
+      "role": "manager",
+      "arch": "amd64",
+      "size": 2056765393,
+      "unpacked_size": 3548582670,
+      "sha256": "83393c9912f457604ba90d712773ee79e70f8319980fa897b6ad17dd000b287c",
+      "url": "https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/runtime-v0.2.0-rc.1/vxanvil-manager-amd64.tar.gz"
+    },
+    "node-amd64": {
+      "role": "node",
+      "arch": "amd64",
+      "size": 680239857,
+      "unpacked_size": 761325607,
+      "sha256": "96a3d3dc5a370b9ec52bbc8e98a972745d94ad29aa2ecee1379bfd9f98dbf52f",
+      "url": "https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/runtime-v0.2.0-rc.1/vxanvil-node-amd64.tar.gz"
+    },
+    "manager-arm64": {
+      "role": "manager",
+      "arch": "arm64",
+      "size": 1877580522,
+      "unpacked_size": 3379531486,
+      "sha256": "9d4e2ae75cf98f1b50e0ed81d83fa7ec86a6986519ead001f7029028d054c018",
+      "url": "https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/runtime-v0.2.0-rc.1/vxanvil-manager-arm64.tar.gz"
+    },
+    "node-arm64": {
+      "role": "node",
+      "arch": "arm64",
+      "size": 620250110,
+      "unpacked_size": 697646491,
+      "sha256": "91ab9632cee2cdfe488eda753f061a2d3f804745bac64ebfb6e1054507643363",
+      "url": "https://github.com/VXAnvil/cluster-api-provider-vxanvil/releases/download/runtime-v0.2.0-rc.1/vxanvil-node-arm64.tar.gz"
+    }
+  }
+}

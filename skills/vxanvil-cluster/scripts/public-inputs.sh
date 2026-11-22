@@ -50,7 +50,7 @@ checkout() {
     git -C "$directory" -c core.hooksPath=/dev/null checkout --detach FETCH_HEAD
     [[ $(git -C "$directory" rev-parse HEAD) == "$revision" ]]
 }
-provider_revision=${VXANVIL_PROVIDER_REVISION:-633b2efb1d3b087376b995c906887a3d8c994ba7}
+provider_revision=${VXANVIL_PROVIDER_REVISION:-1650c7c1175d3475ec7498ff442adb373c43b871}
 [[ $provider_revision =~ ^[a-f0-9]{40}$ ]] || { echo 'Provider source requires an exact commit.' >&2; exit 1; }
 checkout https://github.com/VXAnvil/cluster-api-provider-vxanvil.git "$provider_revision" provider
 grep -Fx 'module github.com/VXAnvil/cluster-api-provider-vxanvil' provider/go.mod >/dev/null || {
