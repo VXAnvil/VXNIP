@@ -77,6 +77,8 @@ The manager must be a dedicated Ubuntu 24.04 AMD64/ARM64 host without existing c
 
 A VM uses the dedicated VM preparation script. A bare-metal worker requires a healthy existing Docker/shared containerd 2.x installation; preparation extracts the pinned node tools into an isolated runtime/socket/root, uses OVN local gateway without taking over the physical NIC, appends a restricted Provider public key, and preserves Docker, shared containerd, existing containers, the default route and the NVIDIA driver. The pinned bare-metal helper keeps its `vxnip.nvke.dev/experiment=true:NoSchedule` taint; ordinary workloads need the corresponding toleration, and this executor does not silently remove that scheduling restriction. Shared resources are snapshotted before building/preparation and checked both before allocation and after final verification. Changes stop the run; there is no automatic rollback or reinstall.
 
+Runtime download URLs use the current repository address. Published archives retain their original source pins, bytes and checksums. Developer source builds fetch those exact commits from the current repository; their historical module declarations need not match the current checkout.
+
 Default release mode downloads SHA-256-pinned manager and node runtimes for AMD64/ARM64, selects each worker's native architecture and shares the verified node assets only with workers of that architecture. No compiler, source checkout or image build runs on user machines. Download failure is a resumable gate and does not trigger a source-build fallback.
 
 Developer-only `artifact_mode: source` compiles on the targets. In that mode, manager-native workers receive the manager's verified artifacts. Each other architecture builds natively on its first suitable worker (6 GiB available RAM and 80 GiB free disk required), and shares that verified artifact tree only with the same architecture. No AMD64 package is reused for ARM64 and no QEMU/binfmt changes are made. The native node-only builder rejects apt removals/upgrades, uses a unique build image name and does not restart shared Docker/containerd or build an extra management stack. An incompatible dependency transaction blocks and requires a separately prepared native build environment; it is not forced through.
@@ -91,7 +93,7 @@ Routes and grants may require approval by the tailnet administrator. The worker 
 
 ## Public inputs
 
-- VXNIP: `https://github.com/VXAnvil/VXNIP.git`, revision `eb563fdd1f66093c036925a653e223019945d72c`.
+- VXNIP: `https://github.com/VXAnvil/cluster-api-provider-vxnip.git`, revision `eb563fdd1f66093c036925a653e223019945d72c`.
 - NVKE: `https://github.com/dsx-ai-factory/nvke.git`, revision `2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049`.
 - Publisher/developer build tools: Go 1.27.4, Kind 0.32.0, kubectl 1.36.3, clusterctl 1.13.6 and Helm 4.2.4 from architecture-specific upstream downloads, verified against HTTPS publisher metadata/checksums before execution. Git checkouts are checked against full commit IDs.
 - Native node packages, OVN/SPIRE agents, unit files and images are built once by the native publisher through the fixed public-source procedure; NVKE package builders use committed upstream locks. SHA256SUMS and image IDs are retained and checked before packaging/installation.

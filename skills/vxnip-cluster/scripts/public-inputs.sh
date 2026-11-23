@@ -52,9 +52,12 @@ checkout() {
 }
 provider_revision=${VXNIP_PROVIDER_REVISION:-eb563fdd1f66093c036925a653e223019945d72c}
 [[ $provider_revision =~ ^[a-f0-9]{40}$ ]] || { echo 'Provider source requires an exact commit.' >&2; exit 1; }
-checkout https://github.com/VXAnvil/VXNIP.git "$provider_revision" provider
-grep -Fx 'module github.com/VXAnvil/VXNIP' provider/go.mod >/dev/null || {
-    echo 'Provider pin must use the native VXNIP module.' >&2; exit 1;
+checkout https://github.com/VXAnvil/cluster-api-provider-vxnip.git "$provider_revision" provider
+# Released runtimes keep their exact historical source pin. Validate the native
+# entry point and API rather than requiring today's module name in that commit.
+[[ -f provider/cmd/vxnip-controller/main.go &&
+   -f provider/config/crd/vxnip.infrastructure.cluster.x-k8s.io_vxniphosts.yaml ]] || {
+    echo 'Provider pin must contain the native VXNIP controller and API.' >&2; exit 1;
 }
 checkout https://github.com/dsx-ai-factory/nvke.git \
   2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049 nvke

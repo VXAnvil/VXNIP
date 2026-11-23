@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/VXAnvil/VXNIP/internal/discovery"
+	"github.com/VXAnvil/cluster-api-provider-vxnip/internal/discovery"
 )
 
 const usage = `Usage: vxnip [-state PATH] COMMAND [ARGS]

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
+	api "github.com/VXAnvil/cluster-api-provider-vxnip/api/v1alpha1"
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

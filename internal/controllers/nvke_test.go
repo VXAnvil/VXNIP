@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
-	"github.com/VXAnvil/VXNIP/internal/bootstrap"
+	api "github.com/VXAnvil/cluster-api-provider-vxnip/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxnip/internal/bootstrap"
 )
 
 func TestNVKEHandoffWithTwoHosts(t *testing.T) {

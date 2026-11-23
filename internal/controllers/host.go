@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
-	"github.com/VXAnvil/VXNIP/internal/discovery"
+	api "github.com/VXAnvil/cluster-api-provider-vxnip/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxnip/internal/discovery"
 )
 
 const (

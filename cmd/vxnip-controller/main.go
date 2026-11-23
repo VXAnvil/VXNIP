@@ -12,10 +12,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	api "github.com/VXAnvil/VXNIP/api/v1alpha1"
-	"github.com/VXAnvil/VXNIP/internal/bootstrap"
-	"github.com/VXAnvil/VXNIP/internal/controllers"
-	"github.com/VXAnvil/VXNIP/internal/discovery"
+	api "github.com/VXAnvil/cluster-api-provider-vxnip/api/v1alpha1"
+	"github.com/VXAnvil/cluster-api-provider-vxnip/internal/bootstrap"
+	"github.com/VXAnvil/cluster-api-provider-vxnip/internal/controllers"
+	"github.com/VXAnvil/cluster-api-provider-vxnip/internal/discovery"
 )
 
 func run() error {

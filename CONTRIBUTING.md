@@ -21,9 +21,9 @@ Keep changes focused. Include the problem, resulting behavior and relevant verif
 
 ## Publishing images
 
-The image repository is `ghcr.io/vxanvil/vxnip`. Workflows derive the registry path from the GitHub repository identity.
+The image repository is `ghcr.io/vxanvil/cluster-api-provider-vxnip`. Workflows derive the registry path from the GitHub repository identity.
 
-Existing tags retain their historical source and module path. Use a new tested tag when releasing the module under the organization path.
+Existing tags, release attachments and image digests retain their historical contents. The next tested revision publishes to the repository above; existing image packages are not renamed. Confirm that the new GHCR package permits Actions publication and anonymous pulls before directing users to it.
 
 Every pushed branch revision continues to publish a multi-platform image under its commit SHA. Version-tag promotion requires a successful `CI` run for the **exact tagged commit**, from a `main` push or an explicit manual CI run in this repository. All four CI jobs must have succeeded. PR-only results, other commits and older green runs followed by a newer failure do not authorize promotion.
 
@@ -36,7 +36,7 @@ The tag workflow also accepts a manual run with an existing Git tag and `dry_run
 Workflow checks and branch protection are separate. An administrator must enable protection after `gate` has reported once. For a new, unprotected `main`, the owner can run:
 
 ```bash
-gh api --method PUT repos/VXAnvil/VXNIP/branches/main/protection \
+gh api --method PUT repos/VXAnvil/cluster-api-provider-vxnip/branches/main/protection \
   --input .github/main-protection.json
 ```
 

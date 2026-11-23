@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/VXAnvil/VXNIP/internal/discovery"
+	"github.com/VXAnvil/cluster-api-provider-vxnip/internal/discovery"
 )
 
 type machine struct {

@@ -71,7 +71,7 @@ def pack(directory, role, arch, output, tag, sources=None):
     archive_path.with_suffix('.gz.sha256').write_text(digest + '  ' + archive_path.name + '\n')
     return {'role': role, 'arch': arch, 'size': archive_path.stat().st_size,
             'unpacked_size': total, 'sha256': digest,
-            'url': 'https://github.com/VXAnvil/VXNIP/releases/download/' + tag + '/' + archive_path.name}
+            'url': 'https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/download/' + tag + '/' + archive_path.name}
 
 
 def main():

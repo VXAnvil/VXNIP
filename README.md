@@ -2,9 +2,9 @@
 
 **Virtualized eXecution Node Infrastructure Provider**
 
-[![CI](https://github.com/VXAnvil/VXNIP/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/VXAnvil/VXNIP/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI](https://github.com/VXAnvil/cluster-api-provider-vxnip/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/VXAnvil/cluster-api-provider-vxnip/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![Release: v0.0.3-rc.1](https://img.shields.io/badge/release-v0.0.3--rc.1-orange)](https://github.com/VXAnvil/VXNIP/releases/tag/v0.0.3-rc.1)
+[![Release: v0.0.3-rc.1](https://img.shields.io/badge/release-v0.0.3--rc.1-orange)](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/v0.0.3-rc.1)
 
 A Cluster API infrastructure provider for existing Linux machines. VXNIP discovers hosts over SSH, allocates them to Kubernetes clusters, and supports kubeadm bootstrap and NVIDIA NVKE's generic `infra` contract.
 
@@ -36,7 +36,7 @@ These commands record local inventory and read host information; they do not joi
 
 | Guide | Contents |
 | --- | --- |
-| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/VXAnvil/VXNIP/releases/tag/skill-v0.3.0-rc.1): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
+| [Cluster setup skill](docs/cluster-skill.md) | [Download preview](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.1): Codex/Claude Code setup from prebuilt runtimes, mixed architectures, LAN/optional Tailscale and read-only cluster inspection |
 | [Prepare public inputs](docs/public-inputs.md) | Fresh Ubuntu: fixed source, verified tools, node artifacts and management bundle |
 | [NVKE setup](docs/nvke-quickstart.md) | Management site, worker enrollment, Docker control plane and GPU worker example |
 | [Operations](docs/operations.md) | Images and bundles, terminal configuration, diagnostics and recovery |

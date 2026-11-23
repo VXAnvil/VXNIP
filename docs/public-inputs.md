@@ -81,7 +81,7 @@ export PATH="/usr/local/go/bin:$root/tools:$PATH"
 go version
 
 git clone --depth 1 --branch v0.0.3-rc.1 \
-  https://github.com/VXAnvil/VXNIP.git provider
+  https://github.com/VXAnvil/cluster-api-provider-vxnip.git provider
 git init nvke
 git -C nvke remote add origin https://github.com/dsx-ai-factory/nvke.git
 git -C nvke fetch --depth 1 origin 2f31480b360cbd7fc9d9db7a6ba274a8d0fd5049

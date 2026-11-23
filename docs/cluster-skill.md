@@ -14,11 +14,11 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-Install the [VXNIP skill release](https://github.com/VXAnvil/VXNIP/releases/tag/skill-v0.3.0-rc.1):
+Install the [VXNIP skill release](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.1):
 
 ```bash
 release=skill-v0.3.0-rc.1
-base="https://github.com/VXAnvil/VXNIP/releases/download/$release"
+base="https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/download/$release"
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip" -o vxnip-cluster.zip
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip.sha256" -o vxnip-cluster.zip.sha256
 python3 - <<'PY_VERIFY'
@@ -61,7 +61,7 @@ mkdir -p dist
 python3 scripts/package-cluster-skill.py dist/vxnip-cluster.zip
 ```
 
-The ZIP includes instructions, references and runtime scripts. Site configuration, logs, credentials and private test evidence are excluded. This is a skill/executor package; a manifest pins the separately published AMD64/ARM64 manager and node runtimes downloaded during setup. Packaging a distributable skill fails unless that manifest is included. An offline installer is not yet available.
+The ZIP includes instructions, references and runtime scripts. Published ZIPs retain their original contents; a repository rename does not rewrite an installed skill or its private plans. Finish interrupted runs with their original skill and state before upgrading. Site configuration, logs, credentials and private test evidence are excluded. This is a skill/executor package; a manifest pins the separately published AMD64/ARM64 manager and node runtimes downloaded during setup. Packaging a distributable skill fails unless that manifest is included. An offline installer is not yet available.
 
 For connection JSON examples, exact source pins, safety boundaries, creation and read-only result semantics, state and recovery, see the [executor reference](../skills/vxnip-cluster/references/executor.md).
 

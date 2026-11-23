@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ORIGIN = 'https://github.com/VXAnvil/VXNIP/releases/download/'
+ORIGIN = 'https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/download/'
 
 
 class DownloadBlocked(RuntimeError):
