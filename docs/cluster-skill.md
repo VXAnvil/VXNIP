@@ -14,10 +14,10 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-Install the [VXNIP skill release](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.1):
+Install the [VXNIP skill release](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.2):
 
 ```bash
-release=skill-v0.3.0-rc.1
+release=skill-v0.3.0-rc.2
 base="https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/download/$release"
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip" -o vxnip-cluster.zip
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip.sha256" -o vxnip-cluster.zip.sha256
