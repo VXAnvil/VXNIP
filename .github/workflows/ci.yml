@@ -61,6 +61,8 @@ jobs:
         run: make envtest
       - name: Run tests and require API integration coverage
         run: make test
+      - name: Verify egress in isolated Linux network namespaces
+        run: sudo -n python3 scripts/test_cluster_egress_netns.py --require
       - name: Upload test output
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0

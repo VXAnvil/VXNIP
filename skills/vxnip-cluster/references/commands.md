@@ -34,3 +34,5 @@ kubectl --kubeconfig /home/operator/.config/vxnip/sites/vxnip-lab/management.kub
 ```
 
 The pinned NVKE `get providers` command reports built-in providers; it is not the VXNIP inventory/readiness check. `Provisioned` is NVKE's provisioning status; report Node Ready, actual GPU capacity and fresh network/CUDA probes separately. Pool names are `worker-1`, `worker-2`, etc.; they do not identify CPU versus GPU capability. Keep existing names unless the user explicitly requests a disruptive lifecycle change.
+
+For Pod egress faults, compare host HTTPS with an ordinary Pod first, then distinguish cluster DNS, external DNS, numeric-IP TCP and verified HTTPS. Node Ready or a successful image pull is not Pod egress evidence. See [egress.md](egress.md) for scoped firewall inspection and recovery.

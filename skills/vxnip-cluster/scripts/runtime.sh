@@ -144,6 +144,31 @@ worker)
         bash "$recovery" --install worker "$NODE_IP" "$CP_IP" "$MANAGER_IP" "$MANAGER_IP"
     fi
     systemctl start vxnip-nvke-lab-worker-recovery.service
+    if [[ $WORKER_KIND == baremetal ]]; then
+        unit=$SITE-pod-egress.service
+        expected=$ROOT/pod-egress.service
+        cat >"$expected" <<UNIT
+[Unit]
+Description=Recover scoped VXNIP OVN Pod egress forwarding
+Wants=network-online.target
+After=network-online.target docker.service
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 $ROOT/runtime/egress.py watch $ROOT/settings.json
+Restart=on-failure
+RestartSec=5s
+[Install]
+WantedBy=multi-user.target
+UNIT
+        if [[ -e /etc/systemd/system/$unit ]] && ! cmp -s "$expected" "/etc/systemd/system/$unit"; then
+            echo 'Existing Pod egress service differs; inspect it before replacing it.' >&2
+            exit 1
+        fi
+        install -m 0644 "$expected" "/etc/systemd/system/$unit"
+        systemctl daemon-reload
+        systemctl enable --now "$unit"
+    fi
     if [[ $NETWORK_MODE == lan ]]; then
         # NVKE can reapply netplan and replace the interface carrying NODE_IP.
         # Keep the explicit API /32 through that change without altering defaults.
@@ -175,6 +200,10 @@ UNIT
     ;;
 prepare-host)
     python3 "$ROOT/runtime/prepare.py" "$ROOT/settings.json"
+    ;;
+egress-check)
+    systemctl is-active --quiet "$SITE-pod-egress.service"
+    python3 "$ROOT/runtime/egress.py" check "$ROOT/settings.json"
     ;;
 gpu-worker)
     python3 "$ROOT/runtime/gpu.py" worker "$ROOT/settings.json"

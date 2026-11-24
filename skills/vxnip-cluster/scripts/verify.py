@@ -1,5 +1,6 @@
 """Verify current Host -> infrastructure Machine -> CAPI Machine -> Ready Node."""
 import hashlib
+import egress_check
 import ipaddress
 import itertools
 import json
@@ -122,12 +123,13 @@ def main(settings):
                    source['node'], worker['node']], logs / ('pod-' + str(i) + '-' + stamp + '.log'))
         run_probe(['bash', str(root / 'runtime/service-check.sh'), str(workload), source['node'],
                    worker['node']], logs / ('service-' + str(i) + '-' + stamp + '.log'))
+    egress_result = egress_check.verify(settings, evidence)
     import gpu
     gpu_result = gpu.verify_gpu(settings, evidence)
     result = {'ready': True, 'checked_at': int(time.time()), 'site': plan['site'],
               'workload_cluster': plan['workload_cluster'], 'nodes': evidence,
               'api': api, 'network': {'pod_http_bidirectional': True, 'service_dns_http': True, 'all_node_pairs': True},
-              'gpu': gpu_result, 'client': json.loads((root / 'client.json').read_text()),
+              'egress': egress_result, 'gpu': gpu_result, 'client': json.loads((root / 'client.json').read_text()),
               'workload_kubeconfig': str(workload),
               'plan_digest': hashlib.sha256(json.dumps(plan, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}
     temporary = root / 'result.next'

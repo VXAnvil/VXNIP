@@ -19,6 +19,7 @@ import time
 
 import artifacts as runtime_assets
 import gpu
+import egress_probe
 import prepare
 
 HERE = Path(__file__).resolve().parent
@@ -239,8 +240,9 @@ def workload_name(site):
 
 
 def make_plan(config, get_facts=None):
-    if set(config) - {'site', 'manager', 'workers', 'networks', 'mode', 'network_mode', 'existing', 'artifact_mode'}:
+    if set(config) - {'site', 'manager', 'workers', 'networks', 'mode', 'network_mode', 'existing', 'artifact_mode', 'egress'}:
         raise ValueError('Unknown connection configuration fields')
+    egress_targets = egress_probe.targets(config.get('egress'))
     mode, network_mode = config.get('mode', 'create'), config.get('network_mode', 'lan')
     if mode not in ('create', 'existing') or network_mode not in ('lan', 'tailscale'):
         raise ValueError('Use mode create/existing and network_mode lan/tailscale')
@@ -333,12 +335,15 @@ def make_plan(config, get_facts=None):
             changes.append('Keep manager containers running with unchanged IDs/configuration: ' + ', '.join(manager['preserve_containers']))
         if any(w['gpu'] for w in workers):
             changes.append('Configure isolated NVIDIA CDI, install the fixed device plugin, verify every physical GPU with scheduled CUDA Pods; preserve global NVIDIA policy')
+        if any(w['kind'] == 'baremetal' for w in workers):
+            changes.append('Persist scoped local-gateway Pod forwarding through the actual host uplink; preserve Docker policy and OVN SNAT')
+        changes.append('Verify external DNS, numeric TCP and certificate-validated HTTPS from every workload node')
         changes.append('Export private site-bound nvkectl/workload-kubectl clients; name pools worker-1, worker-2, ... independently of hardware')
     return {'version': 4, 'created': int(time.time()), 'site': site, 'release': RELEASE,
             'workload_cluster': workload_name(site) if mode == 'create' else existing['cluster'],
             'manager': manager, 'workers': workers, 'networks': networks,
             'runtime': runtime_hashes(), 'execution': 'observe-existing' if mode == 'existing' else 'mixed-docker-control-plane',
-            'mode': mode, 'network_mode': network_mode, 'artifact_mode': artifact_mode,
+            'mode': mode, 'network_mode': network_mode, 'artifact_mode': artifact_mode, 'egress': egress_targets,
             'manager_asset': manager_asset, 'artifacts': artifacts, 'existing': existing, 'changes': changes}
 
 
@@ -541,6 +546,9 @@ def apply(plan, state):
             if worker['kind'] == 'baremetal':
                 phase(worker, plan, 'check-protected', log)
         run_step(state, 'join', lambda: phase(manager, plan, 'join', log))
+        for worker in plan['workers']:
+            if worker['kind'] == 'baremetal':
+                phase(worker, plan, 'egress-check', log)
         if any(w.get('gpu') for w in plan['workers']):
             run_step(state, 'gpu-plugin', lambda: phase(manager, plan, 'gpu-plugin', log))
         run_step(state, 'client', lambda: phase(manager, plan, 'client', log))

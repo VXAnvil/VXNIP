@@ -1,18 +1,12 @@
-# VXNIP cluster skill v0.3.0-rc.3
+# VXNIP cluster skill v0.3.0-rc.4
 
-This release turns requested NVIDIA GPU workers into verified schedulable GPU nodes, including ARM64 DGX Spark. Set `gpu: true` on the worker connections. CPU-only installations remain CPU-only; the prebuilt runtime release and source pins are unchanged.
+Fix Pod egress on bare-metal OVN local-gateway workers that share a host with Docker. Host/image-download connectivity and Node Ready previously could pass while ordinary Pod traffic was dropped by Docker's default forwarding policy.
 
-- Prepare an isolated CDI runtime before allocation. Preserve shared Docker/containerd, the driver and global NVIDIA policy, including hosts that reject unprivileged `NVIDIA_VISIBLE_DEVICES` requests.
-- Install NVIDIA device plugin v0.20.2 with CDI-CRI allocation, the required read-only driver-root mount and per-site CDI output. No global environment-variable policy change or privileged plugin is needed.
-- Verify each physical GPU with scheduler-selected CUDA kernel Pods, compare GPU UUIDs, and remove test namespaces. Network acceptance now includes worker-to-worker paths.
-- Name pools `worker-1`, `worker-2`, etc., independently of CPU/GPU capability. The pinned NVKE API has no in-place pool rename; existing clusters are never recycled for naming alone.
-- Export site-bound `nvkectl` and workload `kubectl` entry points that work without sourcing an environment file. Include management/workload commands and explain `Provisioned`, Node Ready and GPU allocation separately.
-- Download each node runtime directly on its target using the same pinned architecture-specific asset, avoiding large archives relayed through the caller or a Tailscale DERP connection.
-- Report preflight blockers across targets. Explicit preparation can disable known unused swap files while retaining files/fstab backups, or initialize a clean Ubuntu cloud-init disable-marker case. Release-mode managers need 40 GiB free disk; source builders retain 100 GiB.
-- Explicitly allowlisted manager containers remain running, with identity/configuration preservation checks. No automatic cache-container removal or global prune.
+- Persist two narrowly scoped forwarding rules through a plan/physical-host-bound recovery service: the current local Pod subnet to the actual uplink, and established/related replies. Preserve the default policy, Docker, routes and OVN-owned SNAT; stop for administrator deny/custom policies or ambiguous iptables backends.
+- Require fresh external DNS, numeric-IP TCP and certificate-validated HTTPS probes on every workload node, including the Docker control plane, before announcing readiness. Record each result and clean temporary probe namespaces by recorded identity.
+- Allow explicit probe targets for networks that restrict public destinations. Distinguish host egress, internal DNS and Pod egress in the operator instructions. Keep OVN/OVS as the CNI implementation.
+- Retain GPU/CDI behavior, hardware-neutral worker naming, source pins and the existing native runtime release.
 
-New plans use schema 4. Interrupted schema-3 runs must retain their original skill, plan and state; replacing runtime files does not authorize replay or adoption. GPU/host preparation and client phases use the same exact-plan receipts and uncertain-mutation guards as the existing executor.
+Validation uses offline behavior tests and a required isolated Linux CI network-namespace test. The kernel test reproduces the dropped connection with existing SNAT, verifies the repair without changing the default policy/NAT/routes, checks real recovery after rule removal/uplink changes and rejects untrusted TLS. No physical Spark is used for this release testing. This is not a fresh end-to-end installation, physical reboot or model/NCCL acceptance claim.
 
-Validation: offline behavioral regression tests cover GPU planning/order/resume, strict NVIDIA-policy preservation, CDI mounts, physical UUID acceptance, probe cleanup, neutral names, explicit preparation, manager container allowlists and site-bound shell execution. The GPU/CDI mechanism and scheduled CUDA kernel were exercised on two real GB10 hosts while developing the fix. This release does not claim a fresh end-to-end reinstallation with the newly packaged executor, physical-host reboot, long-term SPIRE renewal, NCCL or model acceptance. The existing live cluster is preserved.
-
-Download `vxnip-cluster.zip` and its `.sha256` file. Extract as `vxnip-cluster/` into the skill directory of your agent, preserving older versions needed by unfinished runs. GPU drivers/Toolkit must already be installed; inference/model bundles remain separate.
+Changed runtime hashes require fresh reviewed plans for new installations. Preserve the original skill/plan/state for interrupted older runs; this update does not adopt or reinstall active allocations. Download vxnip-cluster.zip and its .sha256 file.

@@ -14,10 +14,10 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-Install the [VXNIP skill release](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.3):
+Install the [VXNIP skill release](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.4):
 
 ```bash
-release=skill-v0.3.0-rc.3
+release=skill-v0.3.0-rc.4
 base="https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/download/$release"
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip" -o vxnip-cluster.zip
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip.sha256" -o vxnip-cluster.zip.sha256
@@ -86,3 +86,5 @@ See the [validation contract](cluster-skill-validation.md) for required checks a
 See the [GPU/CDI reference](../skills/vxnip-cluster/references/gpu.md) for two-Spark inputs and explicit host-preparation flags. The executor uses neutral pool names `worker-1`, `worker-2`, etc. Existing pool names do not change; naming alone never triggers recycling.
 
 The exported `bin/nvkectl` binds its own site and configuration, so invoking its absolute path works without `source`. `bin/workload-kubectl` selects the workload API explicitly. [Operator commands](../skills/vxnip-cluster/references/commands.md) distinguish NVKE provisioning status, actual Node/GPU readiness and VXNIP management inventory.
+
+New local-gateway bare-metal installs persist scoped Docker forwarding recovery. Fresh acceptance requires external DNS, numeric-IP TCP and verified HTTPS from every workload node. See [Pod egress](../skills/vxnip-cluster/references/egress.md) for the Docker/OVN boundary and configurable probe endpoints.

@@ -9,7 +9,7 @@ import sys
 
 def package(output, development=False):
     source = Path(__file__).resolve().parents[1] / 'skills/vxnip-cluster'
-    files = [source / 'SKILL.md', source / 'references/executor.md', source / 'references/gpu.md', source / 'references/commands.md']
+    files = [source / 'SKILL.md', source / 'references/executor.md', source / 'references/gpu.md', source / 'references/commands.md', source / 'references/egress.md']
     manifest = source / 'references/runtime-artifacts.json'
     if manifest.is_file():
         sys.path.insert(0, str(source / 'scripts'))
