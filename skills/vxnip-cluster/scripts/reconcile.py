@@ -14,7 +14,8 @@ def reconcile(plan, state, step):
     journal = json.loads((state / 'journal.json').read_text())
     if journal.get(step, {}).get('state') not in ('unknown', 'running'):
         raise ValueError('Only an uncertain step can be reconciled')
-    prefixes = {'prepare-worker-': 'worker', 'protect-worker-': 'protect', 'tailscale-worker-': 'tailscale-worker'}
+    prefixes = {'prepare-worker-': 'worker', 'protect-worker-': 'protect', 'tailscale-worker-': 'tailscale-worker',
+                'prepare-host-': 'prepare-host', 'gpu-worker-': 'gpu-worker', 'fetch-worker-': 'fetch-node'}
     prefix = next((prefix for prefix in prefixes if step.startswith(prefix)), None)
     if prefix:
         index = int(step.removeprefix(prefix))
@@ -25,8 +26,8 @@ def reconcile(plan, state, step):
         if builder == 'manager':
             raise ValueError('Manager build uses the build receipt')
         node, phase = plan['workers'][int(builder.split('-')[1])], 'fetch-node' if step.startswith('fetch-arch-') else 'node-assets'
-    elif step in ('fetch-manager', 'prepare-manager', 'load-manager', 'build', 'management', 'control-plane', 'handoff', 'join'):
-        node, phase = plan['manager'], step
+    elif step in ('fetch-manager', 'prepare-manager', 'load-manager', 'build', 'management', 'control-plane', 'handoff', 'join', 'gpu-plugin', 'client', 'protect-manager'):
+        node, phase = plan['manager'], 'protect' if step == 'protect-manager' else step
     else:
         raise ValueError('Staging did not return success; inspect the private state before manual recovery')
     current = cluster.probe(cluster.connection(node))

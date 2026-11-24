@@ -1,4 +1,4 @@
-"""Register known SSH-verified hosts and create fixed CPU pools through NVKE."""
+"""Register known SSH-verified hosts and create neutral worker pools through NVKE."""
 import json
 import os
 from pathlib import Path
@@ -56,14 +56,14 @@ def main(settings):
                 or host['status'].get('claim')
                 or host['status'].get('observedGeneration') != host['metadata']['generation']):
             raise ValueError('Host identity or claim differs before allocation')
-        pool = {'clusterID': cluster, 'name': 'cpu-' + str(i), 'nodeNamePrefix': 'cpu' + str(i),
+        pool = {'clusterID': cluster, 'name': 'worker-' + str(i + 1), 'nodeNamePrefix': 'worker' + str(i + 1),
                 'desiredNodeCount': 1, 'systemReservedMemory': '512Mi', 'kubeReservedMemory': '256Mi',
                 'nodeLabels': {'vxnip.nvke.dev/gateway': 'local'}, 'autoModeDisabled': True,
                 'provisioningMonitorDisabled': True,
                 'infra': {'machineTemplate': {'apiVersion': 'infrastructure.cluster.x-k8s.io/v1alpha1',
                           'kind': 'VXNIPMachineTemplate', 'spec': {'template': {'spec': {
                               'hostRef': name, 'bootstrapMode': 'NVKE'}}}}}}
-        path = root / 'tenant' / ('cpu-' + str(i) + '.json')
+        path = root / 'tenant' / ('worker-' + str(i + 1) + '.json')
         path.write_text(json.dumps(pool))
         os.chmod(path, 0o600)
         run([*nvke, 'create', 'nodepool', '-f', str(path)])

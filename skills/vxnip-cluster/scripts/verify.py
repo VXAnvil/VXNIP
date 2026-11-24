@@ -1,6 +1,7 @@
 """Verify current Host -> infrastructure Machine -> CAPI Machine -> Ready Node."""
 import hashlib
 import ipaddress
+import itertools
 import json
 import os
 from pathlib import Path
@@ -64,7 +65,7 @@ def run_probe(args, log):
         raise ValueError('Network probe failed; inspect private log ' + str(log))
 
 
-def main(settings):
+def wait_bindings(settings):
     plan, root = settings['plan'], Path(settings['root'])
     workload = root / 'tenant/workload.kubeconfig'
     kube = ['kubectl', '--kubeconfig', str(workload), '--request-timeout=20s']
@@ -104,17 +105,29 @@ def main(settings):
                 time.sleep(5)
         else:
             raise ValueError('Timed out waiting for verified node binding: ' + str(last_error))
+    return evidence
+
+
+def main(settings):
+    plan, root = settings['plan'], Path(settings['root'])
+    workload = root / 'tenant/workload.kubeconfig'
+    cp_ip = str(ipaddress.ip_network(plan['networks']['docker']).network_address + 20)
+    api = 'https://' + cp_ip + ':6443'
+    evidence = wait_bindings(settings)
     logs = root / 'verification-logs'
     logs.mkdir(mode=0o700, exist_ok=True)
-    for i, worker in enumerate(evidence[1:]):
+    for i, (source, worker) in enumerate(itertools.combinations(evidence, 2)):
         stamp = str(time.time_ns())
         run_probe(['bash', str(root / 'runtime/pod-check.sh'), str(workload), api,
-                   evidence[0]['node'], worker['node']], logs / ('pod-' + str(i) + '-' + stamp + '.log'))
-        run_probe(['bash', str(root / 'runtime/service-check.sh'), str(workload), evidence[0]['node'],
+                   source['node'], worker['node']], logs / ('pod-' + str(i) + '-' + stamp + '.log'))
+        run_probe(['bash', str(root / 'runtime/service-check.sh'), str(workload), source['node'],
                    worker['node']], logs / ('service-' + str(i) + '-' + stamp + '.log'))
+    import gpu
+    gpu_result = gpu.verify_gpu(settings, evidence)
     result = {'ready': True, 'checked_at': int(time.time()), 'site': plan['site'],
               'workload_cluster': plan['workload_cluster'], 'nodes': evidence,
-              'api': api, 'network': {'pod_http_bidirectional': True, 'service_dns_http': True},
+              'api': api, 'network': {'pod_http_bidirectional': True, 'service_dns_http': True, 'all_node_pairs': True},
+              'gpu': gpu_result, 'client': json.loads((root / 'client.json').read_text()),
               'workload_kubeconfig': str(workload),
               'plan_digest': hashlib.sha256(json.dumps(plan, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}
     temporary = root / 'result.next'

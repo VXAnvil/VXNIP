@@ -4,9 +4,9 @@ The portable [`vxnip-cluster` skill](../skills/vxnip-cluster/SKILL.md) includes 
 
 Choose the mode explicitly. `existing` inspects and preserves the named cluster: no remote uploads, sudo, builds, installations, route updates or new probe Pods. `create` prepares a new dedicated management site and unallocated workers. It cannot adopt existing allocations, add nodes to an existing site or upgrade an active cluster. This prevents an existing machine connection from implicitly authorizing reinstallation.
 
-A fresh manager needs Ubuntu 24.04, 6 CPUs, 16 GiB total/12 GiB available RAM and 100 GiB free disk. Workers need Ubuntu 24.04, 2 CPUs, 4 GiB RAM and 20 GiB free disk. Creation requires trusted SSH and non-interactive sudo. Existing mode can inspect mixed allocated hosts without those build resources or sudo.
+A fresh manager needs Ubuntu 24.04, 6 CPUs, 16 GiB total/12 GiB available RAM and 40 GiB free disk in release mode (100 GiB for source builds). Workers need Ubuntu 24.04, 2 CPUs, 4 GiB RAM and 20 GiB free disk. Creation requires trusted SSH and non-interactive sudo. Existing mode can inspect mixed allocated hosts without those build resources or sudo.
 
-Bare-metal creation retains the shared Docker/containerd 2.x runtime, driver, existing containers and default route while preparing an isolated NVKE runtime and OVN local gateway. Unknown allocation/CNI state blocks creation. Architecture-specific runtime assets are built on native publisher machines and downloaded with pinned SHA-256 checksums. User machines do not need Go, a compiler or source/image builds. Developer-only `artifact_mode: source` retains the source builders and their additional resource requirements. GPU configuration and model deployment are separate.
+Bare-metal creation retains the shared Docker/containerd 2.x runtime, driver, existing containers and default route while preparing an isolated NVKE runtime and OVN local gateway. Unknown allocation/CNI state blocks creation. Architecture-specific runtime assets are built on native publisher machines and downloaded with pinned SHA-256 checksums. User machines do not need Go, a compiler or source/image builds. Developer-only `artifact_mode: source` retains the source builders and their additional resource requirements. Requested NVIDIA workers opt in with `gpu: true`; the executor configures isolated CDI and verifies scheduled CUDA kernels. Drivers and global NVIDIA policy are preserved. Model deployment remains separate.
 
 LAN is the default: machines on the same directly connected subnet do not need Tailscale installed, an account or route approval. One manager can prepare multiple AMD64/ARM64 workers. Cross-VLAN routing is not yet supported by the LAN preflight.
 
@@ -14,10 +14,10 @@ Only when explicitly selecting `network_mode: tailscale` must Tailscale already 
 
 ## Install and use
 
-Install the [VXNIP skill release](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.2):
+Install the [VXNIP skill release](https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/tag/skill-v0.3.0-rc.3):
 
 ```bash
-release=skill-v0.3.0-rc.2
+release=skill-v0.3.0-rc.3
 base="https://github.com/VXAnvil/cluster-api-provider-vxnip/releases/download/$release"
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip" -o vxnip-cluster.zip
 curl --proto '=https' --proto-redir '=https' -fL "$base/vxnip-cluster.zip.sha256" -o vxnip-cluster.zip.sha256
@@ -80,3 +80,9 @@ Fresh release acceptance records the exact artifacts and checks described in [va
 CAPI v1beta2 may publish a name-only `status.nodeRef`. The verifier checks a supplied Node UID strictly; if omitted it reports `node_ref_uid_verified: false`, retains the observed Node UID for preservation comparisons, and still requires the exact allocation-derived providerID, physical Host identity, expected address and Node Ready. It does not invent a UID or accept a mismatched providerID.
 
 See the [validation contract](cluster-skill-validation.md) for required checks and coverage limits. Detailed site evidence remains local.
+
+## NVIDIA workers and usable clients
+
+See the [GPU/CDI reference](../skills/vxnip-cluster/references/gpu.md) for two-Spark inputs and explicit host-preparation flags. The executor uses neutral pool names `worker-1`, `worker-2`, etc. Existing pool names do not change; naming alone never triggers recycling.
+
+The exported `bin/nvkectl` binds its own site and configuration, so invoking its absolute path works without `source`. `bin/workload-kubectl` selects the workload API explicitly. [Operator commands](../skills/vxnip-cluster/references/commands.md) distinguish NVKE provisioning status, actual Node/GPU readiness and VXNIP management inventory.

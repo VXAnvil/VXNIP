@@ -41,7 +41,7 @@ def facts():
     kernel = os.uname().release
     containers, networks = [], []
     if shutil.which('docker'):
-        raw = command(['docker', 'ps', '-aq'])
+        raw = command(['docker', 'ps', '-aq', '--no-trunc'])
         containers = raw.split()
         ids = command(['docker', 'network', 'ls', '-q']).split()
         if ids:
@@ -85,11 +85,37 @@ def facts():
     services = {unit: command(['systemctl', 'show', unit, '-p', 'MainPID', '-p', 'ActiveState', '-p', 'NRestarts'], optional=True)
                 for unit in ('docker.service', 'containerd.service', 'spire-agent.service', 'nvke-agent.service', 'kubelet.service')}
     driver = Path('/proc/driver/nvidia/version')
+    swap_devices = [{'path': fields[0], 'type': fields[1], 'used_kib': int(fields[3])}
+                    for line in Path('/proc/swaps').read_text().splitlines()[1:] if (fields := line.split())]
+    nvidia = None
+    if shutil.which('nvidia-smi'):
+        raw = command(['nvidia-smi', '--query-gpu=name,uuid,driver_version', '--format=csv,noheader'], optional=True)
+        devices = []
+        for line in raw.splitlines():
+            fields = [field.strip() for field in line.split(',')]
+            if len(fields) == 3:
+                devices.append(dict(zip(('name', 'uuid', 'driver_version'), fields)))
+        nvidia = {'devices': sorted(devices, key=lambda d: d['uuid']), 'toolkit_version': command(['nvidia-ctk', '--version'], optional=True),
+                  'runtime': present('/usr/bin/nvidia-container-runtime'), 'cdi_hook': present('/usr/bin/nvidia-cdi-hook'),
+                  'cdi_all': 'nvidia.com/gpu=all' in command(['nvidia-ctk', 'cdi', 'list'], optional=True).splitlines()}
+    container_details = []
+    if containers:
+        for c in json.loads(command(['docker', 'inspect', *containers]) or '[]'):
+            container_details.append({'id': c['Id'], 'name': c['Name'].lstrip('/'), 'image': c['Image'],
+                'running': c['State']['Running'], 'pid': c['State']['Pid'], 'started': c['State']['StartedAt'],
+                'config_digest': hashlib.sha256(json.dumps({'config': c['Config'], 'host': c['HostConfig']},
+                                                         sort_keys=True).encode()).hexdigest()})
     return {'machine_id': hashlib.sha256(('vxnip:' + mid).encode()).hexdigest(), 'hostname': os.uname().nodename,
             'os': release.get('ID', '').strip('"'), 'version': release.get('VERSION_ID', '').strip('"'),
             'arch': command(['dpkg', '--print-architecture']), 'cpus': os.cpu_count(), 'memory': mem['MemTotal'],
             'available_memory': mem['MemAvailable'], 'free_disk': shutil.disk_usage('/var/lib').free,
             'swap': bool(Path('/proc/swaps').read_text().splitlines()[1:]),
+            'swap_devices': swap_devices,
+            'cloud_init_preparable': (bool(shutil.which('cloud-init')) and present('/etc/cloud/cloud-init.disabled') is True
+                and present('/var/lib/cloud/vxnip-nvke-cloud-init.disabled') is False
+                and present('/var/lib/cloud/seed/nocloud') is False
+                and present('/etc/cloud/cloud.cfg.d/zz-vxnip-nvke-lab.cfg') is False),
+            'nvidia': nvidia, 'container_details': sorted(container_details, key=lambda d: d['id']),
             'virtualization': command(['systemd-detect-virt', '--vm'], optional=True),
             'container': command(['systemd-detect-virt', '--container'], optional=True),
             'addresses': json.loads(command(['ip', '-j', '-4', 'address', 'show']) or '[]'),

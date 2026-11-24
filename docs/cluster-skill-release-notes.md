@@ -1,15 +1,18 @@
-# VXNIP cluster skill v0.3.0-rc.2
+# VXNIP cluster skill v0.3.0-rc.3
 
-This prerelease updates the portable skill for the canonical repository, [`VXAnvil/cluster-api-provider-vxnip`](https://github.com/VXAnvil/cluster-api-provider-vxnip). Runtime download URLs, source checkout URLs and publisher metadata use that address. Developer source builds validate the native controller/API without rejecting the historical module declaration in the pinned source commit.
+This release turns requested NVIDIA GPU workers into verified schedulable GPU nodes, including ARM64 DGX Spark. Set `gpu: true` on the worker connections. CPU-only installations remain CPU-only; the prebuilt runtime release and source pins are unchanged.
 
-It continues to use `runtime-v0.3.0-rc.1`: the runtime source pins, archive bytes and SHA-256 checksums are unchanged. Previous skill releases and their attachments remain available. This release does not upgrade existing allocations or rewrite an installed skill's private plans; finish interrupted runs with their original skill and state before upgrading.
+- Prepare an isolated CDI runtime before allocation. Preserve shared Docker/containerd, the driver and global NVIDIA policy, including hosts that reject unprivileged `NVIDIA_VISIBLE_DEVICES` requests.
+- Install NVIDIA device plugin v0.20.2 with CDI-CRI allocation, the required read-only driver-root mount and per-site CDI output. No global environment-variable policy change or privileged plugin is needed.
+- Verify each physical GPU with scheduler-selected CUDA kernel Pods, compare GPU UUIDs, and remove test namespaces. Network acceptance now includes worker-to-worker paths.
+- Name pools `worker-1`, `worker-2`, etc., independently of CPU/GPU capability. The pinned NVKE API has no in-place pool rename; existing clusters are never recycled for naming alone.
+- Export site-bound `nvkectl` and workload `kubectl` entry points that work without sourcing an environment file. Include management/workload commands and explain `Provisioned`, Node Ready and GPU allocation separately.
+- Download each node runtime directly on its target using the same pinned architecture-specific asset, avoiding large archives relayed through the caller or a Tailscale DERP connection.
+- Report preflight blockers across targets. Explicit preparation can disable known unused swap files while retaining files/fstab backups, or initialize a clean Ubuntu cloud-init disable-marker case. Release-mode managers need 40 GiB free disk; source builders retain 100 GiB.
+- Explicitly allowlisted manager containers remain running, with identity/configuration preservation checks. No automatic cache-container removal or global prune.
 
-Download `vxnip-cluster.zip` and `vxnip-cluster.zip.sha256`, verify the checksum, and follow the [installation guide](https://github.com/VXAnvil/cluster-api-provider-vxnip/blob/skill-v0.3.0-rc.2/docs/cluster-skill.md).
+New plans use schema 4. Interrupted schema-3 runs must retain their original skill, plan and state; replacing runtime files does not authorize replay or adoption. GPU/host preparation and client phases use the same exact-plan receipts and uncertain-mutation guards as the existing executor.
 
-VXNIP means Virtualized eXecution Node Infrastructure Provider. This release uses native VXNIP APIs and node state. Start a fresh site with unallocated Ubuntu 24.04 hosts. The skill downloads pinned AMD64/ARM64 native runtimes and verifies their size, checksum and source metadata before installation.
+Validation: offline behavioral regression tests cover GPU planning/order/resume, strict NVIDIA-policy preservation, CDI mounts, physical UUID acceptance, probe cleanup, neutral names, explicit preparation, manager container allowlists and site-bound shell execution. The GPU/CDI mechanism and scheduled CUDA kernel were exercised on two real GB10 hosts while developing the fix. This release does not claim a fresh end-to-end reinstallation with the newly packaged executor, physical-host reboot, long-term SPIRE renewal, NCCL or model acceptance. The existing live cluster is preserved.
 
-The Provider core, native runtime and skill are versioned separately. The bundled catalog identifies the exact core commit and NVKE source used by the downloaded runtime. CI requires tests, generated CRDs and both architecture builds before publishing.
-
-The default LAN path requires a directly connected subnet. Tailscale is optional for remote nodes and may require external route approval. Existing-mode inspection remains read-only. Interrupted mutation state is not permission to replay installers.
-
-The skill stops after cluster/node and network acceptance. GPU configuration, model downloads, training and high availability are outside this release.
+Download `vxnip-cluster.zip` and its `.sha256` file. Extract as `vxnip-cluster/` into the skill directory of your agent, preserving older versions needed by unfinished runs. GPU drivers/Toolkit must already be installed; inference/model bundles remain separate.

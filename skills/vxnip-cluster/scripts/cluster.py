@@ -18,6 +18,8 @@ import tempfile
 import time
 
 import artifacts as runtime_assets
+import gpu
+import prepare
 
 HERE = Path(__file__).resolve().parent
 BUNDLE_MANIFEST = HERE.parent / 'references/runtime-artifacts.json'
@@ -113,29 +115,47 @@ def probe(target, require_root=True):
     return value
 
 
-def node_info(config, facts, role, mode='create', network_mode='lan'):
+def node_info(config, facts, role, mode='create', network_mode='lan', artifact_mode='source'):
     if facts['os'] != 'ubuntu' or facts['version'] != '24.04' or facts['arch'] not in ('amd64', 'arm64'):
         raise ValueError(role + ': requires Ubuntu 24.04 AMD64/ARM64')
     kind = 'vm' if facts['virtualization'] else 'baremetal'
     if config.get('kind', kind) != kind or facts.get('container'):
         raise ValueError(role + ': observed machine type differs or is a container')
+    preparation = prepare.actions(config, facts, role, kind) if mode == 'create' else []
+    if mode == 'existing' and any(config.get('prepare', {}).values()):
+        raise ValueError('Existing mode cannot prepare or reconfigure hosts')
+    wants_gpu = config.get('gpu', False)
+    if type(wants_gpu) is not bool or wants_gpu and (role != 'worker' or kind != 'baremetal'):
+        raise ValueError('gpu must be a boolean on a bare-metal worker')
+    if wants_gpu and mode == 'create':
+        gpu.validate_host(facts)
     if mode == 'create' and network_mode == 'tailscale' and (facts.get('tailscale_state') != 'Running' or facts.get('tailscale') is None or not any(
             iface.get('ifname') == 'tailscale0' for iface in facts['addresses'])):
         raise ValueError(role + ': Tailscale must already be installed and authenticated')
-    if mode == 'create' and (facts['allocated'] is not False or facts['swap'] or facts.get('existing_cni', False) is not False):
+    if mode == 'create' and (facts['allocated'] is not False or facts['swap'] and 'disable_swap' not in preparation or facts.get('existing_cni', False) is not False):
         raise ValueError(role + ': existing allocation, CNI or swap; no automatic reset/swap removal')
-    min_cpu, min_memory, min_disk = (6, 16, 100) if role == 'manager' else (2, 4, 20)
+    min_cpu, min_memory, min_disk = (6, 16, 40 if artifact_mode == 'release' else 100) if role == 'manager' else (2, 4, 20)
     if mode == 'create' and (facts['cpus'] < min_cpu or facts['memory'] < min_memory * 2**30 * 0.95
             or facts['free_disk'] < min_disk * 2**30):
         raise ValueError(f'{role}: needs {min_cpu} CPUs, {min_memory} GiB RAM and {min_disk} GiB free disk')
     cloud = facts.get('cloud_init', {})
-    if mode == 'create' and (cloud.get('status') != 'done' or cloud.get('errors') or any(
+    if mode == 'create' and (cloud.get('status') != 'done' and 'cloud_init' not in preparation or cloud.get('errors') or any(
             key != 'DEPRECATED' for key in cloud.get('recoverable_errors', {}))):
         raise ValueError(role + ': cloud-init must complete without non-deprecation errors')
     if mode == 'create' and facts.get('unknown'):
         raise ValueError(role + ': required inventory observations are unknown')
+    allowed = config.get('preserve_containers', [])
+    if not isinstance(allowed, list) or any(not isinstance(name, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*', name) for name in allowed) or len(set(allowed)) != len(allowed):
+        raise ValueError('preserve_containers must list distinct exact container names')
+    if allowed and (role != 'manager' or artifact_mode != 'release'):
+        raise ValueError('Existing manager containers can only be preserved in release mode')
     if mode == 'create' and facts['containers'] and (role == 'manager' or kind == 'vm'):
-        raise ValueError(role + ': dedicated manager/VM must not have existing containers')
+        details = facts.get('container_details', [])
+        if (role != 'manager' or not allowed or {d['name'] for d in details} != set(allowed)
+                or {d['id'] for d in details} != set(facts['containers'])):
+            raise ValueError(role + ': existing containers require an exact preserve_containers allowlist; never stop/remove them implicitly')
+    elif mode == 'create' and allowed:
+        raise ValueError('Preserved manager containers were not found')
     if mode == 'create' and role == 'manager' and facts.get('available_memory', facts['memory']) < 12 * 2**30:
         raise ValueError('manager: at least 12 GiB available RAM required for the management stack')
     if mode == 'create' and role == 'manager' and not facts['kernel_config']:
@@ -169,7 +189,9 @@ def node_info(config, facts, role, mode='create', network_mode='lan'):
         raise ValueError('worker: select a non-root account with a /home directory using worker_user')
     result = {'ssh': config['ssh'], 'address': address, 'subnet': str(interfaces[0].network),
               'user': user, 'facts': facts, 'kind': kind,
-              'scheduling': 'experimental-NoSchedule' if kind == 'baremetal' and role == 'worker' else 'standard'}
+              'scheduling': 'experimental-NoSchedule' if kind == 'baremetal' and role == 'worker' else 'standard',
+              'gpu': wants_gpu, 'prepare': config.get('prepare', {}), 'preparation': preparation,
+              'preserve_containers': allowed}
     if config.get('control_path'):
         result['control_path'] = str(Path(config['control_path']).expanduser().absolute())
     return result
@@ -235,13 +257,23 @@ def make_plan(config, get_facts=None):
     workers = config.get('workers', [])
     if not isinstance(workers, list) or not workers:
         raise ValueError('At least one worker is required')
-    manager = node_info(config['manager'], get_facts(connection(config['manager'])), 'manager', mode, network_mode)
-    workers = [node_info(w, get_facts(connection(w)), 'worker', mode, network_mode) for w in workers]
+    discovered, blockers = [], []
+    for role, target in [('manager', config['manager']), *[('worker', w) for w in workers]]:
+        try:
+            discovered.append(node_info(target, get_facts(connection(target)), role, mode, network_mode, artifact_mode))
+        except (ValueError, RuntimeError) as error:
+            blockers.append(target['ssh'] + ': ' + str(error))
+    if blockers:
+        raise ValueError('Discovery blockers:\n' + '\n'.join(blockers))
+    manager, workers = discovered[0], discovered[1:]
     nodes = [manager, *workers]
     if len({n['facts']['machine_id'] for n in nodes}) != len(nodes):
         raise ValueError('Machines must have distinct machine IDs; aliases cannot refer to the same host')
     if len({n['facts']['hostname'] for n in nodes}) != len(nodes):
         raise ValueError('Machines must have distinct hostnames')
+    gpu_uuids = [d['uuid'] for n in workers if n.get('gpu') for d in n['facts']['nvidia']['devices']]
+    if len(set(gpu_uuids)) != len(gpu_uuids):
+        raise ValueError('Different workers must not report the same physical GPU UUID')
     if len({n['address'] for n in nodes}) != len(nodes):
         raise ValueError('Node addresses must be unique')
     lan = ipaddress.ip_network(manager['subnet'])
@@ -283,7 +315,7 @@ def make_plan(config, get_facts=None):
             artifacts = {}
             for i, node in enumerate(workers):
                 arch = node['facts']['arch']
-                artifacts.setdefault(arch, {'builder': 'worker-' + str(i), 'asset': catalog['assets']['node-' + arch]})
+                artifacts.setdefault(arch, {'delivery': 'direct-download', 'asset': catalog['assets']['node-' + arch]})
             changes = ['Download and verify the pinned prebuilt manager/node runtimes; never fall back to a source build',
                        'Install runtime prerequisites; no Go/compiler/image build on user machines']
         changes += ['Create new management and workload control plane; do not adopt existing allocations',
@@ -294,10 +326,18 @@ def make_plan(config, get_facts=None):
         if network_mode == 'tailscale':
             changes += ['Merge API/SPIRE route advertisements without SNAT; accept routes on workers',
                         'Require externally approved tailnet routes/grants; derive OVN MTU from all peer routes']
-    return {'version': 3, 'created': int(time.time()), 'site': site, 'release': RELEASE,
+        for node in workers:
+            if node['preparation']:
+                changes.append(node['ssh'] + ': explicitly prepare ' + ', '.join(node['preparation']) + '; preserve files and shared services')
+        if manager['preserve_containers']:
+            changes.append('Keep manager containers running with unchanged IDs/configuration: ' + ', '.join(manager['preserve_containers']))
+        if any(w['gpu'] for w in workers):
+            changes.append('Configure isolated NVIDIA CDI, install the fixed device plugin, verify every physical GPU with scheduled CUDA Pods; preserve global NVIDIA policy')
+        changes.append('Export private site-bound nvkectl/workload-kubectl clients; name pools worker-1, worker-2, ... independently of hardware')
+    return {'version': 4, 'created': int(time.time()), 'site': site, 'release': RELEASE,
             'workload_cluster': workload_name(site) if mode == 'create' else existing['cluster'],
             'manager': manager, 'workers': workers, 'networks': networks,
-            'runtime': runtime_hashes(), 'execution': 'observe-existing' if mode == 'existing' else 'cpu-mixed-docker-control-plane',
+            'runtime': runtime_hashes(), 'execution': 'observe-existing' if mode == 'existing' else 'mixed-docker-control-plane',
             'mode': mode, 'network_mode': network_mode, 'artifact_mode': artifact_mode,
             'manager_asset': manager_asset, 'artifacts': artifacts, 'existing': existing, 'changes': changes}
 
@@ -306,7 +346,7 @@ def checked_plan(path, expected=None):
     plan = json.loads(Path(path).read_text())
     if expected and digest(plan) != expected:
         raise ValueError('Plan digest differs from the reviewed plan')
-    if plan.get('version') != 3 or plan['release'] != RELEASE or plan['runtime'] != runtime_hashes():
+    if plan.get('version') != 4 or plan['release'] != RELEASE or plan['runtime'] != runtime_hashes():
         raise ValueError('Runtime/source changed; create and review a new plan')
     if plan.get('mode') == 'create' and plan.get('workload_cluster') != workload_name(plan['site']):
         raise ValueError('Workload cluster name must be distinct from the management site')
@@ -444,6 +484,8 @@ def apply(plan, state):
         current = probe(connection(node))
         if any(current[k] != node['facts'][k] for k in ('machine_id', 'host_key', 'arch', 'kernel')):
             raise ValueError('Machine identity/architecture/kernel changed on ' + node['ssh'])
+        if node.get('gpu') and (current.get('nvidia') != node['facts'].get('nvidia') or current.get('driver') != node['facts'].get('driver')):
+            raise ValueError('GPU hardware/driver/toolkit changed since the reviewed plan')
         current_nodes.append(current)
     journal_file = state / 'journal.json'
     journal = json.loads(journal_file.read_text()) if journal_file.exists() else {}
@@ -454,7 +496,11 @@ def apply(plan, state):
         fresh_nodes = []
         for node, current in zip([plan['manager'], *plan['workers']], current_nodes):
             fresh_nodes.append(node_info(node, current, 'manager' if node == plan['manager'] else 'worker',
-                                         network_mode=plan.get('network_mode', 'lan')))
+                                         network_mode=plan.get('network_mode', 'lan'), artifact_mode=plan.get('artifact_mode', 'release')))
+            if fresh_nodes[-1].get('preparation') != node.get('preparation'):
+                raise ValueError('Host preparation requirements changed; review a fresh plan')
+            if node == plan['manager'] and node.get('preserve_containers') and current.get('container_details') != node['facts'].get('container_details'):
+                raise ValueError('Preserved manager container identity/configuration changed since planning')
         select_networks(fresh_nodes, plan['networks'])
         save(binding, {'plan': identity})
     log_file = state / 'execution.log'
@@ -462,6 +508,8 @@ def apply(plan, state):
     with os.fdopen(fd, 'ab', buffering=0) as log:
         manager = plan['manager']
         run_step(state, 'upload-manager', lambda: upload_runtime(manager, plan))
+        if manager.get('preserve_containers'):
+            run_step(state, 'protect-manager', lambda: phase(manager, plan, 'protect', log))
         manager_steps = ('fetch-manager', 'prepare-manager', 'load-manager') if plan.get('artifact_mode', 'release') == 'release' else ('build',)
         for name in (*manager_steps, 'management', 'control-plane', 'handoff'):
             run_step(state, name, lambda name=name: phase(manager, plan, name, log))
@@ -471,28 +519,38 @@ def apply(plan, state):
             if worker['kind'] == 'baremetal':
                 run_step(state, f'protect-worker-{i}', lambda worker=worker: phase(worker, plan, 'protect', log))
         for arch, source in plan.get('artifacts', {}).items():
-            if source['builder'] != 'manager':
+            if plan.get('artifact_mode') == 'source' and source['builder'] != 'manager':
                 builder = plan['workers'][int(source['builder'].split('-')[1])]
-                source_mode = plan.get('artifact_mode', 'release') == 'source'
-                step = ('build-arch-' if source_mode else 'fetch-arch-') + arch
-                action = 'node-assets' if source_mode else 'fetch-node'
-                run_step(state, step, lambda builder=builder, action=action: phase(builder, plan, action, log))
+                run_step(state, 'build-arch-' + arch, lambda builder=builder: phase(builder, plan, 'node-assets', log))
         if plan.get('network_mode') == 'tailscale':
             for i, worker in enumerate(plan['workers']):
                 run_step(state, f'tailscale-worker-{i}', lambda worker=worker: phase(worker, plan, 'tailscale-worker', log))
         for i, worker in enumerate(plan['workers']):
-            builder = artifact_builder(plan, worker)
-            if builder != worker:
-                run_step(state, f'artifacts-worker-{i}', lambda builder=builder, worker=worker: transfer_artifacts(builder, worker, plan, log))
+            if plan.get('artifact_mode', 'release') == 'release':
+                # Download on the target: never relay a large node archive via the caller/DERP.
+                run_step(state, f'fetch-worker-{i}', lambda worker=worker: phase(worker, plan, 'fetch-node', log))
+            else:
+                builder = artifact_builder(plan, worker)
+                if builder != worker:
+                    run_step(state, f'artifacts-worker-{i}', lambda builder=builder, worker=worker: transfer_artifacts(builder, worker, plan, log))
+            if worker.get('preparation'):
+                run_step(state, f'prepare-host-{i}', lambda worker=worker: phase(worker, plan, 'prepare-host', log))
             run_step(state, f'prepare-worker-{i}', lambda worker=worker: phase(worker, plan, 'worker', log))
+            if worker.get('gpu'):
+                run_step(state, f'gpu-worker-{i}', lambda worker=worker: phase(worker, plan, 'gpu-worker', log))
             if worker['kind'] == 'baremetal':
                 phase(worker, plan, 'check-protected', log)
         run_step(state, 'join', lambda: phase(manager, plan, 'join', log))
+        if any(w.get('gpu') for w in plan['workers']):
+            run_step(state, 'gpu-plugin', lambda: phase(manager, plan, 'gpu-plugin', log))
+        run_step(state, 'client', lambda: phase(manager, plan, 'client', log))
         # Verification always runs afresh; completed install checkpoints are not a health claim.
         phase(manager, plan, 'verify', log)
         for worker in plan['workers']:
             if worker['kind'] == 'baremetal':
                 phase(worker, plan, 'check-protected', log)
+        if manager.get('preserve_containers'):
+            phase(manager, plan, 'check-protected', log)
     raw = remote(connection(manager), 'sudo -n cat ' + shlex.quote(root_path(plan) + '/result.json'))
     result = json.loads(raw)
     if result.get('plan_digest') != identity or result.get('ready') is not True:

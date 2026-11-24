@@ -318,10 +318,10 @@ class BootstrapTests(unittest.TestCase):
                 patch.object(cluster, 'remote', return_value=result):
             cluster.apply(plan, self.state)
         self.assertEqual({alias for alias, phase in actions if phase == 'worker'}, {'worker', 'worker2', 'worker3'})
-        self.assertEqual({alias for alias, phase in actions if phase == 'fetch-node'}, {'worker', 'worker2'})
+        self.assertEqual({alias for alias, phase in actions if phase == 'fetch-node'}, {'worker', 'worker2', 'worker3'})
         self.assertIn(('manager', 'fetch-manager'), actions)
         self.assertIn(('manager', 'verify'), actions)
-        self.assertEqual(transfers.call_count, 1)
+        self.assertEqual(transfers.call_count, 0)
         self.assertFalse(any(name in ('build', 'node-assets', 'tailscale-worker') for _, name in actions))
 
     def test_lan_does_not_change_installed_but_unauthenticated_tailscale(self):

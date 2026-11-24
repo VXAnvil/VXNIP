@@ -73,17 +73,17 @@ Existing results use `checks_passed` and `ready: null`. They cover current-gener
 
 ## New-install resources and preservation
 
-The manager must be a dedicated Ubuntu 24.04 AMD64/ARM64 host without existing containers/allocations: 6 CPUs, 16 GiB total and 12 GiB available RAM, 100 GiB free disk, matching kernel config and outbound upstream access. Workers require Ubuntu 24.04, 2 CPUs, 4 GiB RAM, 20 GiB free disk, completed cloud-init and no swap/allocation/CNI. Containerized workers are rejected. Detach NoCloud/config-drive seed media before planning a privileged workload control plane.
+The manager must be a dedicated Ubuntu 24.04 AMD64/ARM64 host without existing allocations; existing containers require an exact reviewed `manager.preserve_containers` allowlist: 6 CPUs, 16 GiB total and 12 GiB available RAM, 40 GiB free disk (100 GiB for source builds), matching kernel config and outbound upstream access. Workers require Ubuntu 24.04, 2 CPUs, 4 GiB RAM, 20 GiB free disk, completed cloud-init and no swap/allocation/CNI. Containerized workers are rejected. Detach NoCloud/config-drive seed media before planning a privileged workload control plane.
 
 A VM uses the dedicated VM preparation script. A bare-metal worker requires a healthy existing Docker/shared containerd 2.x installation; preparation extracts the pinned node tools into an isolated runtime/socket/root, uses OVN local gateway without taking over the physical NIC, appends a restricted Provider public key, and preserves Docker, shared containerd, existing containers, the default route and the NVIDIA driver. The pinned bare-metal helper keeps its `vxnip.nvke.dev/experiment=true:NoSchedule` taint; ordinary workloads need the corresponding toleration, and this executor does not silently remove that scheduling restriction. Shared resources are snapshotted before building/preparation and checked both before allocation and after final verification. Changes stop the run; there is no automatic rollback or reinstall.
 
 Runtime download URLs use the current repository address. Published archives retain their original source pins, bytes and checksums. Developer source builds fetch those exact commits from the current repository; their historical module declarations need not match the current checkout.
 
-Default release mode downloads SHA-256-pinned manager and node runtimes for AMD64/ARM64, selects each worker's native architecture and shares the verified node assets only with workers of that architecture. No compiler, source checkout or image build runs on user machines. Download failure is a resumable gate and does not trigger a source-build fallback.
+Default release mode downloads SHA-256-pinned manager and node runtimes for AMD64/ARM64, selects each worker's native architecture and downloads the verified node assets directly on each matching worker, avoiding large SSH/DERP relays through the caller. No compiler, source checkout or image build runs on user machines. Download failure is a resumable gate and does not trigger a source-build fallback.
 
 Developer-only `artifact_mode: source` compiles on the targets. In that mode, manager-native workers receive the manager's verified artifacts. Each other architecture builds natively on its first suitable worker (6 GiB available RAM and 80 GiB free disk required), and shares that verified artifact tree only with the same architecture. No AMD64 package is reused for ARM64 and no QEMU/binfmt changes are made. The native node-only builder rejects apt removals/upgrades, uses a unique build image name and does not restart shared Docker/containerd or build an extra management stack. An incompatible dependency transaction blocks and requires a separately prepared native build environment; it is not forced through.
 
-The new manager installs runtime prerequisites and Docker, loads Open vSwitch, verifies downloaded runtime assets, initializes Kind/CAPI/NVKE/SPIRE/VXNIP, persists inotify/IPv4 forwarding and starts a privileged Docker workload control plane. The topology is an evaluation path, not HA/production-qualified. GPU drivers, GPU Operator and models are outside scope.
+The new manager installs runtime prerequisites and Docker, loads Open vSwitch, verifies downloaded runtime assets, initializes Kind/CAPI/NVKE/SPIRE/VXNIP, persists inotify/IPv4 forwarding and starts a privileged Docker workload control plane. The topology is an evaluation path, not HA/production-qualified. GPU drivers and global NVIDIA policies are preserved. Opt-in GPU workers receive an isolated CDI configuration and NVIDIA device plugin; model deployment remains outside scope. See [GPU/CDI setup](gpu.md).
 
 ## Tailscale create mode
 
@@ -122,3 +122,19 @@ Receipts cover management/build/control-plane/handoff/join, native architecture 
 New-install verification checks the exact TLS API, current Host generation/claim, VXNIPMachine and CAPI owner/infraRef/nodeRef, Node Ready/address/providerID, public agent certificate expiry, ordinary Pod HTTP both ways and Service DNS/HTTP, followed by bare-metal preservation checks. Temporary namespaces are trap-cleaned; interruption can leave a namespace requiring exact-name inspection/cleanup. This is not a full SPIFFE audit or a health guarantee.
 
 CAPI v1beta2 may publish a name-only `status.nodeRef`. The verifier checks a supplied Node UID strictly; if omitted it reports `node_ref_uid_verified: false`, retains the observed Node UID for preservation comparisons, and still requires the exact allocation-derived providerID, physical Host identity, expected address and Node Ready. It does not invent a UID or accept a mismatched providerID.
+
+## Explicit host preparation and manager caches
+
+The read-only plan reports blockers for every selected host. In release mode the manager disk requirement is 40 GiB, allowing for the fixed prebuilt runtime, imported images and workload state; source builds retain their 100 GiB requirement. This does not clean caches or delete data.
+
+Use `manager.preserve_containers: ["registry-cache"]` only for the exact names discovered and authorized for preservation. Their full IDs, configuration digests, service PIDs, shared socket, driver and default route are bound/snapshotted and checked again. Unexpected containers or drift block the run. The executor keeps these containers running; it does not stop/remove/recreate them.
+
+Bare-metal workers can explicitly request `prepare: {"disable_swap": true, "cloud_init": true}`. Swap preparation accepts known unused swap files only, saves the original fstab and comments the matching entries; swap files are retained. A disabled cloud-init is prepared only for a clean Ubuntu disable-marker scenario, with no existing seed/configuration to replace. The pinned helper disables network/modules, preserves hostname/SSH keys and checks the default route. Unknown allocations, CNI or in-use swap remain blockers.
+
+## GPU, client and recovery additions
+
+Set `gpu: true` for each requested NVIDIA worker. No CPU-only request installs GPU components. Each GPU worker must already have a working driver, NVIDIA Container Toolkit >=1.18, the NVIDIA runtime/CDI hook and a `nvidia.com/gpu=all` CDI spec. Detailed prerequisites and failure coverage are in [gpu.md](gpu.md).
+
+New plans use schema 4. Do not apply them to an installation bound to schema 3 or replace an old run's runtime files: keep its exact original skill/plan/state. New phase receipts cover host preparation, isolated GPU runtime, device-plugin installation, preserved manager resources and private client export; uncertain mutations still require inspection/reconciliation, not automatic replay.
+
+Client export creates private, site-bound `bin/nvkectl` and `bin/workload-kubectl` executables. Their absolute paths work from a fresh SSH shell without `source` or default-context changes. Keep kubeconfigs on the manager; no credentials enter the package. See [commands.md](commands.md). Pool names are hardware-neutral from creation. There is no in-place node-pool rename in the pinned NVKE API; naming alone is not a reason to recycle working machines.

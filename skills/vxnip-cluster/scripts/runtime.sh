@@ -173,6 +173,18 @@ UNIT
         systemctl enable --now "$route_unit"
     fi
     ;;
+prepare-host)
+    python3 "$ROOT/runtime/prepare.py" "$ROOT/settings.json"
+    ;;
+gpu-worker)
+    python3 "$ROOT/runtime/gpu.py" worker "$ROOT/settings.json"
+    ;;
+gpu-plugin)
+    python3 "$ROOT/runtime/gpu.py" install "$ROOT/settings.json"
+    ;;
+client)
+    python3 "$ROOT/runtime/client.py" "$ROOT/settings.json"
+    ;;
 join)
     python3 "$ROOT/runtime/join.py" "$ROOT/settings.json"
     ;;

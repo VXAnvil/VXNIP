@@ -35,6 +35,7 @@ test:
 	$(PYTHON) scripts/test_management_tools.py
 	$(PYTHON) scripts/test_management_bundle.py
 	$(PYTHON) scripts/test_cluster_bootstrap.py
+	$(PYTHON) scripts/test_cluster_gpu.py
 	$(PYTHON) -m unittest discover -s .github/tests -p 'test_*.py' -v
 
 build:
