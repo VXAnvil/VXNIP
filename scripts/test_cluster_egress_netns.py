@@ -67,7 +67,7 @@ class KernelEgressTests(unittest.TestCase):
         # Existing OVN-equivalent SNAT is deliberately installed before the fix.
         self.in_router(['iptables', '-t', 'nat', '-A', 'POSTROUTING', '-s', '10.230.5.0/24', '-j', 'MASQUERADE'])
         self.resolver = Path('/etc/netns') / self.pod
-        self.resolver.mkdir(mode=0o755)
+        self.resolver.mkdir(mode=0o755, parents=True)
         self.addCleanup(shutil.rmtree, self.resolver)
         (self.resolver / 'resolv.conf').write_text('nameserver 1.1.1.1\noptions timeout:1 attempts:1\n')
         self.cert, self.key = self.directory / 'cert.pem', self.directory / 'key.pem'
